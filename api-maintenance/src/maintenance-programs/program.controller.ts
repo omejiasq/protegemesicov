@@ -22,13 +22,13 @@ class ListProgramsQuery {
 export class ProgramsController {
   constructor(private readonly svc: ProgramsService) {}
 
-  @Post()
+  @Post('/create')
   save(@Body() dto: SaveProgramDto, @Req() req: Request) {
     const user = (req as any).user;
     return this.svc.save(dto, user);
   }
 
-  @Get()
+  @Get('/list')
   list(@Query() q: ListProgramsQuery, @Req() req: Request) {
     const user = (req as any).user;
     return this.svc.list(q, user);

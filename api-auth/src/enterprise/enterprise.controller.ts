@@ -15,7 +15,7 @@ export class EnterpriseController {
     return this.enterpriseService.create(body);
   }
 
-  @Get()
+  @Get('getAll')
   async getEnterprises() {
     return this.enterpriseService.findAll();
   }

@@ -1,0 +1,522 @@
+@import "primeflex/primeflex.css";
+@import "primeicons/primeicons.css";
+
+:root {
+  color-scheme: light;
+
+  --primary-color: #3B82F6;
+  --primary-color-hover: #2f68c4;
+  --primary-color-text: #ffffff;
+
+  --surface-0: #ffffff;
+  --surface-50: #fcfcfd;
+  --surface-100: #f6f7fb;
+  --surface-200: #eef0f5;
+  --surface-300: #e7eaf1;
+  --surface-400: #d9dde6;
+  --surface-500: #c8ceda;
+  --surface-600: #b3bacc;
+  --surface-700: #9aa2b8;
+  --surface-800: #848da6;
+  --surface-900: #6e7893;
+
+  --gray-50: #fafafa;
+  --gray-100: #f5f5f5;
+  --gray-200: #eeeeee;
+  --gray-300: #e0e0e0;
+  --gray-400: #bdbdbd;
+  --gray-500: #9e9e9e;
+  --gray-600: #757575;
+  --gray-700: #616161;
+  --gray-800: #424242;
+  --gray-900: #212121;
+
+  --content-padding: 1rem;
+  --inline-spacing: 0.5rem;
+  --border-radius: 6px;
+
+  --surface-ground: #f6f7fb;
+  --surface-section: #ffffff;
+  --surface-card: #ffffff;
+  --surface-overlay: #ffffff;
+  --surface-border: #e5e7eb;
+  --surface-hover: #eef0f5;
+
+  --text-color: #111827;
+  --text-color-secondary: #6b7280;
+
+  --focus-ring: 0 0 0 0.2rem rgba(59,130,246,.25);
+  --maskbg: rgba(0, 0, 0, 0.4);
+  --highlight-bg: #3B82F6;
+  --highlight-text-color: #ffffff;
+
+  --sidebar-w: 300px;
+  --topbar-h: 5rem;
+  --layout-gutter: 1.25rem;
+  --layout-gutter-md: 1.5rem;
+  --layout-gutter-lg: 2rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: light;
+    --surface-card: #ffffff;
+    --surface-ground: #f6f7fb;
+    --surface-overlay: #ffffff;
+    --surface-border: #e5e7eb;
+    --text-color: #111827;
+    --text-color-secondary: #6b7280;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 14px; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol;
+  font-weight: normal;
+  background: var(--surface-ground);
+  color: var(--text-color);
+  padding: 0;
+  margin: 0;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.layout-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--surface-100);
+}
+
+.layout-sidebar,
+.p-sidebar,
+.app-sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  z-index: 999;
+  overflow-y: auto;
+  overflow-x: hidden;
+  width: var(--sidebar-w);
+  background: var(--surface-card) !important;
+  border-right: 1px solid var(--surface-border) !important;
+}
+
+.layout-topbar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: var(--sidebar-w);
+  z-index: 997;
+  height: var(--topbar-h) !important;
+  padding: 0 var(--layout-gutter-lg) !important;
+  background: var(--surface-card);
+  border-bottom: 1px solid var(--surface-border);
+  display: flex;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+  transition: left .3s ease;
+}
+
+.layout-topbar.sidebar-collapsed { left: 0; }
+
+.layout-main-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  margin-left: var(--sidebar-w);
+  padding: calc(var(--topbar-h) + var(--layout-gutter)) var(--layout-gutter-lg) var(--layout-gutter-lg);
+  transition: margin-left .3s ease, padding .2s ease;
+}
+.layout-main-container.sidebar-collapsed { margin-left: 0; }
+
+.layout-main {
+  flex: 1 1 auto;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.card,
+.p-card,
+.p-panel,
+.p-datatable .p-datatable-header,
+.p-datatable .p-datatable-thead > tr > th {
+  background: var(--surface-card) !important;
+  color: var(--text-color) !important;
+  border-color: var(--surface-border) !important;
+}
+
+.card {
+  padding: 2rem;
+  border-radius: var(--border-radius);
+  box-shadow: 0 2px 1px -1px rgba(0,0,0,.2), 0 1px 1px 0 rgba(0,0,0,.14), 0 1px 3px 0 rgba(0,0,0,.12);
+  margin-bottom: 2rem;
+}
+
+
+.surface-ground   { background-color: var(--surface-ground); }
+.surface-section  { background-color: var(--surface-section); }
+.surface-card     { background-color: var(--surface-card); }
+
+.login-wrapper .p-inputtext,
+.login-wrapper .p-password .p-inputtext {
+  background-color: var(--surface-card) !important;
+  color: var(--text-color) !important;
+  border: 1px solid var(--surface-border) !important;
+  background-clip: padding-box;
+}
+
+.login-wrapper .p-inputtext:enabled:hover,
+.login-wrapper .p-password .p-inputtext:enabled:hover {
+  background-color: var(--surface-hover) !important;
+}
+
+.login-wrapper .p-inputtext:enabled:focus,
+.login-wrapper .p-password .p-inputtext:enabled:focus {
+  border-color: var(--primary-color) !important;
+  box-shadow: var(--focus-ring) !important;
+  outline: 0;
+}
+
+.login-wrapper .p-password {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+.login-wrapper .p-password .p-inputtext {
+  width: 100%;
+  box-sizing: border-box;
+  padding-right: 2.5rem;
+}
+.login-wrapper .p-password .p-password-toggle-mask {
+  position: absolute;
+  right: .75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  padding: 0;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--text-color-secondary);
+  width: auto;
+  height: auto;
+}
+
+.login-wrapper input.p-inputtext:-webkit-autofill,
+.login-wrapper .p-password input.p-inputtext:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px var(--surface-card) inset !important;
+  -webkit-text-fill-color: var(--text-color) !important;
+}
+
+@media (max-width: 1200px) {
+  .layout-main-container {
+    padding: calc(var(--topbar-h) + var(--layout-gutter)) var(--layout-gutter-md) var(--layout-gutter-md);
+  }
+  .layout-topbar {
+    padding: 0 var(--layout-gutter-md) !important;
+  }
+}
+
+@media (max-width: 992px) {
+  .layout-topbar { left: 0 !important; }
+  .layout-main-container {
+    margin-left: 0;
+    padding: calc(var(--topbar-h) + 1rem) 1rem 1rem;
+  }
+
+  .layout-sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+  .layout-sidebar.active {
+    transform: translateX(0);
+  }
+}
+
+.p-sidebar-left .p-sidebar { width: var(--sidebar-w); }
+
+.layout-topbar .p-button.p-button-text {
+  color: #111827 !important; 
+}
+.layout-topbar .p-button.p-button-text:hover {
+  color: #1e3a8a !important;
+}
+
+.layout-sidebar,
+.layout-sidebar * {
+  color: var(--text-color) !important; 
+}
+
+.layout-sidebar a {
+  text-decoration: none;
+  color: var(--text-color) !important;
+}
+
+.layout-sidebar .p-menuitem-link:hover {
+  background: var(--surface-hover) !important;
+  color: var(--primary-color) !important;
+}
+
+.page-section {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 10px 20px rgba(0,0,0,.03);
+}
+
+.page-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.p-button-success,
+.p-button-success:enabled:hover {
+  background: #22c55e !important;
+  border-color: #22c55e !important;
+  color: #fff !important;
+}
+
+.filters-bar {
+  background: var(--surface-100);
+  border: 1px solid var(--surface-border);
+  border-radius: 10px;
+  padding: .75rem;
+  margin-bottom: 1rem;
+}
+
+.filters-bar .p-inputtext,
+.filters-bar .p-dropdown,
+.filters-bar .p-dropdown-label {
+  background: var(--surface-card) !important;
+  color: var(--text-color) !important;
+  border: 1px solid var(--surface-border) !important;
+}
+
+.dt-clean :deep(.p-datatable-header) {
+  background: var(--surface-card);
+  border: 0;
+}
+.dt-clean :deep(.p-datatable-thead > tr > th) {
+  background: var(--surface-card);
+  border-top: 0;
+  border-bottom: 1px solid var(--surface-border);
+  font-weight: 600;
+  color: var(--text-color);
+}
+.dt-clean :deep(.p-datatable-tbody > tr) {
+  background: var(--surface-card);
+}
+.dt-clean :deep(.p-datatable-tbody > tr > td) {
+  border: 0;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.dt-clean :deep(.p-paginator) {
+  border: 0;
+  background: var(--surface-card);
+}
+
+.p-tag {
+  border-radius: 999px !important;
+  padding: .25rem .6rem !important;
+  font-weight: 600 !important;
+}
+
+.table-card,
+.table-card * {
+  background: var(--surface-card) !important;
+  color: var(--text-color) !important;
+  border-color: var(--surface-border) !important;
+}
+
+.p-dialog .p-dialog-header,
+.p-dialog .p-dialog-content,
+.p-dialog .p-dialog-footer {
+  background: var(--surface-card) !important;
+  color: var(--text-color) !important;
+  border-color: var(--surface-border) !important;
+}
+
+/* Inputs/areas básicos */
+.p-dialog .p-inputtext,
+.p-dialog textarea {
+  background: var(--surface-card) !important;
+  color: var(--text-color) !important;
+  border: 1px solid var(--surface-border) !important;
+}
+.p-dialog .p-inputtext:enabled:focus,
+.p-dialog textarea:enabled:focus {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 1px var(--primary-color) !important;
+}
+
+/* Divider (títulos de sección) */
+.p-dialog .p-divider.p-divider-horizontal::before { 
+  border-top: 1px solid var(--surface-border) !important;
+}
+.p-dialog .p-divider .p-divider-content {
+  background: var(--surface-card) !important;
+  color: var(--text-color) !important;
+  padding: 0 .5rem;
+  font-weight: 600;
+  font-size: .9rem;
+}
+
+/* Fieldset/legend (por si en alguna vista se usa) */
+.p-dialog fieldset { border-top: 1px solid var(--surface-border) !important; margin: 1rem 0; }
+.p-dialog legend   { background: transparent !important; color: var(--text-color) !important; font-weight: 600; padding: 0 .5rem; font-size: .9rem; }
+
+/* Dropdown (caja, label y trigger) */
+.p-dialog .p-dropdown,
+.p-dialog .p-dropdown .p-dropdown-label,
+.p-dialog .p-dropdown .p-inputtext,
+.p-dialog .p-dropdown .p-dropdown-trigger {
+  background: var(--surface-card) !important;
+  color: var(--text-color) !important;
+  border-color: var(--surface-border) !important;
+}
+.p-dialog .p-dropdown .p-dropdown-trigger {
+  color: var(--text-color-secondary) !important;
+  border-left: 1px solid var(--surface-border) !important;
+}
+
+/* Calendar + addons (iconitos/“cuadritos” de fecha) */
+.p-dialog .p-calendar .p-inputtext {
+  background: var(--surface-card) !important;
+  color: var(--text-color) !important;
+  border: 1px solid var(--surface-border) !important;
+}
+.p-dialog .p-calendar .p-datepicker-trigger,
+.p-dialog .p-calendar .p-button.p-button-icon-only,
+.p-dialog .p-inputgroup > .p-inputgroup-addon,
+.p-dialog .p-calendar .p-inputgroup-addon {
+  background: var(--surface-card) !important;
+  color: var(--text-color-secondary) !important;
+  border: 1px solid var(--surface-border) !important;
+}
+
+.p-dialog .p-checkbox .p-checkbox-box {
+  background: var(--surface-card) !important;
+  border: 1px solid var(--surface-border) !important;
+  color: var(--text-color-secondary) !important;
+}
+.p-dialog .p-checkbox .p-checkbox-box:not(.p-highlight):hover {
+  border-color: var(--primary-color) !important;
+}
+.p-dialog .p-checkbox .p-checkbox-box.p-highlight {
+  background: #22c55e !important;   /* verde checked */
+  border-color: #22c55e !important;
+  color: #fff !important;
+}
+
+/* Placeholders */
+.p-dialog .p-inputtext::placeholder,
+.p-dialog textarea::placeholder {
+  color: var(--text-color-secondary) !important;
+}
+
+.p-input-filled .p-dialog .p-dropdown,
+.p-input-filled .p-dialog .p-dropdown .p-dropdown-label,
+.p-input-filled .p-dialog .p-dropdown .p-inputtext,
+.p-input-filled .p-dialog .p-dropdown .p-dropdown-trigger,
+.p-input-filled .p-dialog .p-calendar .p-inputtext,
+.p-input-filled .p-dialog .p-calendar .p-datepicker-trigger,
+.p-input-filled .p-dialog .p-inputgroup > .p-inputgroup-addon,
+.p-input-filled .p-dialog .p-calendar .p-inputgroup-addon {
+  background: var(--surface-card) !important;
+  color: var(--text-color) !important;
+  border: 1px solid var(--surface-border) !important;
+}
+
+/* Panel emergente del calendario (por si salía oscuro) */
+.p-dialog .p-datepicker {
+  background: var(--surface-card) !important;
+  color: var(--text-color) !important;
+  border: 1px solid var(--surface-border) !important;
+}
+
+/* Centrado vertical del checkbox con su label */
+.p-dialog .p-checkbox {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+.p-dialog .p-checkbox .p-checkbox-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.p-dropdown,
+.p-dropdown .p-dropdown-label,
+.p-dropdown .p-inputtext,
+.p-dropdown .p-dropdown-trigger {
+  background: var(--surface-card) !important;
+  color: var(--text-color) !important;
+  border: 1px solid var(--surface-border) !important;
+}
+.p-dropdown .p-dropdown-trigger {
+  color: var(--text-color-secondary) !important;
+  border-left: 1px solid var(--surface-border) !important;
+}
+
+/* CALENDAR: input + botón/icono + addons */
+.p-calendar .p-inputtext,
+.p-calendar .p-datepicker-trigger,
+.p-calendar .p-button.p-button-icon-only,
+.p-inputgroup > .p-inputgroup-addon,
+.p-calendar .p-inputgroup-addon {
+  background: var(--surface-card) !important;
+  color: var(--text-color) !important;
+  border: 1px solid var(--surface-border) !important;
+}
+
+/* Panel emergente del datepicker */
+.p-datepicker {
+  background: var(--surface-card) !important;
+  color: var(--text-color) !important;
+  border: 1px solid var(--surface-border) !important;
+}
+
+/* Focus consistente */
+.p-dropdown:focus-within,
+.p-calendar .p-inputtext:enabled:focus {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 1px var(--primary-color) !important;
+}
+
+/* Si el tema aplica modo filled, forzamos claro igualmente */
+.p-dropdown,
+.p-dropdown .p-dropdown-label,
+.p-dropdown .p-dropdown-trigger,
+.p-calendar .p-inputtext,
+.p-calendar .p-datepicker-trigger {
+  background: var(--surface-card);
+  color: var(--text-color);
+  border: 1px solid var(--surface-border);
+}
+/* Centrado fino del checkbox junto a su label (no cambia el color verde marcado) */
+.p-checkbox {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+.p-checkbox .p-checkbox-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

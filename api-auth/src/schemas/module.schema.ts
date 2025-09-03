@@ -5,8 +5,6 @@ export type ModuleDocument = Module & Document;
 
 @Schema()
 export class Module {
-  @Prop({ required: true })
-  id: number;
 
   @Prop({ required: true })
   nombre: string;

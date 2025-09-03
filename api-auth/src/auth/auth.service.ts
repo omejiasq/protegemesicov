@@ -6,7 +6,7 @@ import { JwtService } from '@nestjs/jwt';
 export class AuthService {
   constructor(
     private usersService: UsersService,
-    private jwtService: JwtService
+    private jwtService: JwtService,
   ) {}
 
   async register(userInfo: any) {
@@ -18,21 +18,26 @@ export class AuthService {
   }
 
   async login(user: any) {
-    const payload = { sub: user._id, username: user.usuario, enterprise_id: user.enterprise_id };
+    const u = user?.usuario ?? {};
+    const payload = {
+      sub: String(user._id),
+      username: u.usuario,
+      enterprise_id: user.enterprise_id,
+    };
     const token = this.jwtService.sign(payload);
 
     return {
       usuario: {
-        id: user.id,
-        usuario: user.usuario,
-        nombre: user.nombre,
-        apellido: user.apellido || null,
-        telefono: user.telefono || null,
-        correo: user.correo || null,
+        _id: String(u._id ?? ''),
+        usuario: u.usuario ?? null,
+        nombre: u.nombre ?? null,
+        apellido: u.apellido ?? null,
+        telefono: u.telefono ?? null,
+        correo: u.correo ?? null,
       },
       token,
-      rol: user.rol || null,
-      enterprise_id: user.enterprise_id || null,
+      rol: user.rol ?? null,
+      enterprise_id: user.enterprise_id ?? null,
     };
   }
 }

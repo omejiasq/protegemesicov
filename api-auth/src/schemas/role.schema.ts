@@ -6,8 +6,6 @@ export type RoleDocument = Role & Document;
 
 @Schema()
 export class Role {
-  @Prop({ required: true })
-  id: number;
 
   @Prop({ required: true })
   nombre: string;

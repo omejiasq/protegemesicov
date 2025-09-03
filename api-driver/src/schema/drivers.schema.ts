@@ -5,19 +5,18 @@ export type DriverDocument = HydratedDocument<Driver>;
 
 @Schema({ timestamps: true })
 export class Driver {
-    
   @Prop({ type: String, index: true, required: true })
   enterprise_id!: string;
 
-  @Prop({ type: Number, index: true, required: true })
+  @Prop({ type: Number, index: true, required: false })
   idDespacho!: number;
 
-  @Prop({ type: String, required: true })  tipoIdentificacionPrincipal!: string;
-  @Prop({ type: String, required: true })  numeroIdentificacion!: string;
-  @Prop({ type: String, required: true })  primerNombrePrincipal!: string;
-  @Prop({ type: String })                  segundoNombrePrincipal?: string;
-  @Prop({ type: String, required: true })  primerApellidoPrincipal!: string;
-  @Prop({ type: String })                  segundoApellidoPrincipal?: string;
+  @Prop({ type: String, required: true }) tipoIdentificacionPrincipal!: string;
+  @Prop({ type: String, required: true }) numeroIdentificacion!: string;
+  @Prop({ type: String, required: true }) primerNombrePrincipal!: string;
+  @Prop({ type: String }) segundoNombrePrincipal?: string;
+  @Prop({ type: String, required: true }) primerApellidoPrincipal!: string;
+  @Prop({ type: String }) segundoApellidoPrincipal?: string;
 
   @Prop({ type: String }) tipoIdentificacionSecundario?: string;
   @Prop({ type: String }) numeroIdentificacionSecundario?: string;
@@ -28,18 +27,20 @@ export class Driver {
 
   @Prop({ type: String }) idPruebaAlcoholimetria?: string;
   @Prop({ type: String }) resultadoPruebaAlcoholimetria?: string;
-  @Prop({ type: Date })   fechaUltimaPruebaAlcoholimetria?: Date;
+  @Prop({ type: Date }) fechaUltimaPruebaAlcoholimetria?: Date;
   @Prop({ type: String }) idExamenMedico?: string;
-  @Prop({ type: Date })   fechaUltimoExamenMedico?: Date;
+  @Prop({ type: Date }) fechaUltimoExamenMedico?: Date;
 
   @Prop({ type: String }) idPruebaAlcoholimetriaSecundario?: string;
   @Prop({ type: String }) resultadoPruebaAlcoholimetriaSecundario?: string;
-  @Prop({ type: Date })   fechaUltimaPruebaAlcoholimetriaSecundario?: Date;
+  @Prop({ type: Date }) fechaUltimaPruebaAlcoholimetriaSecundario?: Date;
   @Prop({ type: String }) idExamenMedicoSecundario?: string;
-  @Prop({ type: Date })   fechaUltimoExamenMedicoSecundario?: Date;
+  @Prop({ type: Date }) fechaUltimoExamenMedicoSecundario?: Date;
 
   @Prop({ type: String }) licenciaConduccion?: string;
+  @Prop({ type: Date }) licenciaVencimiento?: Date;
   @Prop({ type: String }) licenciaConduccionSecundario?: string;
+
   @Prop({ type: String }) observaciones?: string;
 
   @Prop({ type: Boolean, default: true, index: true })
@@ -49,6 +50,9 @@ export class Driver {
 }
 
 const DriverSchema = SchemaFactory.createForClass(Driver);
-DriverSchema.index({ enterprise_id: 1, idDespacho: 1, numeroIdentificacion: 1 }, { unique: true });
+DriverSchema.index(
+  { enterprise_id: 1, idDespacho: 1, numeroIdentificacion: 1 },
+  { unique: true },
+);
 
 export { DriverSchema };

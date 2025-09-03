@@ -92,7 +92,7 @@ export class IncidentsVehicleController {
     return this.svc.list(q, user);
   }
 
-  @Get(':id')
+  @Get('/getById/:id')
   getById(@Param('id') id: string, @Req() req: Request) {
     const user = (req as any).user;
     return this.svc.getById(id, user);

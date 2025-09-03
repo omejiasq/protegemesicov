@@ -1,11 +1,30 @@
-import { Body, Controller, Get, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  Req,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../libs/auth/jwt-auth.guard';
 import { DriversService } from './drivers.service';
-import { IsBooleanString, IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsBooleanString,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 class CreateDriverDto {
-  @Type(() => Number) @IsInt() idDespacho!: number;
+  @IsOptional() @Type(() => Number) @IsInt() idDespacho?: number;
 
   @IsString() @IsNotEmpty() tipoIdentificacionPrincipal!: string;
   @IsString() @IsNotEmpty() numeroIdentificacion!: string;
@@ -34,6 +53,7 @@ class CreateDriverDto {
   @IsOptional() @IsString() fechaUltimoExamenMedicoSecundario?: string;
 
   @IsOptional() @IsString() licenciaConduccion?: string;
+  @IsOptional() @IsString() licenciaVencimiento?: string;
   @IsOptional() @IsString() licenciaConduccionSecundario?: string;
 
   @IsOptional() @IsString() observaciones?: string;
@@ -54,33 +74,54 @@ class ListDriversQueryDto {
 export class DriversController {
   constructor(private readonly svc: DriversService) {}
 
-  @Post()
+  @Post('create')
+  @UsePipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    }),
+  )
   create(@Body() dto: CreateDriverDto, @Req() req: Request) {
     const user = (req as any).user;
-    return this.svc.create(dto, { enterprise_id: (user as any).enterprise_id, sub: (user as any).sub });
+    return this.svc.create(dto, {
+      enterprise_id: (user as any).enterprise_id,
+      sub: (user as any).sub,
+    });
   }
 
-  @Get()
+  @Get('getAll')
   getAll(@Query() q: ListDriversQueryDto, @Req() req: Request) {
     const user = (req as any).user;
     return this.svc.getAll(q, { enterprise_id: (user as any).enterprise_id });
   }
 
-  @Get(':id')
+  @Get('getById/:id')
   getById(@Param('id') id: string, @Req() req: Request) {
     const user = (req as any).user;
     return this.svc.getById(id, { enterprise_id: (user as any).enterprise_id });
   }
 
-  @Put(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateDriverDto, @Req() req: Request) {
+  @Put('updateById/:id')
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateDriverDto,
+    @Req() req: Request,
+  ) {
     const user = (req as any).user;
-    return this.svc.updateById(id, dto, { enterprise_id: (user as any).enterprise_id, sub: (user as any).sub });
+    return this.svc.updateById(id, dto, {
+      enterprise_id: (user as any).enterprise_id,
+      sub: (user as any).sub,
+    });
   }
 
-  @Patch(':id/toggle')
+  @Patch('toggleState/:id')
   toggle(@Param('id') id: string, @Req() req: Request) {
     const user = (req as any).user;
-    return this.svc.toggleState(id, { enterprise_id: (user as any).enterprise_id });
+    return this.svc.toggleState(id, {
+      enterprise_id: (user as any).enterprise_id,
+    });
   }
 }

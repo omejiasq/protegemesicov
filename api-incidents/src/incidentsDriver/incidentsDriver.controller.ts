@@ -102,7 +102,7 @@ export class IncidentsDriverController {
   }
 
   // GET /incidents/driver/:id
-  @Get(':id')
+  @Get('/getById/:id')
   getById(@Param('id') id: string, @Req() req: Request) {
     const user = (req as any).user;
     return this.svc.getById(id, user);
