@@ -5,16 +5,16 @@ services:
     rootDir: api-auth
     plan: free
     autoDeploy: true
-    buildCommand: "npm ci && npm run build"
+    buildCommand: "npm ci && npm i -D @nestjs/cli && npm run build"
     startCommand: "node dist/main.js"
     healthCheckPath: "/health"
     envVars:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
-        value: "18"
+        value: "20"
       - key: MONGO_URI
-        sync: false          # << Cargar en Render (Atlas)
+        sync: false
       - key: JWT_SECRET
         sync: false
       - key: JWT_EXPIRES
@@ -28,14 +28,14 @@ services:
     rootDir: api-authorizations
     plan: free
     autoDeploy: true
-    buildCommand: "npm ci && npm run build"
+    buildCommand: "npm ci && npm i -D @nestjs/cli && npm run build"
     startCommand: "node dist/main.js"
     healthCheckPath: "/health"
     envVars:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
-        value: "18"
+        value: "20"
       - key: MONGO_URI
         sync: false
       - key: JWT_SECRET
@@ -49,14 +49,14 @@ services:
     rootDir: api-driver
     plan: free
     autoDeploy: true
-    buildCommand: "npm ci && npm run build"
+    buildCommand: "npm ci && npm i -D @nestjs/cli && npm run build"
     startCommand: "node dist/main.js"
     healthCheckPath: "/health"
     envVars:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
-        value: "18"
+        value: "20"
       - key: MONGO_URI
         sync: false
       - key: JWT_SECRET
@@ -70,14 +70,14 @@ services:
     rootDir: api-incidents
     plan: free
     autoDeploy: true
-    buildCommand: "npm ci && npm run build"
+    buildCommand: "npm ci && npm i -D @nestjs/cli && npm run build"
     startCommand: "node dist/main.js"
     healthCheckPath: "/health"
     envVars:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
-        value: "18"
+        value: "20"
       - key: MONGO_URI
         sync: false
       - key: JWT_SECRET
@@ -91,14 +91,14 @@ services:
     rootDir: api-maintenance
     plan: free
     autoDeploy: true
-    buildCommand: "npm ci && npm run build"
+    buildCommand: "npm ci && npm i -D @nestjs/cli && npm run build"
     startCommand: "node dist/main.js"
     healthCheckPath: "/health"
     envVars:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
-        value: "18"
+        value: "20"
       - key: MONGO_URI
         sync: false
       - key: JWT_SECRET
@@ -114,14 +114,14 @@ services:
     rootDir: api-vehicle
     plan: free
     autoDeploy: true
-    buildCommand: "npm ci && npm run build"
+    buildCommand: "npm ci && npm i -D @nestjs/cli && npm run build"
     startCommand: "node dist/main.js"
     healthCheckPath: "/health"
     envVars:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
-        value: "18"
+        value: "20"
       - key: MONGO_URI
         sync: false
       - key: JWT_SECRET
