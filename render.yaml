@@ -13,12 +13,14 @@ services:
         value: production
       - key: NODE_VERSION
         value: "18"
-      - key: MONGODB_URI
-        sync: false          # <-- cargar en el panel
+      - key: MONGO_URI
+        sync: false          # << Cargar en Render (Atlas)
       - key: JWT_SECRET
         sync: false
-      - key: CORS_ORIGIN
-        value: "https://TU-APP.vercel.app"
+      - key: JWT_EXPIRES
+        sync: false
+      - key: CORS_ALLOWED
+        value: "https://protegemesicov-q7ei.vercel.app"
 
   - type: web
     name: ms-authorizations
@@ -34,10 +36,12 @@ services:
         value: production
       - key: NODE_VERSION
         value: "18"
-      - key: MONGODB_URI
+      - key: MONGO_URI
         sync: false
-      - key: CORS_ORIGIN
-        value: "https://TU-APP.vercel.app"
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ALLOWED
+        value: "https://protegemesicov-q7ei.vercel.app"
 
   - type: web
     name: ms-driver
@@ -53,10 +57,12 @@ services:
         value: production
       - key: NODE_VERSION
         value: "18"
-      - key: MONGODB_URI
+      - key: MONGO_URI
         sync: false
-      - key: CORS_ORIGIN
-        value: "https://TU-APP.vercel.app"
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ALLOWED
+        value: "https://protegemesicov-q7ei.vercel.app"
 
   - type: web
     name: ms-incidents
@@ -72,10 +78,12 @@ services:
         value: production
       - key: NODE_VERSION
         value: "18"
-      - key: MONGODB_URI
+      - key: MONGO_URI
         sync: false
-      - key: CORS_ORIGIN
-        value: "https://TU-APP.vercel.app"
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ALLOWED
+        value: "https://protegemesicov-q7ei.vercel.app"
 
   - type: web
     name: ms-maintenance
@@ -91,10 +99,14 @@ services:
         value: production
       - key: NODE_VERSION
         value: "18"
-      - key: MONGODB_URI
+      - key: MONGO_URI
         sync: false
-      - key: CORS_ORIGIN
-        value: "https://TU-APP.vercel.app"
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ALLOWED
+        value: "https://protegemesicov-q7ei.vercel.app"
+      - key: UPLOAD_DIR
+        value: "./uploads"
 
   - type: web
     name: ms-vehicle
@@ -110,7 +122,11 @@ services:
         value: production
       - key: NODE_VERSION
         value: "18"
-      - key: MONGODB_URI
+      - key: MONGO_URI
         sync: false
-      - key: CORS_ORIGIN
-        value: "https://TU-APP.vercel.app"
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ALLOWED
+        value: "https://protegemesicov-q7ei.vercel.app"
+      - key: UPLOAD_DIR
+        value: "./uploads"
