@@ -12,7 +12,10 @@ export class PreventiveController {
   @Post('create')
   create(@Body() dto: CreatePreventiveDto, @Req() req: Request) {
     const user = (req as any).user;
-    return this.svc.create(dto, { enterprise_id: user.enterprise_id, sub: user.sub });
+    return this.svc.create(dto, {
+      enterprise_id: user.enterprise_id,
+      sub: user.sub,
+    });
   }
 
   @Post('view')

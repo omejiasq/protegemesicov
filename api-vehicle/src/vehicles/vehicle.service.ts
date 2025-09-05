@@ -27,14 +27,21 @@ export class VehiclesService {
     const exists = await this.model.exists({ placa: body.placa, ...this.tenant(user) });
     if (exists) throw new ConflictException('La placa ya existe en este tenant');
 
+    // 👇 Sanitize
+    const clase = Number.isFinite(Number(body.clase)) ? Number(body.clase) : undefined;
+    const nivelServicio = Number.isFinite(Number(body.nivelServicio)) ? Number(body.nivelServicio) : undefined;
+    const soat = (typeof body.soat === 'string' && body.soat.trim()) ? body.soat.trim() : undefined;
+
     const doc = await this.model.create({
       enterprise_id: user?.enterprise_id,
       createdBy: user?.sub,
       estado: true,
       placa: body.placa,
-      clase: Number(body.clase),
-      nivelServicio: Number(body.nivelServicio),
-      soat: body.soat,
+
+      ...(clase !== undefined && { clase }),
+      ...(nivelServicio !== undefined && { nivelServicio }),
+      ...(soat !== undefined && { soat }),
+
       fechaVencimientoSoat: this.parseDate(body.fechaVencimientoSoat),
       revisionTecnicoMecanica: body.revisionTecnicoMecanica,
       fechaRevisionTecnicoMecanica: this.parseDate(body.fechaRevisionTecnicoMecanica),

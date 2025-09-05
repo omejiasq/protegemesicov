@@ -32,12 +32,10 @@ export const useDriversStore = defineStore('drivers', {
   }),
 
   actions: {
-    async fetch(params: Record<string, any> = {}) {
+    async fetch() {
       this.loading = true; this.error = '';
-      const { page = 1, numero_items = 10, ...rest } = params;
       try {
         const { data } = await DriversserviceApi.list();
-        // Soporta ambas formas de respuesta: {items,...} o array plano
         this.items = data?.items ?? (Array.isArray(data) ? data : []);
         this.total = data?.total ?? this.items.length ?? 0;
       } catch (e: any) {
@@ -46,26 +44,21 @@ export const useDriversStore = defineStore('drivers', {
       } finally { this.loading = false; }
     },
 
-     async list(params: Record<string, any> = {}) {
-      this.loading = true; 
-      this.error = '';
-      try {
-        const { data } = await DriversserviceApi.list(params);
+async list(params: Record<string, any> = {}) {
+  this.loading = true;
+  this.error = '';
+  try {
+    const { data } = await DriversserviceApi.list(params); // 👈 reenvía params
+    const items = data?.items ?? (Array.isArray(data) ? data : []);
+    const total = data?.total ?? items.length ?? 0;
+    this.items = items;
+    this.total = total;
+    return { items, total };
+  } finally {
+    this.loading = false;
+  }
+},
 
-        const items = data?.items ?? (Array.isArray(data) ? data : []);
-        const total = data?.total ?? items.length ?? 0;
-
-        this.items = items;
-        this.total = total;
-
-        return { items, total };
-      } catch (e: any) {
-        this.error = e?.response?.data?.message || e?.message || 'No se pudo obtener conductores';
-        throw e;
-      } finally {
-        this.loading = false;
-      }
-    },
 
     async get(id: string) {
       this.loading = true; this.error = '';

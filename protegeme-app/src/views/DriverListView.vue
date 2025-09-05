@@ -47,14 +47,11 @@ async function refresh() {
     };
 
     if (query.q?.trim()) {
-      // ⬇⬇⬇ ANTES: params.q = query.q.trim();
-      params.numeroIdentificacion = query.q.trim();
+      params.q = query.q.trim();               
     }
 
     const estadoParam = mapEstadoToParam(query.estado);
-    if (estadoParam !== undefined) {
-      params.estado = estadoParam; // 'true' | 'false'
-    }
+    if (estadoParam !== undefined) params.estado = estadoParam;
 
     const res = await store.list(params);
     drivers.value = res.items ?? [];

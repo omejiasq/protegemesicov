@@ -520,3 +520,34 @@ body {
   align-items: center;
   justify-content: center;
 }
+
+.p-button.btn-filter,
+.p-button.btn-clear {
+  background: #ffffff !important;
+  border: 1px solid rgba(17, 17, 17, 0.12) !important;
+  color: #0f172a !important;
+}
+
+.p-button.btn-filter:hover,
+.p-button.btn-clear:hover {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+.p-button.btn-filter .p-button-icon,
+.p-button.btn-clear .p-button-icon {
+  margin-right: .5rem;
+}
+
+/* Pequeña separación entre dropdown y botones */
+.filters-actions {
+  display: flex;
+  align-items: center;
+  gap: .75rem;   /* separa “Filtrar” y “Limpiar” entre sí */
+}
+
+/* Input con icono de búsqueda adentro (modo claro) */
+.p-input-icon-left .p-inputtext {
+  background: #fff !important;
+  color: #111 !important;
+}

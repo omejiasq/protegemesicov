@@ -1,5 +1,8 @@
-import { IsString } from 'class-validator';
+import { IsString, Length } from 'class-validator';
+
+import { IsMongoId } from 'class-validator';
 
 export class ViewPreventiveDto {
-  @IsString() mantenimientoId!: string;
+  @IsMongoId()
+  mantenimientoId!: string;
 }

@@ -33,7 +33,6 @@ export class DriversService {
   async create(body: any, user?: UserCtx) {
     const idDesp = toIntOrUndef(body.idDespacho);
 
-
     const dupFilter: any = {
       ...this.tenant(user),
       numeroIdentificacion: String(body.numeroIdentificacion),
@@ -41,8 +40,10 @@ export class DriversService {
     if (idDesp !== undefined) {
       dupFilter.idDespacho = idDesp;
     } else {
-
-      dupFilter.$or = [{ idDespacho: { $exists: false } }, { idDespacho: null }];
+      dupFilter.$or = [
+        { idDespacho: { $exists: false } },
+        { idDespacho: null },
+      ];
     }
 
     const dup = await this.model.exists(dupFilter);
@@ -117,11 +118,27 @@ export class DriversService {
     const idD = toIntOrUndef(q.idDespacho);
     if (idD !== undefined) filter.idDespacho = idD;
 
-    if (q.numeroIdentificacion)
+    // --- BÚSQUEDA ---
+    if (q?.q && String(q.q).trim()) {
+      const term = String(q.q).trim();
+      const rx = new RegExp(term, 'i');
+      filter.$or = [
+        { numeroIdentificacion: { $regex: rx } },
+        { primerNombrePrincipal: { $regex: rx } },
+        { segundoNombrePrincipal: { $regex: rx } },
+        { primerApellidoPrincipal: { $regex: rx } },
+        { segundoApellidoPrincipal: { $regex: rx } },
+      ];
+    } else if (q?.numeroIdentificacion) {
       filter.numeroIdentificacion = {
         $regex: q.numeroIdentificacion,
         $options: 'i',
       };
+    }
+
+    if (q.estado != null) {
+      filter.estado = q.estado === 'true' || q.estado === true;
+    }
 
     if (q.estado != null)
       filter.estado = q.estado === 'true' || q.estado === true;
@@ -182,9 +199,7 @@ export class DriversService {
         );
     }
 
-
     const update: any = {};
-
 
     {
       const idUpd = toIntOrUndef(body.idDespacho);

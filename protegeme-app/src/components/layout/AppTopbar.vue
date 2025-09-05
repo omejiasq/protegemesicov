@@ -41,7 +41,7 @@ import { useToast } from 'primevue/usetoast'
 import Button from 'primevue/button'
 import Menu from 'primevue/menu'
 
-const props = defineProps<{
+defineProps<{
   sidebarVisible: boolean
 }>()
 

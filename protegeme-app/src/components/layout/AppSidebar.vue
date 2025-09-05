@@ -1,7 +1,7 @@
 <template>
-  <Sidebar 
-    v-model:visible="visible" 
-    position="left" 
+  <Sidebar
+    v-model:visible="visible"
+    position="left"
     :class="['layout-sidebar', { 'sidebar-hidden': !visible }]"
     :modal="false"
     :show-close-icon="false"
@@ -11,17 +11,19 @@
         <img src="/vite.svg" alt="Logo" />
         <span></span>
       </div>
-      
+
       <div class="layout-menu">
         <ul class="layout-menu-root-list">
           <li class="layout-menuitem-category">
             <div class="layout-menuitem-root-text">PRINCIPAL</div>
             <ul>
               <li>
-                <router-link 
-                  to="/dashboard" 
+                <router-link
+                  to="/dashboard"
                   class="layout-menuitem-link"
-                  :class="{ 'active-menuitem': $route.name === 'dashboard-home' }"
+                  :class="{
+                    'active-menuitem': $route.name === 'dashboard-home',
+                  }"
                 >
                   <i class="pi pi-home layout-menuitem-icon"></i>
                   <span class="layout-menuitem-text">Dashboard</span>
@@ -29,29 +31,121 @@
               </li>
             </ul>
           </li>
-          
+
           <li class="layout-menuitem-category">
             <div class="layout-menuitem-root-text">GESTIÓN</div>
             <ul>
               <li>
-                <router-link 
-                  to="/vehicles" 
+                <router-link
+                  to="/vehicles"
                   class="layout-menuitem-link"
-                  :class="{ 'active-menuitem': $route.path.includes('/vehicles') }"
+                  :class="{
+                    'active-menuitem': $route.path.includes('/vehicles'),
+                  }"
                 >
                   <i class="pi pi-car layout-menuitem-icon"></i>
                   <span class="layout-menuitem-text">Vehículos</span>
                 </router-link>
               </li>
               <li>
-                <router-link 
-                  to="/drivers" 
+                <router-link
+                  to="/drivers"
                   class="layout-menuitem-link"
-                  :class="{ 'active-menuitem': $route.path.includes('/drivers') }"
+                  :class="{
+                    'active-menuitem': $route.path.includes('/drivers'),
+                  }"
                 >
                   <i class="pi pi-users layout-menuitem-icon"></i>
                   <span class="layout-menuitem-text">Conductores</span>
                 </router-link>
+              </li>
+              <li class="layout-menuitem-category">
+                <div class="layout-menuitem-root-text">MANTENIMIENTOS</div>
+                <ul>
+                  <li>
+                    <router-link
+                      to="/maintenance/overview"
+                      class="layout-menuitem-link"
+                      :class="{
+                        'active-menuitem':
+                          $route.path === '/maintenance/overview',
+                      }"
+                    >
+                      <i class="pi pi-chart-line layout-menuitem-icon"></i>
+                      <span class="layout-menuitem-text">Overview</span>
+                    </router-link>
+                  </li>
+                    <li>
+                    <router-link
+                      to="/maintenance/maintenance"
+                      class="layout-menuitem-link"
+                      :class="{
+                        'active-menuitem': $route.path.includes(
+                          '/maintenance/maintenance'
+                        ),
+                      }"
+                    >
+                      <i class="pi pi-book layout-menuitem-icon"></i>
+                      <span class="layout-menuitem-text">Mantenimientos</span>
+                    </router-link>
+                  </li>
+                  <li>
+                    <router-link
+                      to="/maintenance/program"
+                      class="layout-menuitem-link"
+                      :class="{
+                        'active-menuitem': $route.path.includes(
+                          '/maintenance/preventive'
+                        ),
+                      }"
+                    >
+                      <i class="pi pi-calendar layout-menuitem-icon"></i>
+                      <span class="layout-menuitem-text">Programas</span>
+                    </router-link>
+                  </li>
+                  <li>
+                    <router-link
+                      to="/maintenance/preventive"
+                      class="layout-menuitem-link"
+                      :class="{
+                        'active-menuitem': $route.path.includes(
+                          '/maintenance/preventive'
+                        ),
+                      }"
+                    >
+                      <i class="pi pi-shield layout-menuitem-icon"></i>
+                      <span class="layout-menuitem-text">Preventivo</span>
+                    </router-link>
+                  </li>
+                  <li>
+                    <router-link
+                      to="/maintenance/corrective"
+                      class="layout-menuitem-link"
+                      :class="{
+                        'active-menuitem': $route.path.includes(
+                          '/maintenance/corrective'
+                        ),
+                      }"
+                    >
+                      <i class="pi pi-wrench layout-menuitem-icon"></i>
+                      <span class="layout-menuitem-text">Correctivo</span>
+                    </router-link>
+                  </li>
+                  <li>
+                    <router-link
+                      to="/maintenance/enlistment"
+                      class="layout-menuitem-link"
+                      :class="{
+                        'active-menuitem': $route.path.includes(
+                          '/maintenance/enlistment'
+                        ),
+                      }"
+                    >
+                      <i class="pi pi-list-check layout-menuitem-icon"></i>
+                      <span class="layout-menuitem-text">Alistamiento</span>
+                    </router-link>
+                  </li>
+                </ul>
               </li>
             </ul>
           </li>
@@ -62,25 +156,25 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import Sidebar from 'primevue/sidebar'
+import { computed } from "vue";
+import Sidebar from "primevue/sidebar";
 
 const props = defineProps<{
-  visible: boolean
-}>()
+  visible: boolean;
+}>();
 
 const emit = defineEmits<{
-  hide: []
-}>()
+  hide: [];
+}>();
 
 const visible = computed({
   get: () => props.visible,
   set: (value) => {
     if (!value) {
-      emit('hide')
+      emit("hide");
     }
-  }
-})
+  },
+});
 </script>
 
 <style scoped>
@@ -113,7 +207,7 @@ const visible = computed({
   color: white;
   font-size: 1.2rem;
   font-weight: 600;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .layout-sidebar-logo img {
@@ -137,7 +231,7 @@ const visible = computed({
 }
 
 .layout-menuitem-root-text {
-  color: rgba(255,255,255,0.6);
+  color: rgba(255, 255, 255, 0.6);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -157,19 +251,19 @@ const visible = computed({
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem 1.5rem;
-  color: rgba(255,255,255,0.87);
+  color: rgba(255, 255, 255, 0.87);
   text-decoration: none;
   transition: all 0.2s;
   border-left: 3px solid transparent;
 }
 
 .layout-menuitem-link:hover {
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   color: white;
 }
 
 .layout-menuitem-link.active-menuitem {
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   border-left-color: #60a5fa;
   color: white;
 }
@@ -189,7 +283,7 @@ const visible = computed({
     transform: translateX(-100%);
     transition: transform 0.2s;
   }
-  
+
   .layout-sidebar.p-sidebar-active :deep(.p-sidebar) {
     transform: translateX(0);
   }

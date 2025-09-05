@@ -2,21 +2,38 @@
 import { defineStore } from 'pinia';
 import { VehiclesserviceApi } from '../api/vehicles.service';
 
+/**
+ * Nuevo contrato (backend):
+ *  - soat: string (código)
+ *  - fechaVencimientoSoat: string|Date (plano)
+ * Compat: dejamos soat como union para no romper código viejo que lee soat.fechaVencimiento
+ */
 export type Vehicle = {
   _id: string;
   placa: string;
-  clase?: string;
-  nivelServicio?: string;
+
+  // ahora como números (compat: null)
+  clase?: number | null;
+  nivelServicio?: number | null;
+
   estado?: boolean;
-  soat?: { fechaVencimiento?: string };
-  rtm?: { fechaVencimiento?: string };
-  to?:  { fechaVencimiento?: string };
+
+  // compat: puede ser string (nuevo), objeto con fecha (viejo) o null
+  soat?: string | { fechaVencimiento?: string } | null;
+
+  // NUEVO: fecha plana del SOAT
+  fechaVencimientoSoat?: string | Date | null;
+
+  // otros (viejo esquema, por si se usan)
+  rtm?: { fechaVencimiento?: string } | null;
+  to?:  { fechaVencimiento?: string } | null;
 };
 
-function daysUntil(dateStr?: string) {
-  if (!dateStr) return Infinity;
-  const d = new Date(dateStr).getTime();
-  const diff = Math.floor((d - Date.now()) / (1000*60*60*24));
+function daysUntil(date?: string | Date | null | undefined) {
+  if (!date) return Infinity;
+  const d = new Date(date).getTime();
+  if (Number.isNaN(d)) return Infinity;
+  const diff = Math.floor((d - Date.now()) / (1000 * 60 * 60 * 24));
   return diff;
 }
 
@@ -26,7 +43,6 @@ export const useVehiclesStore = defineStore('vehicles', {
     total: 0,
     loading: false,
     error: '' as string,
-    // opcional: seleccionado
     current: null as Vehicle | null,
   }),
 
@@ -37,7 +53,6 @@ export const useVehiclesStore = defineStore('vehicles', {
       const { page = 1, numero_items = 10, ...rest } = params;
       try {
         const { data } = await VehiclesserviceApi.list({ page, numero_items, ...rest });
-        // Tu backend suele responder { page, numero_items, total, items }
         this.items = data?.items ?? (Array.isArray(data) ? data : []);
         this.total = data?.total ?? this.items.length ?? 0;
       } catch (e: any) {
@@ -63,12 +78,12 @@ export const useVehiclesStore = defineStore('vehicles', {
       }
     },
 
+    // ✅ acepta payload parcial del nuevo contrato
     async create(payload: Partial<Vehicle>) {
       this.loading = true;
       this.error = '';
       try {
         const { data } = await VehiclesserviceApi.create(payload);
-        // push optimista si tu API devuelve el doc creado
         if (data?._id) this.items.unshift(data);
         this.total += 1;
         return data as Vehicle;
@@ -85,7 +100,6 @@ export const useVehiclesStore = defineStore('vehicles', {
       this.error = '';
       try {
         const { data } = await VehiclesserviceApi.update(id, payload);
-        // sync en memoria
         const i = this.items.findIndex(v => v._id === id);
         if (i >= 0) this.items[i] = { ...this.items[i], ...data };
         if (this.current?._id === id) this.current = { ...this.current, ...data } as Vehicle;
@@ -102,7 +116,6 @@ export const useVehiclesStore = defineStore('vehicles', {
       this.error = '';
       try {
         const { data } = await VehiclesserviceApi.toggle(id);
-        // actualizar estado local
         const i = this.items.findIndex(v => v._id === id);
         if (i >= 0) this.items[i].estado = data?.estado ?? !this.items[i].estado;
         if (this.current?._id === id) {
@@ -115,7 +128,7 @@ export const useVehiclesStore = defineStore('vehicles', {
       }
     },
 
-    /** KPIs rápidos */
+    /** KPIs rápidos — compat con ambos esquemas (viejo/nuevo) */
     async countActive(): Promise<number> {
       try {
         const { data } = await VehiclesserviceApi.list({ page: 1, numero_items: 1, estado: true });
@@ -127,18 +140,26 @@ export const useVehiclesStore = defineStore('vehicles', {
 
     async soonToExpire(days = 30): Promise<{ total:number; list: Vehicle[] }> {
       try {
-        // traemos una página grande; si tu API filtra por fecha, mejor delegarlo
         const { data } = await VehiclesserviceApi.list({ page: 1, numero_items: 200 });
         const arr: Vehicle[] = data?.items ?? (Array.isArray(data) ? data : []);
-        const list = arr.filter(v => {
-          const ds = [
-            daysUntil(v.soat?.fechaVencimiento),
-            daysUntil(v.rtm?.fechaVencimiento),
-            daysUntil(v.to?.fechaVencimiento),
-          ];
-          const min = Math.min(...ds);
-          return min <= days;
-        }).slice(0, 10);
+
+        const list = arr
+          .filter(v => {
+            // soporta ambos: objeto viejo (soat.fechaVencimiento) o nuevo (fechaVencimientoSoat)
+            const soatVto =
+              (typeof v.soat === 'object' && v.soat ? v.soat.fechaVencimiento : undefined) ??
+              (v.fechaVencimientoSoat ?? undefined);
+
+            const ds = [
+              daysUntil(soatVto),
+              daysUntil(v.rtm?.fechaVencimiento),
+              daysUntil(v.to?.fechaVencimiento),
+            ];
+            const min = Math.min(...ds);
+            return min <= days;
+          })
+          .slice(0, 10);
+
         return { total: list.length, list };
       } catch {
         return { total: 0, list: [] };

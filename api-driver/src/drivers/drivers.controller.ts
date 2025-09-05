@@ -65,6 +65,9 @@ class ListDriversQueryDto {
   @Type(() => Number) @IsOptional() @IsInt() page?: number;
   @Type(() => Number) @IsOptional() @IsInt() numero_items?: number;
   @Type(() => Number) @IsOptional() @IsInt() idDespacho?: number;
+
+  @IsOptional() @IsString() q?: string;
+
   @IsOptional() @IsString() numeroIdentificacion?: string;
   @IsOptional() @IsBooleanString() estado?: string;
 }
