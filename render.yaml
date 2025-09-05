@@ -1,0 +1,116 @@
+services:
+  - type: web
+    name: ms-auth
+    env: node
+    rootDir: api-auth
+    plan: free
+    autoDeploy: true
+    buildCommand: "npm ci && npm run build"
+    startCommand: "node dist/main.js"
+    healthCheckPath: "/health"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "18"
+      - key: MONGODB_URI
+        sync: false          # <-- cargar en el panel
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        value: "https://TU-APP.vercel.app"
+
+  - type: web
+    name: ms-authorizations
+    env: node
+    rootDir: api-authorizations
+    plan: free
+    autoDeploy: true
+    buildCommand: "npm ci && npm run build"
+    startCommand: "node dist/main.js"
+    healthCheckPath: "/health"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "18"
+      - key: MONGODB_URI
+        sync: false
+      - key: CORS_ORIGIN
+        value: "https://TU-APP.vercel.app"
+
+  - type: web
+    name: ms-driver
+    env: node
+    rootDir: api-driver
+    plan: free
+    autoDeploy: true
+    buildCommand: "npm ci && npm run build"
+    startCommand: "node dist/main.js"
+    healthCheckPath: "/health"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "18"
+      - key: MONGODB_URI
+        sync: false
+      - key: CORS_ORIGIN
+        value: "https://TU-APP.vercel.app"
+
+  - type: web
+    name: ms-incidents
+    env: node
+    rootDir: api-incidents
+    plan: free
+    autoDeploy: true
+    buildCommand: "npm ci && npm run build"
+    startCommand: "node dist/main.js"
+    healthCheckPath: "/health"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "18"
+      - key: MONGODB_URI
+        sync: false
+      - key: CORS_ORIGIN
+        value: "https://TU-APP.vercel.app"
+
+  - type: web
+    name: ms-maintenance
+    env: node
+    rootDir: api-maintenance
+    plan: free
+    autoDeploy: true
+    buildCommand: "npm ci && npm run build"
+    startCommand: "node dist/main.js"
+    healthCheckPath: "/health"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "18"
+      - key: MONGODB_URI
+        sync: false
+      - key: CORS_ORIGIN
+        value: "https://TU-APP.vercel.app"
+
+  - type: web
+    name: ms-vehicle
+    env: node
+    rootDir: api-vehicle
+    plan: free
+    autoDeploy: true
+    buildCommand: "npm ci && npm run build"
+    startCommand: "node dist/main.js"
+    healthCheckPath: "/health"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "18"
+      - key: MONGODB_URI
+        sync: false
+      - key: CORS_ORIGIN
+        value: "https://TU-APP.vercel.app"
