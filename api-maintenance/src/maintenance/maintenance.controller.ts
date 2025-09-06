@@ -56,6 +56,9 @@ export class MaintenanceController {
   @Post('create')
   create(@Body() dto: CreateMaintenanceDto, @Req() req: Request) {
     const user = (req as any).user;
+    const json = {
+      
+    }
     return this.svc.create({
       ...dto,
       enterprise_id: user.enterprise_id,

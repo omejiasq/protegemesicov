@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { CorrectiveController } from './corrective.controller';
 import { CorrectiveService } from './corrective.service';
 import { CorrectiveDetail, CorrectiveDetailSchema } from '../schema/corrective.schema';
+import { ExternalApiService } from 'src/libs/external-api';
 
 @Module({
   imports: [
