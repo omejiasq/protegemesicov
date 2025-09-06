@@ -5,7 +5,7 @@ export type EnlistmentDetailDocument = HydratedDocument<EnlistmentDetail>;
 
 @Schema({ collection: 'enlistments', timestamps: true })
 export class EnlistmentDetail {
-
+  @Prop() externalId?: string;
   @Prop({ required: true, index: true })
   mantenimientoId!: string;
 

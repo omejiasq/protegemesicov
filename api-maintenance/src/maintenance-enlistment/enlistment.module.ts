@@ -4,6 +4,7 @@ import { EnlistmentDetail, EnlistmentDetailSchema } from '../schema/enlistment-s
 import { Maintenance, MaintenanceSchema } from '../schema/maintenance.schema';
 import { EnlistmentService } from './enlistment.service';
 import { EnlistmentController } from './enlistment.controller';
+import { ExternalApiService } from 'src/libs/external-api';
 
 @Module({
   imports: [

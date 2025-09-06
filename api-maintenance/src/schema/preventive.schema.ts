@@ -5,7 +5,7 @@ export type PreventiveDetailDocument = HydratedDocument<PreventiveDetail>;
 
 @Schema({ collection: 'preventive_details', timestamps: true })
 export class PreventiveDetail {
-
+  @Prop() externalId?: string;
   @Prop({ required: true }) mantenimientoId!: string;
 
   @Prop({ required: true, trim: true }) placa!: string;
