@@ -1,53 +1,110 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  Inject,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { existsSync, readFileSync } from 'fs';
 import { mkdir, writeFile } from 'fs/promises';
-import { join } from 'path';
+import { join, basename } from 'path';
 import { Model } from 'mongoose';
 import { FileAsset, FileAssetDocument } from '../schema/file-asset.schema';
+import * as storageTypes from '../libs/storage/storage.types';
+
+// 5MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const ALLOWED_MIME = new Set<string>([
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+]);
 
 type UserCtx = { enterprise_id?: string; sub?: string };
 
+function sanitizeFilename(name: string) {
+  const base = basename(name || 'file');
+  return base.replace(/[^\w.\-]+/g, '_');
+}
+
 @Injectable()
 export class FilesService {
-  constructor(@InjectModel(FileAsset.name) private readonly model: Model<FileAssetDocument>) {}
+  constructor(
+    @InjectModel(FileAsset.name)
+    private readonly model: Model<FileAssetDocument>,
+    @Inject(storageTypes.FILE_STORAGE)
+    private readonly storage: storageTypes.FileStorage, // <-- inyectamos adapter
+  ) {}
 
-  private uploadDir() { return process.env.UPLOAD_DIR || './uploads'; }
+  private uploadDir() {
+    return process.env.UPLOAD_DIR || './uploads';
+  }
 
-  async saveFile(params: { vigiladoId: number; file: Express.Multer.File; user?: UserCtx }) {
-    const baseDir = this.uploadDir();
-    if (!existsSync(baseDir)) await mkdir(baseDir, { recursive: true });
+  async saveFile(params: {
+    vigiladoId: number;
+    file: Express.Multer.File;
+    user?: UserCtx;
+  }) {
+    const file = params.file;
 
-    const nombreAlmacenado = `${Date.now()}_${params.file.originalname}`;
-    const ruta = join(baseDir, nombreAlmacenado);
+    // Revalidación defensiva
+    if (!file?.buffer || typeof file.size !== 'number') {
+      throw new BadRequestException('Archivo inválido');
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      throw new BadRequestException('El archivo supera los 5MB');
+    }
+    if (!ALLOWED_MIME.has(file.mimetype)) {
+      throw new BadRequestException('Tipo no permitido. Solo PDF, XLSX, PNG o JPG/JPEG');
+    }
 
-    await writeFile(ruta, params.file.buffer);
+    // Guardar a través del adapter (local u oracle)
+    const stored = await this.storage.saveBuffer({
+      buffer: file.buffer,
+      mimeType: file.mimetype,
+      originalName: file.originalname,
+      size: file.size,
+    });
 
+    // Persistimos metadatos en tu colección existente
     const doc = await this.model.create({
       vigiladoId: params.vigiladoId,
-      nombreOriginalArchivo: params.file.originalname,
-      nombreAlmacenado,
-      ruta,
-      mimeType: params.file.mimetype,
-      size: params.file.size,
+      nombreOriginalArchivo: file.originalname,
+      nombreAlmacenado: stored.key,          // clave única (key) del objeto
+      ruta: stored.url || (stored.provider === 'local' ? join(this.uploadDir(), stored.key) : undefined),
+      mimeType: file.mimetype,
+      size: file.size,
       enterprise_id: params.user?.enterprise_id,
       createdBy: params.user?.sub,
+      // Si tu schema admite campos extra, podrías agregar:
+      // storageProvider: stored.provider,
+      // bucket: stored.bucket,
     });
 
     return {
       vigiladoId: doc.vigiladoId,
       nombreOriginalArchivo: doc.nombreOriginalArchivo,
       nombreAlmacenado: doc.nombreAlmacenado,
-      ruta: doc.ruta,
+      ruta: doc.ruta, // en oracle será URL, en local ruta absoluta
     };
   }
 
   async getBase64(documento: string, ruta: string, user?: UserCtx) {
-    const found = await this.model.findOne({ nombreAlmacenado: documento, ruta, enterprise_id: user?.enterprise_id });
+    const found = await this.model.findOne({
+      nombreAlmacenado: documento,
+      ruta,
+      enterprise_id: user?.enterprise_id,
+    });
     if (!found) throw new NotFoundException('Archivo no encontrado');
 
-    if (!existsSync(ruta)) throw new NotFoundException('Archivo no disponible en almacenamiento');
-    const buf = readFileSync(ruta);
-    return { base64: buf.toString('base64'), mimeType: found.mimeType, nombreOriginalArchivo: found.nombreOriginalArchivo };
+    // Recuperamos desde el adapter por key (documento)
+    const { base64, mimeType } = await this.storage.getBase64(found.nombreAlmacenado);
+    return {
+      base64,
+      mimeType: found.mimeType || mimeType || 'application/octet-stream',
+      nombreOriginalArchivo: found.nombreOriginalArchivo,
+    };
   }
 }
