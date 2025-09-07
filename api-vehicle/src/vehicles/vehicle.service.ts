@@ -1,15 +1,21 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, Types } from 'mongoose';
 import { Vehicle, VehicleDocument } from '../schema/vehicle.schema';
+import { VehicleExternalApiService } from '../libs/exteral-api';
+import { AuditService } from '../libs/audit/audit.service';
 
 type UserCtx = { enterprise_id?: string; sub?: string };
 
 @Injectable()
 export class VehiclesService {
+  private readonly logger = new Logger(VehiclesService.name);
+
   constructor(
     @InjectModel(Vehicle.name)
     private readonly model: Model<VehicleDocument>,
+    private readonly external: VehicleExternalApiService,
+    private readonly audit: AuditService,
   ) {}
 
   private tenant(user?: UserCtx): FilterQuery<VehicleDocument> {
@@ -22,12 +28,89 @@ export class VehiclesService {
     return isNaN(dt.getTime()) ? undefined : dt;
   }
 
+  /* ============= helpers externos (audit local-only si falta data) ============= */
+
+  private async tryCreateExternal(
+    local: any,
+    user?: UserCtx,
+  ): Promise<{ mantenimientoId?: number | string; externalId?: number | string } | undefined> {
+    const placa = local?.placa;
+    const clase = Number.isFinite(Number(local?.clase)) ? Number(local.clase) : undefined;
+    const nivelServicio = Number.isFinite(Number(local?.nivelServicio)) ? Number(local.nivelServicio) : undefined;
+
+    const ctx = { userId: user?.sub, enterpriseId: user?.enterprise_id };
+
+    if (!placa || clase == null || nivelServicio == null) {
+      await this.audit.log({
+        module: 'vehicles',
+        operation: 'crearVehiculo.local-only',
+        endpoint: 'internal',
+        requestPayload: { placa, clase, nivelServicio },
+        responseStatus: 200,
+        responseBody: { reason: 'faltan campos mínimos para crear en externo' },
+        success: true,
+        userId: ctx.userId,
+        enterpriseId: ctx.enterpriseId,
+      });
+      return;
+    }
+
+    const payload = {
+      placa,
+      clase,
+      nivelServicio,
+      soat: local?.soat,
+      fechaVencimientoSoat: local?.fechaVencimientoSoat,
+      revisionTecnicoMecanica: local?.revisionTecnicoMecanica,
+      fechaRevisionTecnicoMecanica: local?.fechaRevisionTecnicoMecanica,
+      idPolizas: local?.idPolizas,
+      tipoPoliza: local?.tipoPoliza,
+      vigencia: local?.vigencia,
+      tarjetaOperacion: local?.tarjetaOperacion,
+      fechaTarjetaOperacion: local?.fechaTarjetaOperacion,
+    };
+
+    const res = await this.external.crearVehiculo(payload, ctx);
+    const data = res?.data ?? {};
+    // trata de encontrar id en diferentes formas
+    const externalId = data?.id ?? data?.vehiculoId ?? data?.data?.id ?? null;
+    return externalId != null ? { externalId } : undefined;
+  }
+
+  private async tryUpdateExternal(
+    externalId: string | number,
+    local: any,
+    user?: UserCtx,
+  ): Promise<boolean> {
+    const ctx = { userId: user?.sub, enterpriseId: user?.enterprise_id };
+    try {
+      const res = await this.external.actualizarVehiculo(String(externalId), {
+        placa: local?.placa,
+        clase: local?.clase != null ? Number(local.clase) : undefined,
+        nivelServicio: local?.nivelServicio != null ? Number(local.nivelServicio) : undefined,
+        soat: local?.soat,
+        fechaVencimientoSoat: local?.fechaVencimientoSoat,
+        revisionTecnicoMecanica: local?.revisionTecnicoMecanica,
+        fechaRevisionTecnicoMecanica: local?.fechaRevisionTecnicoMecanica,
+        idPolizas: local?.idPolizas,
+        tipoPoliza: local?.tipoPoliza,
+        vigencia: local?.vigencia,
+        tarjetaOperacion: local?.tarjetaOperacion,
+        fechaTarjetaOperacion: local?.fechaTarjetaOperacion,
+      }, ctx);
+      return !!res?.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  /* =============================== CRUD local + sync externo =============================== */
+
   async create(body: any, user?: UserCtx) {
     // evitar duplicados: placa única por tenant
     const exists = await this.model.exists({ placa: body.placa, ...this.tenant(user) });
     if (exists) throw new ConflictException('La placa ya existe en este tenant');
 
-    // 👇 Sanitize
     const clase = Number.isFinite(Number(body.clase)) ? Number(body.clase) : undefined;
     const nivelServicio = Number.isFinite(Number(body.nivelServicio)) ? Number(body.nivelServicio) : undefined;
     const soat = (typeof body.soat === 'string' && body.soat.trim()) ? body.soat.trim() : undefined;
@@ -37,11 +120,9 @@ export class VehiclesService {
       createdBy: user?.sub,
       estado: true,
       placa: body.placa,
-
       ...(clase !== undefined && { clase }),
       ...(nivelServicio !== undefined && { nivelServicio }),
       ...(soat !== undefined && { soat }),
-
       fechaVencimientoSoat: this.parseDate(body.fechaVencimientoSoat),
       revisionTecnicoMecanica: body.revisionTecnicoMecanica,
       fechaRevisionTecnicoMecanica: this.parseDate(body.fechaRevisionTecnicoMecanica),
@@ -51,6 +132,19 @@ export class VehiclesService {
       tarjetaOperacion: body.tarjetaOperacion,
       fechaTarjetaOperacion: this.parseDate(body.fechaTarjetaOperacion),
     });
+
+    // empujar al externo si hay datos mínimos
+    try {
+      const created = await this.tryCreateExternal(doc.toJSON(), user);
+      if (created?.externalId != null) {
+        await this.model.updateOne(
+          { _id: doc._id },
+          { $set: { externalId: Number(created.externalId) } },
+        );
+      }
+    } catch {
+      // la auditoría ya queda en el external; no bloquear
+    }
 
     return doc.toJSON();
   }
@@ -84,7 +178,6 @@ export class VehiclesService {
   async updateById(id: string, body: any, user?: UserCtx) {
     if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Vehículo no encontrado');
 
-    // si cambia placa, validar unicidad por tenant
     if (body.placa) {
       const dup = await this.model.exists({
         _id: { $ne: new Types.ObjectId(id) },
@@ -116,6 +209,19 @@ export class VehiclesService {
     ).lean();
 
     if (!updated) throw new NotFoundException('Vehículo no encontrado');
+
+    // sync externo si existe externalId o si ahora tenemos datos mínimos
+    try {
+      const hasExternalId = (updated as any).externalId != null;
+      if (hasExternalId) {
+        await this.tryUpdateExternal((updated as any).externalId, updated, user);
+      } else {
+        await this.tryCreateExternal(updated, user);
+      }
+    } catch {
+      // audita el external, no romper
+    }
+
     return updated;
   }
 
@@ -127,6 +233,14 @@ export class VehiclesService {
 
     current.estado = !current.estado;
     await current.save();
+
+    // intento toggle externo si existe externalId
+    const extId = (current as any).externalId;
+    if (extId != null) {
+      try { await this.external.toggleVehiculo(String(extId), { userId: user?.sub, enterpriseId: user?.enterprise_id }); }
+      catch { /* el external deja auditoría; no bloquear */ }
+    }
+
     return { _id: current._id, estado: current.estado };
   }
 }

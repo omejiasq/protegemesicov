@@ -1,8 +1,7 @@
-import { Injectable, NotFoundException, Logger, Optional } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, Types } from 'mongoose';
 import { Maintenance, MaintenanceDocument } from '../schema/maintenance.schema';
-import { ExternalApiService } from '../libs/external-api';
 
 type UserCtx = { enterprise_id?: string };
 
@@ -29,12 +28,9 @@ export interface ListMaintenanceQuery {
 
 @Injectable()
 export class MaintenanceService {
-  private readonly logger = new Logger(MaintenanceService.name);
-
   constructor(
     @InjectModel(Maintenance.name)
     private readonly model: Model<MaintenanceDocument>,
-    @Optional() private readonly externalApi?: ExternalApiService,
   ) {}
 
   private tenant(user?: UserCtx): FilterQuery<MaintenanceDocument> {
@@ -44,24 +40,6 @@ export class MaintenanceService {
 
   async create(data: CreateMaintenanceInput) {
     const doc = await this.model.create({ ...data, estado: true });
-
-    // Integración externa (no bloquea el éxito local)
-    if (this.externalApi) {
-      (async () => {
-        try {
-          const base = await this.externalApi!.crearMantenimientoBase(doc.placa, data.tipoId);
-          const externalId = base?.data?.id ?? (base as any)?.id;
-          if (externalId) {
-            await this.model.updateOne({ _id: doc._id }, { $set: { externalId } });
-          }
-        } catch (err) {
-          this.logger.warn(
-            `Integración externa (mantenimiento base) falló: ${(err as any)?.message || err}`,
-          );
-        }
-      })();
-    }
-
     return doc.toJSON();
   }
 
@@ -76,12 +54,7 @@ export class MaintenanceService {
     if (typeof q.estado === 'boolean') filter.estado = q.estado;
 
     const [items, total] = await Promise.all([
-      this.model
-        .find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean({ getters: true }),
+      this.model.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean({ getters: true }),
       this.model.countDocuments(filter),
     ]);
     return { page, numero_items: limit, total, items };
@@ -89,9 +62,7 @@ export class MaintenanceService {
 
   async getById(id: string, user?: UserCtx) {
     if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Maintenance not found');
-    const doc = await this.model
-      .findOne({ _id: id, ...this.tenant(user) })
-      .lean({ getters: true });
+    const doc = await this.model.findOne({ _id: id, ...this.tenant(user) }).lean({ getters: true });
     if (!doc) throw new NotFoundException('Maintenance not found');
     return doc;
   }
@@ -114,28 +85,25 @@ export class MaintenanceService {
     return current.toJSON();
   }
 
-  async listPlates(
-    q: { tipoId: 1 | 2 | 3 | 4; vigiladoId: number; search?: string },
-    user?: { enterprise_id?: string },
-  ) {
-    const filter: any = {
-      enterprise_id: user?.enterprise_id,
-      tipoId: q.tipoId,
-      vigiladoId: q.vigiladoId,
-    };
+  async listPlates(q: { tipoId: 1|2|3|4; vigiladoId: number; search?: string }, user?: { enterprise_id?: string }) {
+  const filter: any = {
+    enterprise_id: user?.enterprise_id,
+    tipoId: q.tipoId,
+    vigiladoId: q.vigiladoId,
+  };
 
-    if (q.search) {
-      filter.placa = { $regex: `^${q.search}`, $options: 'i' };
-    }
-
-    const rows = await this.model.aggregate([
-      { $match: filter },
-      { $sort: { createdAt: -1 } },
-      { $group: { _id: '$placa', estado: { $first: '$estado' }, lastAt: { $first: '$createdAt' } } },
-      { $project: { _id: 0, placa: '$_id', estado: 1, lastAt: 1 } },
-      { $sort: { placa: 1 } },
-    ]);
-
-    return { items: rows };
+  if (q.search) {
+    filter.placa = { $regex: `^${q.search}`, $options: 'i' };
   }
+
+  const rows = await this.model.aggregate([
+    { $match: filter },
+    { $sort: { createdAt: -1 } },             
+    { $group: { _id: '$placa', estado: { $first: '$estado' }, lastAt: { $first: '$createdAt' } } },
+    { $project: { _id: 0, placa: '$_id', estado: 1, lastAt: 1 } },
+    { $sort: { placa: 1 } },
+  ]);
+
+  return { items: rows };
+}
 }

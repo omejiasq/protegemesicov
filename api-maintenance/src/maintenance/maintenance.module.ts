@@ -3,7 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Maintenance, MaintenanceSchema } from '../schema/maintenance.schema';
 import { MaintenanceController } from './maintenance.controller';
 import { MaintenanceService } from './maintenance.service';
-import { ExternalApiService } from 'src/libs/external-api';
+import { MaintenanceExternalApiService } from 'src/libs/external-api';
 
 @Module({
   imports: [
@@ -11,7 +11,7 @@ import { ExternalApiService } from 'src/libs/external-api';
   ],
   controllers: [MaintenanceController],
   providers: [MaintenanceService,
-    ExternalApiService
+    MaintenanceExternalApiService
   ],
   exports: [MaintenanceService],
 })

@@ -6,6 +6,8 @@ export type CorrectiveDetailDocument = HydratedDocument<CorrectiveDetail>;
 @Schema({ collection: 'corrective_details', timestamps: true })
 export class CorrectiveDetail {
   @Prop() externalId?: string;
+    @Prop({ type: Object, required: false })
+externalData?: Record<string, unknown>;
   @Prop({ required: true }) mantenimientoId!: string;
   @Prop({ required: true, trim: true }) placa!: string;
   @Prop({ required: true, trim: true }) fecha!: string;

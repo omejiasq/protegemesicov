@@ -1,96 +1,148 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+// api-authorizations/src/authorizations/authorizations.service.ts
+import { Injectable, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, FilterQuery, Types } from 'mongoose';
 import { Authorization, AuthorizationDocument } from '../schema/authorizations.schema';
+import { ExternalApiService } from '../libs/external-api'; // clase definida en external-api.ts
+import { AuditService } from '../libs/audit/audit.service'; // 👈 NUEVO
 
-export interface CreateAuthorizationInput {
-  vigiladoId: number;
-  placa: string;
-  fecha?: Date | string;
-  detalleActividades?: string;
-  enterprise_id?: string;
-  createdBy?: string;
-}
-
-export interface UpdateAuthorizationInput {
-  placa?: string;
-  fecha?: Date | string;
-  detalleActividades?: string;
-  estado?: boolean;
-}
-
-export interface ListAuthorizationQuery {
-  page?: number;
-  numero_items?: number;
-  placa?: string;
-  vigiladoId?: number;
-  estado?: boolean;
-}
-
-type UserCtx = { enterprise_id?: string };
+type AnyObj = Record<string, any>;
 
 @Injectable()
 export class AuthorizationService {
+  private readonly logger = new Logger(AuthorizationService.name);
+
   constructor(
     @InjectModel(Authorization.name)
     private readonly model: Model<AuthorizationDocument>,
+    private readonly external: ExternalApiService,
+    private readonly audit: AuditService, // 👈 NUEVO: inyectamos auditoría
   ) {}
 
-  private tenantFilter(user?: UserCtx): FilterQuery<AuthorizationDocument> {
-    if (user?.enterprise_id) return { enterprise_id: user.enterprise_id };
-    return { enterprise_id: '__none__' };
+  /** Helper para filtrar por tenant si viene enterprise_id */
+  private tenantFilter(user?: { enterprise_id?: string }): AnyObj {
+    return user?.enterprise_id ? { enterprise_id: user.enterprise_id } : {};
   }
 
-  async create(data: CreateAuthorizationInput) {
-    const payload: any = { ...data };
-    if (typeof payload.fecha === 'string') payload.fecha = new Date(payload.fecha);
-    const doc = await this.model.create({ ...payload, estado: true });
+  /** Crea la autorización local y la registra en SICOV (mantenimiento tipoId=4 + autorización). */
+  async create(data: any, user?: { enterprise_id?: string; sub?: string }) {
+  // 0) validar y normalizar idDespacho ANTES de crear el doc
+  const idDespacho = Number(data?.idDespacho);
+  if (!Number.isFinite(idDespacho)) {
+    throw new BadRequestException('idDespacho es requerido y debe ser numérico');
+  }
+
+  // 1) crear doc local con los campos requeridos por el schema
+  const doc = await this.model.create({
+    idDespacho,                               // 👈 requerido por el schema
+    enterprise_id: user?.enterprise_id,
+    createdBy: user?.sub,
+    // agrega acá otros campos que tu schema marque como required
+    // (por ej. estado: true) si corresponde
+  });
+
+  // 2) preparar envío a SICOV
+  const item = Array.isArray(data?.autorizacion) ? data.autorizacion[0] : undefined;
+  const placa = item?.placa || data?.placa;
+  const ctx = { userId: user?.sub, enterpriseId: user?.enterprise_id };
+
+  // 3) si no hay datos mínimos para el externo, auditar local y salir
+  if (!placa || !item) {
+    await this.audit.log({
+      module: 'authorizations',
+      operation: 'create.local-only',
+      endpoint: 'internal',
+      requestPayload: { id: String(doc._id), idDespacho, placa, hasItem: !!item },
+      responseStatus: 200,
+      responseBody: { reason: 'missing placa or autorizacion[0], external skipped' },
+      success: true,
+      userId: ctx.userId,
+      enterpriseId: ctx.enterpriseId,
+    });
     return doc.toJSON();
   }
 
-  async list(q: ListAuthorizationQuery, user?: UserCtx) {
-    const page = Math.max(1, Number(q.page ?? 1));
-    const limit = Math.max(1, Math.min(100, Number(q.numero_items ?? 10)));
-    const skip = (page - 1) * limit;
+  // 4) llamadas a la API externa (auditan dentro del ExternalApiService)
+  try {
+    const baseRes = await this.external.guardarMantenimientoBase(placa, ctx);
+    const b = baseRes?.data ?? {};
+    const mantenimientoId =
+      b?.mantenimientoId ?? b?.id ?? b?.data?.mantenimientoId ?? b?.data?.id ?? null;
 
-    const filter: FilterQuery<AuthorizationDocument> = { ...this.tenantFilter(user) };
-    if (q.placa) filter.placa = q.placa;
-    if (typeof q.vigiladoId === 'number') filter.vigiladoId = q.vigiladoId;
-    if (typeof q.estado === 'boolean') filter.estado = q.estado;
+    if (mantenimientoId != null) {
+      const authRes = await this.external.guardarAutorizacion(Number(mantenimientoId), item, ctx);
+      const ar = authRes?.data ?? {};
+      const externalId =
+        ar?.id ?? ar?.autorizacion?.id ?? ar?.data?.id ?? null;
 
-    const [items, total] = await Promise.all([
-      this.model.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean({ getters: true }),
-      this.model.countDocuments(filter),
-    ]);
-
-    return { page, numero_items: limit, total, items };
+      if (externalId != null) {
+        await this.model.updateOne(
+          { _id: doc._id },
+          { $set: { mantenimientoId, externalId: Number(externalId) } },
+        );
+      }
+    }
+  } catch {
+    // no bloquear la operación local si falla el externo; la auditoría ya quedó escrita por el external
   }
 
-  async getById(id: string, user?: UserCtx) {
-    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Authorization not found');
-    const filter: FilterQuery<AuthorizationDocument> = { _id: new Types.ObjectId(id), ...this.tenantFilter(user) };
-    const doc = await this.model.findOne(filter).lean({ getters: true });
-    if (!doc) throw new NotFoundException('Authorization not found');
-    return doc;
+  return doc.toJSON();
+}
+
+  /** Vista por id, adjuntando datos externos si hay mantenimientoId */
+  async view(dto: { id: string }, user?: { enterprise_id?: string }) {
+    if (!Types.ObjectId.isValid(dto.id)) throw new NotFoundException('No encontrado');
+
+    const filter: FilterQuery<AuthorizationDocument> = {
+      _id: new Types.ObjectId(dto.id),
+      ...this.tenantFilter(user),
+    };
+
+    const item = await this.model.findOne(filter).lean({ getters: true }) as AnyObj;
+    if (!item) throw new NotFoundException('No encontrado');
+
+    if (item.mantenimientoId) {
+      try {
+        const res = await this.external.visualizarAutorizacion(Number(item.mantenimientoId));
+        if (res?.ok) item.externalData = res.data;
+      } catch {
+        // ignorar fallos externos
+      }
+    }
+    return item;
   }
 
-  async update(id: string, data: UpdateAuthorizationInput, user?: UserCtx) {
-    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Authorization not found');
-    const filter: FilterQuery<AuthorizationDocument> = { _id: new Types.ObjectId(id), ...this.tenantFilter(user) };
-    const payload: any = { ...data };
-    if (typeof payload.fecha === 'string') payload.fecha = new Date(payload.fecha);
-    const doc = await this.model.findOneAndUpdate(filter, { $set: payload }, { new: true }).lean({ getters: true });
-    if (!doc) throw new NotFoundException('Authorization not found');
-    return doc;
+  /** Update básico local (opcionalmente podés re-enviar a SICOV con otro método del external) */
+  async update(dto: { id: string; changes: AnyObj }, user?: { enterprise_id?: string }) {
+    if (!Types.ObjectId.isValid(dto.id)) throw new NotFoundException('No encontrado');
+
+    const filter: FilterQuery<AuthorizationDocument> = {
+      _id: new Types.ObjectId(dto.id),
+      ...this.tenantFilter(user),
+    };
+
+    const updated = await this.model
+      .findOneAndUpdate(filter, { $set: dto.changes }, { new: true })
+      .lean({ getters: true });
+    if (!updated) throw new NotFoundException('No encontrado');
+    return updated as AnyObj;
   }
 
-  async toggleState(id: string, user?: UserCtx) {
-    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Authorization not found');
-    const filter: FilterQuery<AuthorizationDocument> = { _id: new Types.ObjectId(id), ...this.tenantFilter(user) };
+  /** Toggle estado local (si existiera un endpoint de toggle externo, podés llamarlo acá) */
+  async toggleState(dto: { id: string }, user?: { enterprise_id?: string }) {
+    if (!Types.ObjectId.isValid(dto.id)) throw new NotFoundException('No encontrado');
+
+    const filter: FilterQuery<AuthorizationDocument> = {
+      _id: new Types.ObjectId(dto.id),
+      ...this.tenantFilter(user),
+    };
+
     const current = await this.model.findOne(filter);
-    if (!current) throw new NotFoundException('Authorization not found');
+    if (!current) throw new NotFoundException('No encontrado');
+
     current.estado = !current.estado;
     await current.save();
+
     return current.toJSON();
   }
 }

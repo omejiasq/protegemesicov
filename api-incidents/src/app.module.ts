@@ -3,10 +3,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { PassportModule } from '@nestjs/passport';
 
-import { IncidentsModule } from './incidents/incident.module';
+import { IncidentModule } from './incidents/incident.module';
 import { IncidentsVehicleModule } from './incidentsVehicle/incidentVehicle.module';
 import { IncidentsDriverModule } from './incidentsDriver/incidentsDriver.module';
 import { JwtStrategy } from './libs/jwt.strategy';
+import { AuditModule } from './libs/audit/audit.module';
 
 @Module({
   imports: [
@@ -18,9 +19,10 @@ import { JwtStrategy } from './libs/jwt.strategy';
         uri: cfg.get<string>('MONGO_URI'),
       }),
     }),
-    IncidentsModule,
+    IncidentModule,
     IncidentsVehicleModule,
     IncidentsDriverModule,
+    AuditModule
   ],
   providers: [
     JwtStrategy,
