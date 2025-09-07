@@ -8,6 +8,7 @@ import { FilesController } from './files.controller';
 import { FilesService } from './files.service';
 import { ProgramsController } from './program.controller';
 import { ProgramsService } from './program.service';
+import { StorageModule } from 'src/libs/storage/storage.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ProgramsService } from './program.service';
       { name: FileAsset.name, schema: FileAssetSchema },
       { name: ProgramFile.name, schema: ProgramFileSchema },
     ]),
+    StorageModule
   ],
   controllers: [FilesController, ProgramsController],
   providers: [FilesService, ProgramsService],
