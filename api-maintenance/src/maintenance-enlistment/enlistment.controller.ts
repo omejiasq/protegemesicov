@@ -1,13 +1,13 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../libs/auth/jwt-auth.guard';
-import { EnlistmentService } from './enlistment.service';
+import { AlistamientoService } from './enlistment.service';
 import { CreateEnlistmentDto } from './dto/create-enlistment-dto';
 import { ViewEnlistmentDto } from './dto/view-enlistment-dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('enlistment')
 export class EnlistmentController {
-  constructor(private readonly svc: EnlistmentService) {}
+  constructor(private readonly svc: AlistamientoService) {}
 
   @Post('create')
   create(@Body() dto: CreateEnlistmentDto, @Req() req: Request) {

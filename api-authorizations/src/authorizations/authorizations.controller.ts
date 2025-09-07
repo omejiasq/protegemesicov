@@ -1,63 +1,46 @@
-import { Body, Controller, Get, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../libs/auth/jwt-auth.guard';
 import { AuthorizationService } from './authorizations.service';
-import { JwtAuthGuard } from 'src/libs/auth/jwt-auth.guard';
-import { IsBoolean, IsInt, IsOptional, IsString, IsDateString, MaxLength, Min } from 'class-validator';
-import { Type } from 'class-transformer';
-
-class CreateAuthorizationDto {
-  @Type(() => Number) @IsInt() vigiladoId!: number;
-  @IsString() placa!: string;
-  @IsOptional() @IsDateString() fecha?: string;
-  @IsOptional() @IsString() @MaxLength(1000) detalleActividades?: string;
-}
-
-class UpdateAuthorizationDto {
-  @IsOptional() @IsString() placa?: string;
-  @IsOptional() @IsDateString() fecha?: string;
-  @IsOptional() @IsString() @MaxLength(1000) detalleActividades?: string;
-  @IsOptional() @IsBoolean() estado?: boolean;
-}
-
-class ListQueryDto {
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number = 1;
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) numero_items?: number = 10;
-  @IsOptional() @IsString() placa?: string;
-  @IsOptional() @Type(() => Number) @IsInt() vigiladoId?: number;
-  @IsOptional() @Type(() => Boolean) estado?: boolean;
-}
 
 @UseGuards(JwtAuthGuard)
-@Controller('authorization')
-export class AuthorizationController {
+@Controller('authorizations')
+export class AuthorizationsController {
   constructor(private readonly svc: AuthorizationService) {}
 
   @Post('create')
-  create(@Body() dto: CreateAuthorizationDto, @Req() req: Request) {
+  create(@Body() dto: any, @Req() req: Request) {
     const user = (req as any).user;
-    return this.svc.create({ ...dto, createdBy: user.sub, enterprise_id: user.enterprise_id });
+    return this.svc.create(dto, {
+      enterprise_id: (user as any)?.enterprise_id,
+      sub: (user as any)?.sub,
+    });
   }
 
-  @Get('getAll')
-  list(@Query() q: ListQueryDto, @Req() req: Request) {
+  @Post('view')
+  view(@Body() dto: { id: string }, @Req() req: Request) {
     const user = (req as any).user;
-    return this.svc.list(q, user);
+    return this.svc.view({ id: dto.id }, { enterprise_id: (user as any)?.enterprise_id });
   }
 
-  @Get('getById/:id')
-  get(@Param('id') id: string, @Req() req: Request) {
+  // Update espera UN dto con { id, changes } y opcionalmente el user como 2º arg.
+  @Post('update')
+  update(@Body() dto: any, @Req() req: Request) {
     const user = (req as any).user;
-    return this.svc.getById(id, user);
+
+    // si el front envía { id, ...campos }, armamos changes automáticamente
+    const { id, changes, ...rest } = dto ?? {};
+    const payload = {
+      id,
+      changes: changes ?? rest ?? {},
+    };
+
+    return this.svc.update(payload, { enterprise_id: (user as any)?.enterprise_id });
   }
 
-  @Put('updateById/:id')
-  update(@Param('id') id: string, @Body() dto: UpdateAuthorizationDto, @Req() req: Request) {
+  // Toggle espera UN dto con { id }
+  @Post('toggle')
+  toggle(@Body() dto: { id: string }, @Req() req: Request) {
     const user = (req as any).user;
-    return this.svc.update(id, dto, user);
-  }
-
-  @Patch('toggleState/:id')
-  toggle(@Param('id') id: string, @Req() req: Request) {
-    const user = (req as any).user;
-    return this.svc.toggleState(id, user);
+    return this.svc.toggleState({ id: dto.id }, { enterprise_id: (user as any)?.enterprise_id });
   }
 }

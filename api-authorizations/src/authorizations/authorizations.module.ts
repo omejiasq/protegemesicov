@@ -2,16 +2,19 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Authorization, AuthorizationSchema } from '../schema/authorizations.schema';
 import { AuthorizationService } from './authorizations.service';
-import { AuthorizationController } from './authorizations.controller';
+import { AuthorizationsController } from './authorizations.controller';
+import { ExternalApiService } from 'src/libs/external-api';
+import { AuditModule } from 'src/libs/audit/audit.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Authorization.name, schema: AuthorizationSchema },
     ]),
+    AuditModule
   ],
-  controllers: [AuthorizationController],
-  providers: [AuthorizationService],
+  controllers: [AuthorizationsController],
+  providers: [AuthorizationService, ExternalApiService],
   exports: [AuthorizationService],
 })
 export class AuthorizationModule {}

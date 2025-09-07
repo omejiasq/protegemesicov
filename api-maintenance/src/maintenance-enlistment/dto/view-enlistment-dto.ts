@@ -1,5 +1,6 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsString } from 'class-validator';
 
 export class ViewEnlistmentDto {
-  @IsString() @IsNotEmpty() mantenimientoId!: string;
+  @IsString()
+  id!: string;
 }

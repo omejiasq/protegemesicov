@@ -3,7 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { PreventiveController } from './preventive.controller';
 import { PreventiveService } from './preventive.service';
 import { PreventiveDetail, PreventiveDetailSchema } from '../schema/preventive.schema';
-import { ExternalApiService } from 'src/libs/external-api';
+import { MaintenanceExternalApiService } from 'src/libs/external-api';
 
 @Module({
   imports: [
@@ -11,7 +11,7 @@ import { ExternalApiService } from 'src/libs/external-api';
   ],
   controllers: [PreventiveController],
   providers: [PreventiveService,
-    ExternalApiService
+    MaintenanceExternalApiService
   ],
   exports: [PreventiveService],
 })

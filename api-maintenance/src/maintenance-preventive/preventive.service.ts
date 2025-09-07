@@ -1,116 +1,90 @@
-// src/preventive/preventive.service.ts
-import {
-  Injectable,
-  ConflictException,
-  NotFoundException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model } from 'mongoose';
-import {
-  PreventiveDetail,
-  PreventiveDetailDocument,
-} from '../schema/preventive.schema';
-import { CreatePreventiveDto } from './dto/create-preventive-dto';
-import { ViewPreventiveDto } from './dto/view-preventive-dto';
-
-// ⚠️ Ajustá la ruta si tu helper quedó en otro lado
-import { ExternalApiService } from '../libs/external-api';
-
-type UserCtx = { enterprise_id?: string; sub?: string };
+import { Model, Types } from 'mongoose';
+import { PreventiveDetail, PreventiveDetailDocument } from '../schema/preventive.schema';
+import { MaintenanceExternalApiService } from '../libs/external-api';
 
 @Injectable()
 export class PreventiveService {
-  private readonly logger = new Logger(PreventiveService.name);
-
   constructor(
     @InjectModel(PreventiveDetail.name)
     private readonly model: Model<PreventiveDetailDocument>,
-    private readonly externalApi?: ExternalApiService, // opcional
+    private readonly external: MaintenanceExternalApiService,
   ) {}
 
-  private tenant(user?: UserCtx): FilterQuery<PreventiveDetailDocument> {
-    return { enterprise_id: user?.enterprise_id };
-  }
+  async create(dto: any, user?: { enterprise_id?: string; sub?: string }) {
+    // evitar duplicados por placa
+    const exists = await this.model.exists({ placa: dto.placa, enterprise_id: user?.enterprise_id });
+    if (exists) throw new ConflictException('Ya existe un mantenimiento preventivo para esa placa');
 
-  /** Crea preventivo (1 por mantenimiento) y dispara integración externa en background */
-  async create(dto: CreatePreventiveDto, user?: UserCtx) {
-    // 1) Evitar duplicados por mantenimientoId+tenant
-    const dup = await this.model.exists({
-      mantenimientoId: dto.mantenimientoId,
-      ...this.tenant(user),
-    });
-    if (dup) {
-      throw new ConflictException(
-        'El mantenimiento ya tiene un preventivo registrado',
-      );
-    }
-
-    // 2) Guardar en Mongo
+    // persistir local
     const doc = await this.model.create({
-      ...dto,
       enterprise_id: user?.enterprise_id,
       createdBy: user?.sub,
+      placa: dto.placa,
+      fecha: dto.fecha,
+      hora: dto.hora,
+      nit: dto.nit,
+      razonSocial: dto.razonSocial,
+      tipoIdentificacion: dto.tipoIdentificacion,
+      numeroIdentificacion: dto.numeroIdentificacion,
+      nombresResponsable: dto.nombresResponsable,
+      detalleActividades: dto.detalleActividades,
       estado: true,
     });
 
-    // 3) Integración externa (no bloquea el éxito local)
-    //    - Crea mantenimiento base (tipo 1 = preventivo) si tu helper lo requiere
-    //    - Registra el detalle preventivo con el id externo
-    //    - Persiste externalId en Mongo si lo obtenemos
-    if (this.externalApi) {
-      (async () => {
-        try {
-          // si tu helper necesita crear el mantenimiento base en SICOV:
-          const base = await this.externalApi!.crearMantenimientoBase(
-            doc.placa,
-            1, // tipo 1: preventivo
-          );
-          const externalId = base?.data?.id ?? (base as any)?.id;
-
-          await this.externalApi!.guardarPreventivo({
-            mantenimientoId: externalId ?? dto.mantenimientoId, // usa externo si lo tenemos
-            placa: doc.placa,
-            fecha: dto.fecha,
-            hora: dto.hora,
-            nit: dto.nit,
-            razonSocial: dto.razonSocial,
-            tipoIdentificacion: dto.tipoIdentificacion,
-            numeroIdentificacion: dto.numeroIdentificacion,
-            nombresResponsable: dto.nombresResponsable,
-            detalleActividades: dto.detalleActividades,
-          });
-
-          if (externalId) {
-            await this.model.updateOne(
-              { _id: doc._id },
-              { $set: { externalId } },
-            );
-          }
-        } catch (err) {
-          this.logger.warn(
-            `Integración externa (preventivo) falló: ${
-              (err as any)?.message || err
-            }`,
+    // sincronizar con SICOV
+    try {
+      const baseRes = await this.external.guardarMantenimiento({
+        placa: dto.placa,
+        tipoId: 1,
+        vigiladoId: process.env.SICOV_VIGILADO_ID,
+      });
+      const mantenimientoId = baseRes.ok && baseRes.data?.id;
+      if (mantenimientoId) {
+        const detRes = await this.external.guardarPreventivo({
+          fecha: dto.fecha,
+          hora: dto.hora,
+          nit: dto.nit,
+          razonSocial: dto.razonSocial,
+          tipoIdentificacion: dto.tipoIdentificacion,
+          numeroIdentificacion: dto.numeroIdentificacion,
+          nombresResponsable: dto.nombresResponsable,
+          mantenimientoId,
+          detalleActividades: dto.detalleActividades,
+          vigiladoId: process.env.SICOV_VIGILADO_ID,
+        });
+        const externalId = detRes.ok && detRes.data?.id;
+        if (externalId) {
+          await this.model.updateOne(
+            { _id: doc._id },
+            { $set: { mantenimientoId, externalId: String(externalId) } },
           );
         }
-      })();
+      }
+    } catch {
+      // Modo defensivo: si falla no se revierte la operación local
     }
 
-    return doc.toJSON();
+    return (await this.model.findById(doc._id).lean())!;
   }
 
-  /** Devuelve el preventivo por mantenimientoId (fallback por placa si no llega id) */
-  async view(body: ViewPreventiveDto, user?: UserCtx) {
-    const byId = body.mantenimientoId && String(body.mantenimientoId).trim();
-    const filter: FilterQuery<PreventiveDetailDocument> = this.tenant(user);
+  async view(dto: { id: string }, user?: { enterprise_id?: string }) {
+    if (!Types.ObjectId.isValid(dto.id)) throw new NotFoundException('No encontrado');
+    const item = await this.model
+      .findOne({ _id: new Types.ObjectId(dto.id), enterprise_id: user?.enterprise_id })
+      .lean();
+    if (!item) throw new NotFoundException('No encontrado');
 
-    if (byId) {
-      Object.assign(filter, { mantenimientoId: byId });
+    // opcionalmente consulta en SICOV
+    if (item.mantenimientoId) {
+      try {
+        const res = await this.external.visualizarPreventivo(item.mantenimientoId, process.env.SICOV_VIGILADO_ID);
+        if (res.ok) item.externalData = res.data;
+      } catch {
+        /* ignorar fallos externos */
+      }
     }
-
-    const item = await this.model.findOne(filter).lean();
-    if (!item) throw new NotFoundException('Preventivo no encontrado');
     return item;
   }
 }
