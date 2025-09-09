@@ -21,16 +21,15 @@
       <div class="bolt-center formgrid grid align-items-end">
         <!-- Dropdown de búsqueda -->
         <div class="bolt_search p-3">
-          <div class="flex gap-2 align-items-center">
-            <UiDropdownBasic
-              v-model="filters.mantenimientoId"
-              :options="enlistmentMaintenanceOpts"
-              :disabled="enlistmentOptsLoading || store.maintenanceList.loading"
-              style="flex: 1 1 520px"
-              placeholder="Seleccioná un mantenimiento con alistamiento"
-              @update:modelValue="onFilterPick"
+          <span class="p-input-icon-left w-full" style="flex: 1 1 520px">
+            <i class="pi pi-search" />
+            <InputText
+              v-model="filters.placa"
+              class="w-full pv-light"
+              placeholder="Buscar por placa…"
+              @keydown.enter="refresh"
             />
-          </div>
+          </span>
         </div>
 
         <!-- Botones -->
@@ -66,7 +65,14 @@
       >
         <Column header="Descripcion" style="min-width: 240px">
           <template #body="{ data }"
-            ><span class="text-900">{{ data.detalleActividades }}</span></template
+            ><span class="text-900">{{
+              data.detalleActividades
+            }}</span></template
+          >
+        </Column>
+        <Column header="Placa" style="min-width: 240px">
+          <template #body="{ data }"
+            ><span class="text-900">{{ data.placa }}</span></template
           >
         </Column>
         <Column header="Numero de identificacion">
@@ -101,61 +107,81 @@
       header="Nuevo alistamiento"
       class="dialog-body"
       :style="{ width: '720px' }"
+      :contentStyle="{ overflowY: 'visible', maxHeight: 'none' }"
     >
-      <div class="field col-12">
-        <label class="block mb-2 text-900">Mantenimiento</label>
-        <UiDropdownBasic
-          v-model="form.mantenimientoId"
-          :options="maintenanceOptsType3"
-          :disabled="store.maintenanceList.loading"
-          placeholder="Seleccioná un mantenimiento (tipo 3)"
-          @update:modelValue="onPickMaintenance"
-        />
+      <!-- wrapper de grilla para 2 columnas -->
+      <div class="formgrid grid">
+        <div class="field col-12">
+          <label class="block mb-2 text-900">Mantenimiento</label>
+          <UiDropdownBasic
+            v-model="form.mantenimientoId"
+            :options="maintenanceOptsType3"
+            :disabled="store.maintenanceList.loading"
+            placeholder="Seleccioná un mantenimiento (tipo 3)"
+            @update:modelValue="onPickMaintenance"
+          />
+        </div>
+
+        <div class="field col-12 md:col-6">
+          <label class="block mb-2 text-900">Placa</label>
+          <InputText v-model="form.placa" class="w-full" />
+        </div>
+
+        <div class="field col-12 md:col-6">
+          <label class="block mb-2 text-900">Fecha (YYYY-MM-DD)</label>
+          <Calendar
+            v-model="form.fecha"
+            dateFormat="yy-mm-dd"
+            appendTo="body"
+            class="w-full"
+          />
+        </div>
+
+        <div class="field col-12 md:col-6">
+          <label class="block mb-2 text-900">Hora</label>
+          <Calendar
+            v-model="form.hora"
+            timeOnly
+            hourFormat="24"
+            showIcon
+            appendTo="self"
+            class="w-full"
+          />
+        </div>
+
+        <div class="field col-12 md:col-6">
+          <label class="block mb-2 text-900">Tipo identificación</label>
+          <InputText
+            v-model="form.tipoIdentificacion"
+            placeholder="3"
+            class="w-full"
+          />
+        </div>
+
+        <div class="field col-12 md:col-6">
+          <label class="block mb-2 text-900">Número identificación</label>
+          <InputText
+            v-model="form.numeroIdentificacion"
+            placeholder="12345678"
+            class="w-full"
+          />
+        </div>
+
+        <div class="field col-12 md:col-6">
+          <label class="block mb-2 text-900">Responsable</label>
+          <InputText
+            v-model="form.nombresResponsable"
+            placeholder="Juan Pérez"
+            class="w-full"
+          />
+        </div>
+
+        <div class="field col-12">
+          <label class="block mb-2 text-900">Detalle de actividades</label>
+          <Textarea v-model="form.detalleActividades" rows="4" class="w-full" />
+        </div>
       </div>
 
-      <div class="field col-12 md:col-6">
-        <label class="block mb-2 text-900">Placa</label>
-        <InputText v-model="form.placa" class="w-full" />
-      </div>
-      <div class="field col-12 md:col-6">
-        <label class="block mb-2 text-900">Fecha (YYYY-MM-DD)</label>
-        <Calendar v-model="form.fecha" date-format="yy-mm-dd" class="w-full" />
-      </div>
-
-      <div class="field col-12 md:col-6">
-        <label class="block mb-2 text-900">Hora (HH:mm)</label>
-        <InputText v-model="form.hora" placeholder="09:15" class="w-full" />
-      </div>
-      <div class="field col-12 md:col-6">
-        <label class="block mb-2 text-900">Tipo identificación</label>
-        <InputText
-          v-model="form.tipoIdentificacion"
-          placeholder="3"
-          class="w-full"
-        />
-      </div>
-
-      <div class="field col-12 md:col-6">
-        <label class="block mb-2 text-900">Número identificación</label>
-        <InputText
-          v-model="form.numeroIdentificacion"
-          placeholder="12345678"
-          class="w-full"
-        />
-      </div>
-      <div class="field col-12 md:col-6">
-        <label class="block mb-2 text-900">Responsable</label>
-        <InputText
-          v-model="form.nombresResponsable"
-          placeholder="Juan Pérez"
-          class="w-full"
-        />
-      </div>
-
-      <div class="field col-12">
-        <label class="block mb-2 text-900">Detalle de actividades</label>
-        <Textarea v-model="form.detalleActividades" rows="4" class="w-full" />
-      </div>
       <template #footer>
         <div class="flex justify-content-end gap-2">
           <Button
@@ -188,34 +214,46 @@ import Tag from "primevue/tag";
 import Dialog from "primevue/dialog";
 import UiDropdownBasic from "../../components/ui/Dropdown.vue";
 import { MaintenanceserviceApi } from "../../api/maintenance.service";
-import Calendar from 'primevue/calendar';
-import Textarea from 'primevue/textarea';
+import Calendar from "primevue/calendar";
+import Textarea from "primevue/textarea";
+import { useToast } from "primevue/usetoast";
+import { watch } from "vue";
+
+const toast = useToast();
 
 const store = useMaintenanceStore();
 
-const filters = reactive({ mantenimientoId: "" });
+type EnlistmentFilters = { mantenimientoId: string; placa: string };
+const filters = reactive<EnlistmentFilters>({ mantenimientoId: "", placa: "" });
 const saving = ref(false);
 const dlg = reactive({ visible: false });
+watch(
+  () => dlg.visible,
+  (v) => {
+    if (v) ensureMaintenances();
+  }
+);
 const form = reactive({
   mantenimientoId: "",
   placa: "",
   fecha: null as any,
-  hora: "",
+  hora: null as any,
   tipoIdentificacion: "",
   numeroIdentificacion: "",
   nombresResponsable: "",
   detalleActividades: "",
 });
 
-const current = computed(() => store.enlistment.current);
-const loading = computed(() => store.enlistment.loading);
-
-const rows = computed(() => (current.value ? [normalize(current.value)] : []));
+const loading = computed(() => store.enlistmentList.loading);
+const rows = computed(() => (store.enlistmentList.items || []).map(normalize));
 
 const maintenanceOptsType3 = computed(() =>
   (store.maintenanceList.items || [])
-    .filter((m: any) => m?.tipoId === 3)
-    .map((m: any) => ({ label: formatMaintLabel(m), value: m?._id }))
+    .filter((m: any) => Number(m?.tipoId) === 3) // 👈 SOLO tipo 3
+    .map((m: any) => ({
+      label: formatMaintLabel(m),
+      value: m?._id,
+    }))
 );
 
 function normalize(r: any) {
@@ -242,22 +280,57 @@ function fmtDate(s?: string) {
 }
 
 async function refresh() {
-  const id = (filters.mantenimientoId || "").trim();
-  if (/^[0-9a-fA-F]{24}$/.test(id)) {
-    await store.enlistmentView({ mantenimientoId: id });
-  } else {
-    store.enlistment.current = null;
+  const params: any = {};
+  if (
+    filters.placa &&
+    typeof filters.placa === "string" &&
+    filters.placa.trim()
+  ) {
+    params.plate = filters.placa.trim(); // el store lo mapea a 'placa'
   }
+  await store.enlistmentFetchList(params);
 }
 
 function normDate(v: any): string | undefined {
   if (!v) return undefined;
-  if (typeof v === 'string') return v.slice(0, 10);
-  const d = new Date(v); if (isNaN(+d)) return undefined;
-  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
+  if (typeof v === "string") return v.slice(0, 10);
+  const d = new Date(v);
+  if (isNaN(+d)) return undefined;
+  const y = d.getFullYear(),
+    m = String(d.getMonth() + 1).padStart(2, "0"),
+    dd = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${dd}`;
 }
-function toInt(v:any){ const n = Number(v); return Number.isFinite(n)? n: undefined; }
+
+function normTime(v: any): string | undefined {
+  if (!v) return undefined;
+  try {
+    if (v instanceof Date) {
+      const hh = String(v.getHours()).padStart(2, "0");
+      const mm = String(v.getMinutes()).padStart(2, "0");
+      return `${hh}:${mm}`;
+    }
+    const m = String(v).match(/^(\d{1,2}):(\d{2})$/);
+    if (m) {
+      const hh = String(m[1]).padStart(2, "0");
+      return `${hh}:${m[2]}`;
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function toInt(v: any) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function clearFilters() {
+  filters.mantenimientoId = "";
+  filters.placa = ""; // 👈 importante
+  refresh();
+}
 
 function onClear() {
   filters.mantenimientoId = "";
@@ -272,26 +345,72 @@ function openCreate() {
 
 async function save() {
   const payload: any = {
-    mantenimientoId: String(form.mantenimientoId || '').trim(),
+    mantenimientoId: String(form.mantenimientoId || "").trim(),
     placa: form.placa?.trim() || undefined,
     fecha: normDate(form.fecha),
-    hora: form.hora?.trim() || undefined,
+    hora: normTime(form.hora),
     tipoIdentificacion: toInt(form.tipoIdentificacion),
     numeroIdentificacion: form.numeroIdentificacion?.trim() || undefined,
     nombresResponsable: form.nombresResponsable?.trim() || undefined,
     detalleActividades: form.detalleActividades?.trim() || undefined,
   };
 
-  const req = ['mantenimientoId','placa','fecha','hora','tipoIdentificacion','numeroIdentificacion','nombresResponsable','detalleActividades'];
-  for (const k of req) { if (!payload[k]) { alert(`Falta completar: ${k}`); return; } }
+  const req = [
+    "mantenimientoId",
+    "placa",
+    "fecha",
+    "hora",
+    "tipoIdentificacion",
+    "numeroIdentificacion",
+    "nombresResponsable",
+    "detalleActividades",
+  ];
+  for (const k of req) {
+    if (!payload[k]) {
+      alert(`Falta completar: ${k}`);
+      return;
+    }
+  }
 
   saving.value = true;
   try {
     await store.enlistmentCreate(payload);
     dlg.visible = false;
-    filters.mantenimientoId = String(form.mantenimientoId || '');
-    await refresh(); // tu función actual para refrescar vista
-  } finally { saving.value = false; }
+
+    toast?.add?.({
+      severity: "success",
+      summary: "Alistamiento creado",
+      detail: "Se guardó correctamente.",
+      life: 2500,
+    });
+
+    await refresh();
+  } catch (e: any) {
+    const status = e?.response?.status;
+    const msg =
+      e?.response?.data?.message ||
+      e?.message ||
+      "No se pudo crear el alistamiento";
+
+    if (status === 409 || /existe/i.test(msg) || /duplic/i.test(msg)) {
+      toast?.add?.({
+        severity: "warn",
+        summary: "Alistamiento ya existente",
+        detail: "Ya existe un alistamiento para esta placa/transacción.",
+        life: 4000,
+      });
+    } else {
+      toast?.add?.({
+        severity: "error",
+        summary: "Error al crear",
+        detail: msg,
+        life: 4000,
+      });
+    }
+    return;
+  } finally {
+    saving.value = false;
+  }
 }
 
 function formatMaintLabel(m: any) {
@@ -301,9 +420,7 @@ function formatMaintLabel(m: any) {
 }
 
 async function ensureMaintenances() {
-  if (!store.maintenanceList.items?.length) {
-    await store.maintenanceFetchList({ page: 1, limit: 100 });
-  }
+  await store.maintenanceFetchList({ page: 1, limit: 100, tipoId: 3 });
 }
 
 const enlistmentOptsLoading = ref(false);
@@ -351,15 +468,17 @@ function onFilterPick(val: any) {
 
 function onPickMaintenance(id: string | number | null) {
   if (!id) return;
-  const m = store.maintenanceList.items.find((x: any) => String(x._id) === String(id));
+  const m = store.maintenanceList.items.find(
+    (x: any) => String(x._id) === String(id)
+  );
   if (m) {
-    form.placa = m.placa || '';
+    form.placa = m.placa || "";
   }
 }
 
 onMounted(() => {
-  ensureMaintenances(); // si ya lo tenías
-  ensureEnlistmentOpts(); // 👈 nuevo
+  ensureMaintenances(); // lo mantenemos
+  refresh(); // cargá la lista apenas entra
 });
 </script>
 
@@ -518,5 +637,10 @@ onMounted(() => {
 }
 .detail-pane :deep(.p-tag) {
   color: #fff !important;
+}
+
+.dlg-2col :deep(.p-dialog-content) {
+  max-height: none;
+  overflow-y: visible;
 }
 </style>

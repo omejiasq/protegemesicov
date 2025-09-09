@@ -1,8 +1,15 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { MaintenanceExternalApiService } from '../libs/external-api';
-import { EnlistmentDetail, EnlistmentDetailDocument } from '../schema/enlistment-schema';
+import {
+  EnlistmentDetail,
+  EnlistmentDetailDocument,
+} from '../schema/enlistment-schema';
 
 @Injectable()
 export class AlistamientoService {
@@ -13,71 +20,90 @@ export class AlistamientoService {
   ) {}
 
   /** Crea un nuevo alistamiento local y lo sincroniza con SICOV */
-  async create(dto: any, user?: { enterprise_id?: string; sub?: string }) {
-    // evitar duplicados por placa dentro del mismo tenant
-    const exists = await this.model.exists({
-      placa: dto.placa,
-      enterprise_id: user?.enterprise_id,
-    });
-    if (exists) throw new ConflictException('Ya existe un alistamiento para esa placa');
-
-    // persistimos localmente
-    const doc = await this.model.create({
-      enterprise_id: user?.enterprise_id,
-      createdBy: user?.sub,
-      placa: dto.placa,
-      tipoIdentificacionResponsable: dto.tipoIdentificacionResponsable,
-      numeroIdentificacionResponsable: dto.numeroIdentificacionResponsable,
-      nombreResponsable: dto.nombreResponsable,
-      tipoIdentificacionConductor: dto.tipoIdentificacionConductor,
-      numeroIdentificacionConductor: dto.numeroIdentificacionConductor,
-      nombresConductor: dto.nombresConductor,
-      detalleActividades: dto.detalleActividades,
-      actividades: dto.actividades, // array { codigo: string; valor: boolean }
-      estado: true,
-    });
-
-    // sincronización con SICOV: obtenemos primero el mantenimiento base
-    try {
-      const baseRes = await this.external.guardarMantenimiento({
-        placa: dto.placa,
-        tipoId: 3, // 3 para alistamiento
-        vigiladoId: process.env.SICOV_VIGILADO_ID,
-      });
-      const mantenimientoId = baseRes.ok && baseRes.data?.id;
-      if (mantenimientoId) {
-        const detRes = await this.external.guardarAlistamiento({
-          tipoIdentificacionResponsable: dto.tipoIdentificacionResponsable,
-          numeroIdentificacionResponsable: dto.numeroIdentificacionResponsable,
-          nombreResponsable: dto.nombreResponsable,
-          tipoIdentificacionConductor: dto.tipoIdentificacionConductor,
-          numeroIdentificacionConductor: dto.numeroIdentificacionConductor,
-          nombresConductor: dto.nombresConductor,
-          mantenimientoId,
-          detalleActividades: dto.detalleActividades,
-          actividades: dto.actividades,
-          vigiladoId: process.env.SICOV_VIGILADO_ID,
-        });
-        const externalId = detRes.ok && detRes.data?.id;
-        if (externalId) {
-          await this.model.updateOne(
-            { _id: doc._id },
-            { $set: { mantenimientoId, externalId: String(externalId) } },
-          );
-        }
-      }
-    } catch {
-      // modo defensivo: la sincronización falla sin abortar la creación local
-    }
-
-    return (await this.model.findById(doc._id).lean())!;
+async create(dto: any, user?: { enterprise_id?: string; sub?: string }) {
+  // 1) Duplicados por placa + tenant
+  const exists = await this.model.exists({
+    placa: dto.placa,
+    enterprise_id: user?.enterprise_id,
+  });
+  if (exists) {
+    throw new ConflictException('Ya existe un alistamiento para esa placa');
   }
+
+  // 2) Asegurar mantenimientoId ANTES de crear (el schema lo requiere)
+  let mantenimientoId: string | null = dto.mantenimientoId || null;
+
+  if (!mantenimientoId) {
+    const baseRes = await this.external.guardarMantenimiento({
+      placa: dto.placa,
+      tipoId: 3, // 3 = alistamiento
+      vigiladoId: process.env.SICOV_VIGILADO_ID,
+    });
+    if (baseRes?.ok && baseRes.data?.id) {
+      mantenimientoId = String(baseRes.data.id);
+    } else {
+      // si no pudimos generar el mantenimiento base, no seguimos
+      throw new ConflictException('No se pudo generar el mantenimiento base');
+    }
+  }
+
+  // 3) Crear el doc con TODOS los campos requeridos por el schema
+  const doc = await this.model.create({
+    enterprise_id: user?.enterprise_id,
+    createdBy: user?.sub,
+    placa: dto.placa,
+
+    mantenimientoId,                   // requerido por tu schema
+    fecha: dto.fecha,                  // si es Date: new Date(dto.fecha)
+    hora: dto.hora,
+    tipoIdentificacion: dto.tipoIdentificacion,
+    numeroIdentificacion: dto.numeroIdentificacion,
+    nombresResponsable: dto.nombresResponsable,
+
+    // no requeridos, pero útiles
+    detalleActividades: dto.detalleActividades,
+    actividades: dto.actividades,      // [{ codigo:string, valor:boolean }] si aplica
+    estado: true,
+  });
+
+  // 4) Sincronización con SICOV (best-effort; no rompe si falla)
+  try {
+    const detRes = await this.external.guardarAlistamiento({
+      tipoIdentificacionResponsable: dto.tipoIdentificacion,
+      numeroIdentificacionResponsable: dto.numeroIdentificacion,
+      nombreResponsable: dto.nombresResponsable,
+      mantenimientoId,
+      detalleActividades: dto.detalleActividades,
+      actividades: dto.actividades,
+      vigiladoId: process.env.SICOV_VIGILADO_ID,
+      tipoIdentificacionConductor: 0,
+      numeroIdentificacionConductor: '',
+      nombresConductor: ''
+    });
+
+    const externalId = detRes?.ok && detRes.data?.id;
+    if (externalId) {
+      await this.model.updateOne(
+        { _id: doc._id },
+        { $set: { externalId: String(externalId) } },
+      );
+    }
+  } catch {
+    // ignoramos fallo de sync para no romper la creación local
+  }
+
+  return (await this.model.findById(doc._id).lean())!;
+}
 
   /** Devuelve un alistamiento local y, si existe, lo complementa con la respuesta de SICOV */
   async view(dto: { id: string }, user?: { enterprise_id?: string }) {
-    if (!Types.ObjectId.isValid(dto.id)) throw new NotFoundException('No encontrado');
+    if (!Types.ObjectId.isValid(dto.id))
+      throw new NotFoundException('No encontrado');
     const item = await this.model
-      .findOne({ _id: new Types.ObjectId(dto.id), enterprise_id: user?.enterprise_id })
+      .findOne({
+        _id: new Types.ObjectId(dto.id),
+        enterprise_id: user?.enterprise_id,
+      })
       .lean();
     if (!item) throw new NotFoundException('No encontrado');
 
@@ -99,7 +125,33 @@ export class AlistamientoService {
   }
 
   async listActivities(user?: { enterprise_id?: string }) {
-  // Puedes ignorar user si no lo necesitas aquí
-  return this.external.listarActividades(process.env.SICOV_VIGILADO_ID);
-}
+    // Puedes ignorar user si no lo necesitas aquí
+    return this.external.listarActividades(process.env.SICOV_VIGILADO_ID);
+  }
+
+  async list(q: any, user?: { enterprise_id?: string }) {
+    const filter: any = { enterprise_id: user?.enterprise_id };
+
+    // placa parcial (prefijo, case-insensitive)
+    const rawPlaca = (q?.placa ?? q?.plate ?? '').toString().trim();
+    if (rawPlaca) {
+      const esc = rawPlaca.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.placa = { $regex: '^' + esc, $options: 'i' };
+    }
+
+    const page = Math.max(1, Number(q?.page) || 1);
+    const limit = Math.max(1, Math.min(200, Number(q?.numero_items) || 10));
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      this.model
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      this.model.countDocuments(filter),
+    ]);
+    return { items, total, page, numero_items: limit };
+  }
 }

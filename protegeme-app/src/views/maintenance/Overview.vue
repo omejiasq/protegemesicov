@@ -3,24 +3,13 @@
     <!-- KPIs -->
     <div class="col-12">
       <div class="grid">
-        <div class="col-12 md:col-3">
-          <div
-            class="surface-0 kpi-card is-blue p-3 border-round shadow-1 flex align-items-center justify-content-between"
-          >
-            <div>
-              <div class="text-900 text-sm">Programas</div>
-              <div class="text-900 text-3xl font-bold">{{ kpi.programs }}</div>
-            </div>
-            <span class="kpi-icon is-blue"><i class="pi pi-calendar"></i></span>
-          </div>
-        </div>
 
-        <div class="col-12 md:col-3">
+        <div class="col-12 md:col-4">
           <div
             class="surface-0 kpi-card p-3 border-round shadow-1 flex align-items-center justify-content-between"
           >
             <div>
-              <div class="text-900 text-sm is-green">Preventivos abiertos</div>
+              <div class="text-900 text-sm is-green">Preventivos activos</div>
               <div class="text-900 text-3xl font-bold">
                 {{ kpi.preventiveOpenLabel }}
               </div>
@@ -29,12 +18,12 @@
           </div>
         </div>
 
-        <div class="col-12 md:col-3">
+        <div class="col-12 md:col-4">
           <div
             class="surface-0 kpi-card is-amber p-3 border-round shadow-1 flex align-items-center justify-content-between"
           >
             <div>
-              <div class="text-900 text-sm">Correctivos abiertos</div>
+              <div class="text-900 text-sm">Correctivos activos</div>
               <div class="text-900 text-3xl font-bold">
                 {{ kpi.correctiveOpenLabel }}
               </div>
@@ -43,7 +32,7 @@
           </div>
         </div>
 
-        <div class="col-12 md:col-3">
+        <div class="col-12 md:col-4">
           <div
             class="surface-0 kpi-card is-purple p-3 border-round shadow-1 flex align-items-center justify-content-between"
           >
@@ -67,21 +56,22 @@
         </div>
         <div class="flex flex-wrap gap-2">
           <Button
-            class="btn-dark-green"
-            label="Nuevo Preventivo"
+            class="btn-blue"
+            label="Nueva Transacción"
+            severity="success"
             icon="pi pi-wrench"
-            @click="goNew('preventive')"
+            @click="goNew('maintenance')"
           />
           <Button
-            class="btn-dark-purple"
-            label="Nuevo Correctivo"
+            class="btn-blue"
+            label="Nuevo Preventivo"
             icon="pi pi-tools"
-            severity="help"
+            severity="success"
             @click="goNew('corrective')"
           />
           <Button
             class="btn-blue"
-            label="Nuevo Alistamiento"
+            label="Nuevo Correctivo"
             icon="pi pi-verified"
             severity="success"
             @click="goNew('enlistment')"
@@ -104,6 +94,13 @@ import { onMounted, reactive, computed } from "vue";
 import Button from "primevue/button";
 import { useRouter } from "vue-router";
 import { useMaintenanceStore } from "../../stores/maintenanceStore";
+import { MaintenanceserviceApi } from "../../api/maintenance.service";
+
+const counts = reactive({
+  preventive: null as number | null,
+  corrective: null as number | null,
+  enlistment: null as number | null,
+});
 
 const router = useRouter();
 const store = useMaintenanceStore();
@@ -116,23 +113,47 @@ const state = reactive({
 async function loadKPIs() {
   state.loadingKPIs = true;
   try {
-    // Lista de programas (usa MaintenanceserviceApi.listPrograms por debajo)
+    // Si ya usabas esto, lo dejamos
     await store.programsFetch();
-    // Si más adelante sumás endpoints de listado para preventivo/correctivo/alistamiento,
-    // podríamos llamarlos acá y poblar las otras métricas.
+
+    // Traemos sólo el total de activos por tipo
+    const q = { estado: true, page: 1, numero_items: 1 };
+
+    const [p, c, e] = await Promise.all([
+      MaintenanceserviceApi.listPreventives(q),
+      MaintenanceserviceApi.listCorrectives(q),
+      MaintenanceserviceApi.listEnlistments(q),
+    ]);
+
+    const getTotal = (res: any) =>
+      typeof res?.data?.total === "number"
+        ? res.data.total
+        : Array.isArray(res?.data)
+        ? res.data.length
+        : Array.isArray(res?.data?.items)
+        ? res.data.items.length
+        : 0;
+
+    counts.preventive = getTotal(p);
+    counts.corrective = getTotal(c);
+    counts.enlistment = getTotal(e);
   } finally {
     state.loadingKPIs = false;
   }
 }
 
+
 const kpi = computed(() => {
   const programs = store.programs.items?.length ?? 0;
 
-  // Hoy tu service NO tiene listados de preventivo/correctivo/alistamiento,
-  // así que mostramos un placeholder elegante para no romper el diseño.
-  const preventiveOpenLabel = "—";
-  const correctiveOpenLabel = "—";
-  const enlistmentsLabel = "—";
+  const preventiveOpenLabel =
+    counts.preventive == null ? "—" : String(counts.preventive);
+
+  const correctiveOpenLabel =
+    counts.corrective == null ? "—" : String(counts.corrective);
+
+  const enlistmentsLabel =
+    counts.enlistment == null ? "—" : String(counts.enlistment);
 
   return {
     programs,
@@ -142,14 +163,16 @@ const kpi = computed(() => {
   };
 });
 
-function goNew(kind: "preventive" | "corrective" | "enlistment") {
+function goNew(kind: "preventive" | "corrective" | "enlistment" | "maintenance") {
   // Ajustá rutas si las tenés con nombre distinto
+  if (kind === "maintenance")
+    router.push({ path: "/maintenance/maintenance" });
   if (kind === "preventive")
-    router.push({ path: "/maintenance/preventive/new" });
+    router.push({ path: "/maintenance/preventive" });
   if (kind === "corrective")
-    router.push({ path: "/maintenance/corrective/new" });
+    router.push({ path: "/maintenance/corrective" });
   if (kind === "enlistment")
-    router.push({ path: "/maintenance/enlistment/new" });
+    router.push({ path: "/maintenance/enlistment" });
 }
 
 onMounted(loadKPIs);
@@ -159,14 +182,14 @@ onMounted(loadKPIs);
 /* Mantiene tarjetas blancas (por si no lo tenías) */
 .panel-white {
   background: #ffffff !important;
-  color: #111111 !important;
+  color: #ffffff !important;
   border: 1px solid rgba(17,17,17,0.06);
 }
 
 /* ===== KPI tipo Bolt ===== */
 .kpi-card { /* contenedor del KPI */
   background: #ffffff !important;
-  color: #111111 !important;
+  color: #ffffff !important;
   border: 1px solid rgba(17,17,17,0.06);
 }
 .kpi-card .kpi-icon {
@@ -185,7 +208,7 @@ onMounted(loadKPIs);
 .kpi-card .kpi-icon.is-purple { background: #8b5cf6; color: #ffffff; } /* morado */
 
 /* opcional si querés usar clases de texto dentro del KPI */
-.kpi-card .kpi-value { font-weight: 700; font-size: 1.5rem; line-height: 1; color: #111111; }
+.kpi-card .kpi-value { font-weight: 700; font-size: 1.5rem; line-height: 1; color: #ffffff; }
 .kpi-card .kpi-label { font-size: .875rem; color: #6b7280; }
 
 /* ===== Botones de accesos rápidos ===== */
@@ -200,11 +223,11 @@ onMounted(loadKPIs);
 :deep(.p-button.btn-blue:hover)  { background:#1d4ed8; border-color:#1d4ed8; }
 
 /* Verde claro → texto negro */
-:deep(.p-button.btn-light-green) { background:#a7f3d0; border-color:#a7f3d0; color:#111111; }
+:deep(.p-button.btn-light-green) { background:#a7f3d0; border-color:#a7f3d0; color:#ffffff; }
 :deep(.p-button.btn-light-green:hover) { background:#86efac; border-color:#86efac; }
 
 /* Neutro (ghost) → fondo claro, texto negro */
-:deep(.p-button.btn-ghost)       { background:#eef2f7; border-color:#eef2f7; color:#111111; }
+:deep(.p-button.btn-ghost)       { background:#eef2f7; border-color:#eef2f7; color:#ffffff; }
 :deep(.p-button.btn-ghost:hover) { background:#e5e7eb; border-color:#e5e7eb; }
 
 .kpi-card {
@@ -225,5 +248,23 @@ onMounted(loadKPIs);
 .kpi-card .kpi-icon,
 .kpi-card .kpi-icon i {
   color: #ffffff !important;
+}
+
+.btn-green :deep(.p-button){
+  background: var(--green-600, #16a34a) !important;
+  border-color: var(--green-600, #16a34a) !important;
+  color: #fff !important;
+}
+.btn-green :deep(.p-button:hover){
+  background: var(--green-700, #15803d) !important;
+  border-color: var(--green-700, #15803d) !important;
+  color: #fff !important;
+}
+.btn-green :deep(.p-button:focus){
+  box-shadow: 0 0 0 .2rem rgba(16,185,129,.35) !important;
+}
+.btn-green :deep(.p-button[aria-disabled="true"]),
+.btn-green :deep(.p-button:disabled){
+  opacity: .65;
 }
 </style>

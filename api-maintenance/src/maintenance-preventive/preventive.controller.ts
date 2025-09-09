@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards, Get, Query } from '@nestjs/common';
 import { JwtAuthGuard } from '../libs/auth/jwt-auth.guard';
 import { PreventiveService } from './preventive.service';
 import { CreatePreventiveDto } from './dto/create-preventive-dto';
@@ -22,5 +22,11 @@ export class PreventiveController {
   view(@Body() dto: ViewPreventiveDto, @Req() req: Request) {
     const user = (req as any).user;
     return this.svc.view(dto, { enterprise_id: user.enterprise_id });
+  }
+
+    @Get('list')
+  list(@Query() q: any, @Req() req: Request) {
+    const user = (req as any).user;
+    return this.svc.list(q, { enterprise_id: user.enterprise_id });
   }
 }

@@ -8,7 +8,7 @@
       />
       <router-link to="/dashboard" class="layout-topbar-logo-link">
         <img src="/logoProtegeme.png" alt="Logo" style="height: 2rem" />
-        <span>Dashboard</span>
+<!--         <span>Dashboard</span> -->
       </router-link>
     </div>
     

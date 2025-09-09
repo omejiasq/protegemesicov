@@ -50,34 +50,54 @@ export class MaintenanceService {
 
     const filter: FilterQuery<MaintenanceDocument> = { ...this.tenant(user) };
     if (q.tipoId) filter.tipoId = q.tipoId;
-    if (q.placa) filter.placa = q.placa.trim();
+    if (q.placa && typeof q.placa === 'string') {
+      const raw = q.placa.trim();
+      if (raw) {
+        const esc = raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // escape seguro
+        filter.placa = { $regex: '^' + esc, $options: 'i' };
+      }
+    }
     if (typeof q.estado === 'boolean') filter.estado = q.estado;
 
     const [items, total] = await Promise.all([
-      this.model.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean({ getters: true }),
+      this.model
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean({ getters: true }),
       this.model.countDocuments(filter),
     ]);
     return { page, numero_items: limit, total, items };
   }
 
   async getById(id: string, user?: UserCtx) {
-    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Maintenance not found');
-    const doc = await this.model.findOne({ _id: id, ...this.tenant(user) }).lean({ getters: true });
+    if (!Types.ObjectId.isValid(id))
+      throw new NotFoundException('Maintenance not found');
+    const doc = await this.model
+      .findOne({ _id: id, ...this.tenant(user) })
+      .lean({ getters: true });
     if (!doc) throw new NotFoundException('Maintenance not found');
     return doc;
   }
 
   async updateById(id: string, data: UpdateMaintenanceInput, user?: UserCtx) {
-    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Maintenance not found');
+    if (!Types.ObjectId.isValid(id))
+      throw new NotFoundException('Maintenance not found');
     const doc = await this.model
-      .findOneAndUpdate({ _id: id, ...this.tenant(user) }, { $set: data }, { new: true })
+      .findOneAndUpdate(
+        { _id: id, ...this.tenant(user) },
+        { $set: data },
+        { new: true },
+      )
       .lean({ getters: true });
     if (!doc) throw new NotFoundException('Maintenance not found');
     return doc;
   }
 
   async toggleState(id: string, user?: UserCtx) {
-    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Maintenance not found');
+    if (!Types.ObjectId.isValid(id))
+      throw new NotFoundException('Maintenance not found');
     const current = await this.model.findOne({ _id: id, ...this.tenant(user) });
     if (!current) throw new NotFoundException('Maintenance not found');
     current.estado = !current.estado;
@@ -85,25 +105,34 @@ export class MaintenanceService {
     return current.toJSON();
   }
 
-  async listPlates(q: { tipoId: 1|2|3|4; vigiladoId: number; search?: string }, user?: { enterprise_id?: string }) {
-  const filter: any = {
-    enterprise_id: user?.enterprise_id,
-    tipoId: q.tipoId,
-    vigiladoId: q.vigiladoId,
-  };
+  async listPlates(
+    q: { tipoId: 1 | 2 | 3 | 4; vigiladoId: number; search?: string },
+    user?: { enterprise_id?: string },
+  ) {
+    const filter: any = {
+      enterprise_id: user?.enterprise_id,
+      tipoId: q.tipoId,
+      vigiladoId: q.vigiladoId,
+    };
 
-  if (q.search) {
-    filter.placa = { $regex: `^${q.search}`, $options: 'i' };
+    if (q.search) {
+      filter.placa = { $regex: `^${q.search}`, $options: 'i' };
+    }
+
+    const rows = await this.model.aggregate([
+      { $match: filter },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: '$placa',
+          estado: { $first: '$estado' },
+          lastAt: { $first: '$createdAt' },
+        },
+      },
+      { $project: { _id: 0, placa: '$_id', estado: 1, lastAt: 1 } },
+      { $sort: { placa: 1 } },
+    ]);
+
+    return { items: rows };
   }
-
-  const rows = await this.model.aggregate([
-    { $match: filter },
-    { $sort: { createdAt: -1 } },             
-    { $group: { _id: '$placa', estado: { $first: '$estado' }, lastAt: { $first: '$createdAt' } } },
-    { $project: { _id: 0, placa: '$_id', estado: 1, lastAt: 1 } },
-    { $sort: { placa: 1 } },
-  ]);
-
-  return { items: rows };
-}
 }

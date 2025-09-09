@@ -57,6 +57,20 @@ export const useMaintenanceStore = defineStore("maintenance", {
       error: "" as string,
     },
 
+    correctiveList: {
+      items: [] as Record<string, any>[],
+      total: 0,
+      loading: false,
+      error: "" as string,
+    },
+
+    enlistmentList: {
+      items: [] as Record<string, any>[],
+      total: 0,
+      loading: false,
+      error: "" as string,
+    },
+
     // Corrective (detalle)
     corrective: {
       detail: null as AnyObj | null,
@@ -100,12 +114,23 @@ export const useMaintenanceStore = defineStore("maintenance", {
         // merge filtros
         s.filters = {
           ...s.filters,
-          ...["search", "plate", "dateFrom", "dateTo", "enterprise_id", "tipoId", "vigiladoId"]
-            .reduce((acc: Record<string, any>, k) => {
-              if (params[k] !== undefined && params[k] !== null && params[k] !== "")
-                acc[k] = params[k];
-              return acc;
-            }, {}),
+          ...[
+            "search",
+            "plate",
+            "dateFrom",
+            "dateTo",
+            "enterprise_id",
+            "tipoId",
+            "vigiladoId",
+          ].reduce((acc: Record<string, any>, k) => {
+            if (
+              params[k] !== undefined &&
+              params[k] !== null &&
+              params[k] !== ""
+            )
+              acc[k] = params[k];
+            return acc;
+          }, {}),
         };
       }
 
@@ -116,6 +141,14 @@ export const useMaintenanceStore = defineStore("maintenance", {
           ...s.filters,
         };
 
+        (query as any).numero_items = s.limit;
+        delete (query as any).limit;
+
+        if ((query as any).plate) {
+          (query as any).placa = (query as any).plate;
+          delete (query as any).plate;
+        }
+
         // Llama al nuevo método del service
         const { data } = await MaintenanceserviceApi.listMaintenances(query);
 
@@ -123,7 +156,9 @@ export const useMaintenanceStore = defineStore("maintenance", {
         const items = Array.isArray(data) ? data : data?.items ?? [];
         s.items = items;
         s.total =
-          (data && typeof data.total === "number" ? data.total : items.length) || 0;
+          (data && typeof data.total === "number"
+            ? data.total
+            : items.length) || 0;
 
         return data;
       } catch (e: any) {
@@ -143,20 +178,22 @@ export const useMaintenanceStore = defineStore("maintenance", {
       if (typeof limit === "number") s.limit = limit;
     },
 
-    maintenanceUpdateFilters(partial: Partial<{
-      search: string;
-      plate: string;
-      dateFrom?: string;
-      dateTo?: string;
-      tipoId?: number;
-      vigiladoId?: number;
-      enterprise_id?: string;
-    }>) {
+    maintenanceUpdateFilters(
+      partial: Partial<{
+        search: string;
+        plate: string;
+        dateFrom?: string;
+        dateTo?: string;
+        tipoId?: number;
+        vigiladoId?: number;
+        enterprise_id?: string;
+      }>
+    ) {
       const s = this.maintenanceList;
       s.filters = { ...s.filters, ...partial };
       s.page = 1;
     },
-    
+
     async createMaintenance(payload: AnyObj) {
       this.loading = true;
       this.error = "";
@@ -306,13 +343,25 @@ export const useMaintenanceStore = defineStore("maintenance", {
       this.preventiveList.loading = true;
       this.preventiveList.error = "";
       try {
-        const { data } = await MaintenanceserviceApi.viewPreventive(params ?? {});
-        const items = Array.isArray(data)
-          ? data
-          : data?.items ?? (data ? [data] : []);
+        // map FE -> BE
+        const query: any = { ...params };
+        if (query.limit) {
+          query.numero_items = query.limit;
+          delete query.limit;
+        }
+        if (query.plate) {
+          query.placa = query.plate;
+          delete query.plate;
+        }
+
+        const { data } = await MaintenanceserviceApi.listPreventives(query);
+
+        // Soporta {items,total} o array plano (por si acaso)
+        const items = Array.isArray(data) ? data : data?.items ?? [];
         this.preventiveList.items = items;
         this.preventiveList.total =
-          data && typeof data.total === "number" ? data.total : items.length;
+          typeof data?.total === "number" ? data.total : items.length;
+
         return data;
       } catch (e: any) {
         this.preventiveList.error =
@@ -322,6 +371,39 @@ export const useMaintenanceStore = defineStore("maintenance", {
         throw e;
       } finally {
         this.preventiveList.loading = false;
+      }
+    },
+
+    async correctiveFetchList(params?: Record<string, any>) {
+      this.correctiveList.loading = true;
+      this.correctiveList.error = "";
+      try {
+        const query: any = { ...params };
+        if (query.limit) {
+          query.numero_items = query.limit;
+          delete query.limit;
+        }
+        if (query.plate) {
+          query.placa = query.plate;
+          delete query.plate;
+        }
+
+        const { data } = await MaintenanceserviceApi.listCorrectives(query);
+
+        const items = Array.isArray(data) ? data : data?.items ?? [];
+        this.correctiveList.items = items;
+        this.correctiveList.total =
+          typeof data?.total === "number" ? data.total : items.length;
+
+        return data;
+      } catch (e: any) {
+        this.correctiveList.error =
+          e?.response?.data?.message ||
+          e?.message ||
+          "No se pudo listar correctivos";
+        throw e;
+      } finally {
+        this.correctiveList.loading = false;
       }
     },
 
@@ -419,12 +501,48 @@ export const useMaintenanceStore = defineStore("maintenance", {
       }
     },
 
+    async enlistmentFetchList(params?: Record<string, any>) {
+      this.enlistmentList.loading = true;
+      this.enlistmentList.error = "";
+      try {
+        const query: any = { ...params };
+        if (query.limit) {
+          query.numero_items = query.limit;
+          delete query.limit;
+        }
+        if (query.plate) {
+          query.placa = query.plate;
+          delete query.plate;
+        }
+
+        const { data } = await MaintenanceserviceApi.listEnlistments(query);
+
+        const items = Array.isArray(data) ? data : data?.items ?? [];
+        this.enlistmentList.items = items;
+        this.enlistmentList.total =
+          typeof data?.total === "number" ? data.total : items.length;
+
+        return data;
+      } catch (e: any) {
+        this.enlistmentList.error =
+          e?.response?.data?.message ||
+          e?.message ||
+          "No se pudo listar alistamientos";
+        throw e;
+      } finally {
+        this.enlistmentList.loading = false;
+      }
+    },
+
     // ========== Files ==========
     async uploadFile(file: File | Blob, vigiladoId: string) {
       this.files.uploading = true;
       this.files.error = "";
       try {
-        const { data } = await MaintenanceserviceApi.uploadFile(file, vigiladoId);
+        const { data } = await MaintenanceserviceApi.uploadFile(
+          file,
+          vigiladoId
+        );
         this.files.lastRef = data;
         return data;
       } finally {

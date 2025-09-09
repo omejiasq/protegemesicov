@@ -21,16 +21,15 @@
       <div class="bolt-center formgrid grid align-items-end">
         <!-- Input búsqueda -->
         <div class="bolt_search p-3">
-          <div class="flex gap-2 align-items-center">
-            <UiDropdownBasic
-              v-model="filters.mantenimientoId"
-              :options="correctiveMaintenanceOpts"
-              :disabled="correctiveOptsLoading || store.maintenanceList.loading"
-              style="flex: 1 1 520px"
-              placeholder="Seleccioná un mantenimiento con correctivo"
-              @update:modelValue="onFilterPick"
+          <span class="p-input-icon-left w-full" style="flex: 1 1 520px">
+            <i class="pi pi-search" />
+            <InputText
+              v-model="filters.placa"
+              class="w-full pv-light"
+              placeholder="Buscar por placa…"
+              @keydown.enter="onSearch"
             />
-          </div>
+          </span>
         </div>
         <div class="field col-12 md:col-2 flex align-items-end">
           <div class="filters-actions">
@@ -133,8 +132,15 @@
         </div>
 
         <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900">Hora (HH:mm)</label>
-          <InputText v-model="form.hora" placeholder="09:30" class="w-full" />
+          <label class="block mb-2 text-900">Hora</label>
+          <Calendar
+            v-model="form.hora"
+            timeOnly
+            hourFormat="24"
+            showIcon
+            appendTo="self"
+            class="w-full"
+          />
         </div>
 
         <div class="field col-12 md:col-6">
@@ -196,17 +202,19 @@ import Tag from "primevue/tag";
 import Dialog from "primevue/dialog";
 import UiDropdownBasic from "../../components/ui/Dropdown.vue";
 import { MaintenanceserviceApi } from "../../api/maintenance.service"; // <-- Add this import
+import { useToast } from "primevue/usetoast";
 
 const store = useMaintenanceStore();
+const toast = useToast();
 
 const saving = ref(false);
-const filters = reactive({ mantenimientoId: "" });
+const filters = reactive({ mantenimientoId: "", placa: "" });
 const dlg = reactive({ visible: false });
 const form = reactive({
   mantenimientoId: "",
   placa: "",
   fecha: null as any,
-  hora: "",
+  hora: null as any,
   nit: "",
   razonSocial: "",
   descripcionFalla: "",
@@ -217,12 +225,14 @@ const form = reactive({
 const correctiveOptsLoading = ref(false);
 const hasCorrective = ref(new Set<string>());
 
-const correctiveMaintenanceOpts = computed(() => {
-  const maints = store.maintenanceList.items || [];
-  return maints
-    .filter((m: any) => hasCorrective.value.has(String(m._id)))
-    .map((m: any) => ({ label: formatMaintLabel(m), value: m._id }));
-});
+const correctiveMaintenanceOpts = computed(() =>
+  (store.maintenanceList.items || [])
+    .filter((m: any) => Number(m?.tipoId) === 2)
+    .map((m: any) => ({
+      label: formatMaintLabel(m),
+      value: m?._id,
+    }))
+);
 
 async function ensureCorrectiveOpts() {
   // Aseguramos mantenimientos en memoria
@@ -261,10 +271,8 @@ function onFilterPick(val: any) {
   onSearch(); // tu función existente
 }
 
-const detail = computed(() => store.corrective.detail);
-const loading = computed(() => store.corrective.loading);
-
-const rows = computed(() => (detail.value ? [normalize(detail.value)] : []));
+const loading = computed(() => store.correctiveList.loading);
+const rows = computed(() => (store.correctiveList.items || []).map(normalize));
 
 function normalize(r: any) {
   const m = r.mantenimiento || r.maintenance || {};
@@ -292,12 +300,15 @@ function fmtDate(s?: string) {
 }
 
 async function refresh() {
-  const id = (filters.mantenimientoId || "").trim();
-  if (/^[0-9a-fA-F]{24}$/.test(id)) {
-    await store.correctiveViewDetail({ mantenimientoId: id }); // usa el store existente
-  } else {
-    store.corrective.detail = null;
+  const params: any = {};
+  if (
+    filters.placa &&
+    typeof filters.placa === "string" &&
+    filters.placa.trim()
+  ) {
+    params.plate = filters.placa.trim(); // el store lo mapeará a 'placa'
   }
+  await store.correctiveFetchList(params);
 }
 
 function onSearch() {
@@ -331,6 +342,26 @@ function normDate(v: any): string | undefined {
     d2 = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${d2}`; // YYYY-MM-DD
 }
+
+function normTime(v: any): string | undefined {
+  if (!v) return undefined;
+  try {
+    if (v instanceof Date) {
+      const hh = String(v.getHours()).padStart(2, "0");
+      const mm = String(v.getMinutes()).padStart(2, "0");
+      return `${hh}:${mm}`;
+    }
+    const m = String(v).match(/^(\d{1,2}):(\d{2})$/);
+    if (m) {
+      const hh = String(m[1]).padStart(2, "0");
+      return `${hh}:${m[2]}`;
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function toInt(v: any) {
   const n = Number(v);
   return Number.isFinite(n) ? n : undefined;
@@ -341,7 +372,7 @@ async function save() {
     mantenimientoId: String(form.mantenimientoId || "").trim(),
     placa: form.placa?.trim(),
     fecha: normDate(form.fecha),
-    hora: form.hora?.trim(),
+    hora: normTime(form.hora),
     nit: toInt(form.nit),
     razonSocial: form.razonSocial?.trim(),
     descripcionFalla: form.descripcionFalla?.trim(),
@@ -365,14 +396,39 @@ async function save() {
   }
 
   saving.value = true;
-  try {
-    await store.correctiveCreateDetail(payload); // crea correctivo
-    dlg.visible = false;
-    hasCorrective.value?.add(String(payload.mantenimientoId)); 
-    // refrescar vista si corresponde
-  } finally {
-    saving.value = false;
+try {
+  await store.correctiveCreateDetail(payload);
+  dlg.visible = false;
+  hasCorrective.value?.add(String(payload.mantenimientoId));
+  toast?.add?.({
+    severity: 'success',
+    summary: 'Correctivo creado',
+    detail: 'Se guardó correctamente.',
+    life: 2500
+  });
+  await refresh();
+} catch (e: any) {
+  const status = e?.response?.status;
+  const msg = e?.response?.data?.message || e?.message || 'No se pudo crear el correctivo';
+  if (status === 409 || /existe/i.test(msg) || /duplic/i.test(msg)) {
+    toast?.add?.({
+      severity: 'warn',
+      summary: 'Correctivo ya existente',
+      detail: 'Ya existe un correctivo para esta transacción.',
+      life: 4000
+    });
+  } else {
+    toast?.add?.({
+      severity: 'error',
+      summary: 'Error al crear',
+      detail: msg,
+      life: 4000
+    });
   }
+  return;
+} finally {
+  saving.value = false;
+}
 }
 
 function formatMaintLabel(m: any) {
@@ -390,7 +446,7 @@ const maintenanceOpts = computed(() =>
 
 async function ensureMaintenances() {
   if (!store.maintenanceList.items?.length) {
-    await store.maintenanceFetchList({ page: 1, limit: 100 });
+    await store.maintenanceFetchList({ page: 1, limit: 100, tipoId: 2 });
   }
 }
 
@@ -404,7 +460,7 @@ function onPickMaintenance(id: string | number | null) {
 
 onMounted(() => {
   ensureMaintenances();
-  ensureCorrectiveOpts();
+  refresh();
 });
 </script>
 

@@ -8,7 +8,7 @@
   >
     <div class="layout-sidebar-content">
       <div class="layout-sidebar-logo">
-        <img src="/vite.svg" alt="Logo" />
+        <img src="/logoProtegeme.png" alt="Logo" style="height: 2rem" />
         <span></span>
       </div>
 
@@ -33,9 +33,9 @@
           </li>
 
           <li class="layout-menuitem-category">
-            <div class="layout-menuitem-root-text">GESTIÓN</div>
+            <!-- <div class="layout-menuitem-root-text">GESTIÓN</div> -->
             <ul>
-              <li>
+              <!-- <li>
                 <router-link
                   to="/vehicles"
                   class="layout-menuitem-link"
@@ -58,7 +58,7 @@
                   <i class="pi pi-users layout-menuitem-icon"></i>
                   <span class="layout-menuitem-text">Conductores</span>
                 </router-link>
-              </li>
+              </li> -->
               <li class="layout-menuitem-category">
                 <div class="layout-menuitem-root-text">MANTENIMIENTOS</div>
                 <ul>
@@ -86,10 +86,10 @@
                       }"
                     >
                       <i class="pi pi-book layout-menuitem-icon"></i>
-                      <span class="layout-menuitem-text">Mantenimientos</span>
+                      <span class="layout-menuitem-text">Transacciones</span>
                     </router-link>
                   </li>
-                  <li>
+ <!--                  <li>
                     <router-link
                       to="/maintenance/program"
                       class="layout-menuitem-link"
@@ -102,7 +102,7 @@
                       <i class="pi pi-calendar layout-menuitem-icon"></i>
                       <span class="layout-menuitem-text">Programas</span>
                     </router-link>
-                  </li>
+                  </li> -->
                   <li>
                     <router-link
                       to="/maintenance/preventive"
@@ -204,15 +204,13 @@ const visible = computed({
   align-items: center;
   gap: 0.5rem;
   padding: 2rem 1.5rem;
-  color: white;
   font-size: 1.2rem;
   font-weight: 600;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .layout-sidebar-logo img {
-  height: 2rem;
-  filter: brightness(0) invert(1);
+  height: 4rem;
 }
 
 .layout-menu {

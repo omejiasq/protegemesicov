@@ -20,28 +20,17 @@
       <div class="surface-0 panel-white p-3 border-round shadow-1">
         <div class="formgrid grid">
           <!-- Buscar (ícono dentro) -->
-          <div class="field col-12 md:col-5">
+          <div class="field col-12 md:col-6">
             <label class="block mb-2 text-900">Buscar</label>
             <span class="p-input-icon-left w-full">
               <i class="pi pi-search" />
               <InputText
-                v-model="local.search"
+                v-model="local.plate"
                 class="w-full pv-light"
-                placeholder="Texto libre (placa, id)…"
+                placeholder="Buscar por placa…"
                 @keydown.enter="refresh"
               />
             </span>
-          </div>
-
-          <!-- Placa (más angosto) -->
-          <div class="field col-6 md:col-2">
-            <label class="block mb-2 text-900">Placa</label>
-            <InputText
-              v-model="local.plate"
-              placeholder="ABC123"
-              class="w-full pv-light"
-              @keydown.enter="refresh"
-            />
           </div>
 
           <!-- Tipo -->
@@ -150,14 +139,14 @@
           />
         </div>
 
-        <div class="field col-12 md:col-4">
+<!--         <div class="field col-12 md:col-4">
           <label class="block mb-2 text-900">Vigilado ID</label>
           <InputText
             v-model="form.vigiladoIdString"
             class="w-full pv-light"
             placeholder="7007007007"
           />
-        </div>
+        </div> -->
 
         <div class="field col-12 flex justify-content-end gap-2 mt-2">
           <Button label="Cancelar" text @click="dlg.visible = false" />
@@ -167,7 +156,7 @@
             class="btn-dark-green"
             :loading="saving"
             @click="save"
-            type="button"  
+            type="button"
           />
         </div>
       </div>
@@ -258,14 +247,13 @@ function onTipoChange(v: any) {
 }
 
 async function refresh() {
-  store.maintenanceUpdateFilters(
-    clean({
-      search: local.search?.trim(),
-      plate: local.plate?.trim(),
-      tipoId: local.tipoId ?? undefined,
-      vigiladoId: toIntOrUndef(local.vigiladoId),
-    })
-  );
+  const filters = clean({
+    plate: local.plate?.trim(),   // ⬅️ usar el mismo v-model del input
+    tipoId: local.tipoId ?? undefined,
+    vigiladoId: toIntOrUndef(local.vigiladoId),
+  });
+
+  store.maintenanceUpdateFilters(filters);
   await store.maintenanceFetchList();
 }
 
@@ -308,14 +296,12 @@ function openCreate() {
   dlg.visible = true;
   form.tipoId = 3;
   form.placa = "";
-  form.vigiladoIdString = null;
 }
 
 async function save() {
   const payload = {
     tipoId: toIntOrUndef(form.tipoId),
     placa: form.placa?.trim(),
-    vigiladoId: toIntOrUndef(form.vigiladoIdString),
   };
   if (!payload.tipoId || !payload.placa) return;
 

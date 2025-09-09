@@ -16,6 +16,12 @@ export const MaintenanceserviceApi = {
       headers: { "Content-Type": "multipart/form-data" },
     });
   },
+  listPreventives: (params?: Record<string, any>) =>
+  http.get(`${baseURL}/maintenance-preventive/list`, { params }),
+  listCorrectives: (params?: Record<string, any>) =>
+  http.get(`${baseURL}/maintenance-corrective/list`, { params }),
+  listEnlistments: (params?: Record<string, any>) =>
+  http.get(`${baseURL}/enlistment/list`, { params }),
   getFile: (document: string, route: string) =>
     http.get(`${baseURL}/files/base64?documento=${document}&ruta=${route}`),
   listPrograms: (params?: Record<string, any>) =>

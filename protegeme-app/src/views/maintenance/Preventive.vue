@@ -21,18 +21,17 @@
       <div class="formgrid grid align-items-end">
         <!-- Input búsqueda -->
         <div class="col-10 flex align-items-center gap-3">
-          <div class="flex gap-2 align-items-center">
-            <UiDropdownBasic
-              v-model="filters.mantenimientoId"
-              :options="preventiveFilterOpts"
-              :disabled="preventiveOptsLoading || store.maintenanceList.loading"
-              style="flex: 1 1 520px"
-              placeholder="Seleccioná un mantenimiento con preventivo"
-              @update:modelValue="onFilterPick"
+          <span class="p-input-icon-left w-full" style="flex: 1 1 520px">
+            <i class="pi pi-search" />
+            <InputText
+              v-model="filters.placa"
+              class="w-full pv-light"
+              placeholder="Buscar por placa…"
+              @keydown.enter="onSearch"
             />
-          </div>
+          </span>
 
-        <div class="filters-actions">
+          <div class="filters-actions">
             <Button
               label="Buscar"
               icon="pi pi-search"
@@ -50,9 +49,7 @@
         </div>
 
         <!-- Botones alineados a la misma altura -->
-        <div class="field col-12 md:col-2 flex align-items-end">
-          
-        </div>
+        <div class="field col-12 md:col-2 flex align-items-end"></div>
       </div>
     </div>
 
@@ -70,7 +67,11 @@
         @page="onPage"
         class="p-datatable-sm"
       >
-        <Column field="detalleActividades" header="Descripcion" style="min-width: 240px" />
+        <Column
+          field="detalleActividades"
+          header="Descripcion"
+          style="min-width: 240px"
+        />
         <Column field="placa" header="Placa" />
         <Column header="Fecha">
           <template #body="{ data }">{{
@@ -122,14 +123,21 @@
             v-model="form.fecha"
             dateFormat="yy-mm-dd"
             showIcon
-            appendTo="self"
+            appendTo="body"
             class="w-full pv-light"
           />
         </div>
 
         <div class="field col-6 md:col-3">
-          <label class="block mb-2 text-900">Hora (HH:mm)</label>
-          <InputText v-model="form.hora" class="w-full" placeholder="09:30" />
+          <label class="block mb-2 text-900">Hora</label>
+          <Calendar
+            v-model="form.hora"
+            timeOnly
+            hourFormat="24"
+            showIcon
+            appendTo="self"
+            class="w-full pv-light"
+          />
         </div>
         <div class="field col-6 md:col-3">
           <label class="block mb-2 text-900">NIT</label>
@@ -206,6 +214,9 @@ import Column from "primevue/column";
 import Tag from "primevue/tag";
 import Dialog from "primevue/dialog";
 import UiDropdownBasic from "../../components/ui/Dropdown.vue";
+import { useToast } from 'primevue/usetoast';
+
+const toast = useToast();
 
 const store = useMaintenanceStore();
 
@@ -259,6 +270,26 @@ function normDate(v: any): string | undefined {
     return undefined;
   }
 }
+
+function normTime(v: any): string | undefined {
+  if (!v) return undefined;
+  try {
+    if (v instanceof Date) {
+      const hh = String(v.getHours()).padStart(2, "0");
+      const mm = String(v.getMinutes()).padStart(2, "0");
+      return `${hh}:${mm}`;
+    }
+    const m = String(v).match(/^(\d{1,2}):(\d{2})$/);
+    if (m) {
+      const hh = String(m[1]).padStart(2, "0");
+      return `${hh}:${m[2]}`;
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function toIntOrUndef(v: any): number | undefined {
   const n = Number(v);
   return Number.isFinite(n) ? n : undefined;
@@ -282,11 +313,17 @@ function fmtDate(s?: string) {
 
 /** Fetch */
 async function refresh() {
-  const id = typeof filters.mantenimientoId === 'string' ? filters.mantenimientoId.trim() : '';
   const params: any = { page: page.value, limit: limit.value };
-  if (id && /^[0-9a-fA-F]{24}$/.test(id)) params.mantenimientoId = id; // 👈 clave
+  if (
+    filters.placa &&
+    typeof filters.placa === "string" &&
+    filters.placa.trim()
+  ) {
+    params.plate = filters.placa.trim(); // el store lo mapea a 'placa'
+  }
   await store.preventiveFetchList(params);
 }
+
 function clearFilters() {
   filters.mantenimientoId = "";
   page.value = 1;
@@ -298,8 +335,11 @@ function onPage(e: any) {
   refresh();
 }
 async function onFilterPick(val: any) {
-  filters.mantenimientoId = typeof val === 'object' ? (val?._id || val?.value || val?.id || '') : (val || '');
-  console.log('onFilterPick', val, filters.mantenimientoId);
+  filters.mantenimientoId =
+    typeof val === "object"
+      ? val?._id || val?.value || val?.id || ""
+      : val || "";
+  console.log("onFilterPick", val, filters.mantenimientoId);
   await onSearch();
 }
 
@@ -311,16 +351,17 @@ function formatMaintLabel(m: any) {
 }
 
 const maintenanceOpts = computed(() =>
-  (store.maintenanceList.items || []).map((m: any) => ({
-    label: formatMaintLabel(m),
-    value: m?._id, // importante: enviar el _id como mantenimientoId
-  }))
+  (store.maintenanceList.items || [])
+    .filter((m: any) => Number(m?.tipoId) === 1) // ← SOLO preventivos
+    .map((m: any) => ({
+      label: formatMaintLabel(m),
+      value: m?._id, // importante: enviar el _id como mantenimientoId
+    }))
 );
 
 async function ensureMaintenances() {
-  // si no hay items, o querés forzar refresco, pedí la lista
   if (!store.maintenanceList.items?.length) {
-    await store.maintenanceFetchList({ page: 1, limit: 100 });
+    await store.maintenanceFetchList({ page: 1, limit: 100, tipoId: 1 }); // ← filtro por preventivo
   }
 }
 
@@ -342,7 +383,7 @@ const form = reactive({
   mantenimientoId: "",
   placa: "",
   fecha: null as any,
-  hora: "",
+  hora: null as any, // ← antes era ""
   nit: "",
   razonSocial: "",
   tipoIdentificacion: "",
@@ -374,17 +415,17 @@ const preventiveOptsLoading = ref(false);
 const preventiveFilterOpts = computed(() => {
   // Use all maintenance options for filtering
   return maintenanceOpts.value;
-})
+});
 
 async function ensurePreventiveOpts() {
-if (!store.preventiveList?.items?.length) {
-preventiveOptsLoading.value = true;
-try {
-await store.preventiveFetchList({ page: 1, limit: 500 });
-} finally {
-preventiveOptsLoading.value = false;
-}
-}
+  if (!store.preventiveList?.items?.length) {
+    preventiveOptsLoading.value = true;
+    try {
+      await store.preventiveFetchList({ page: 1, limit: 500 });
+    } finally {
+      preventiveOptsLoading.value = false;
+    }
+  }
 }
 
 async function save() {
@@ -392,7 +433,7 @@ async function save() {
     mantenimientoId: form.mantenimientoId?.trim(),
     placa: form.placa?.trim(),
     fecha: normDate(form.fecha),
-    hora: form.hora?.trim(),
+    hora: normTime(form.hora), // <- si ya aplicaste el time picker
     nit: toIntOrUndef(form.nit),
     razonSocial: form.razonSocial?.trim(),
     tipoIdentificacion: toIntOrUndef(form.tipoIdentificacion),
@@ -400,11 +441,46 @@ async function save() {
     nombresResponsable: form.nombresResponsable?.trim(),
     detalleActividades: form.detalleActividades?.trim(),
   });
+
   saving.value = true;
   try {
     await store.preventiveCreateDetail(payload);
     dlg.visible = false;
     await refresh();
+
+    // Feedback OK
+    toast?.add?.({
+      severity: 'success',
+      summary: 'Preventivo creado',
+      detail: 'Se guardó correctamente.',
+      life: 2500
+    });
+
+  } catch (e: any) {
+    const status = e?.response?.status;
+    const msg = e?.response?.data?.message || e?.message || 'No se pudo crear el preventivo';
+
+    // Caso duplicado / ya existe
+    if (status === 409 || /existe/i.test(msg) || /duplic/i.test(msg)) {
+      toast?.add?.({
+        severity: 'warn',
+        summary: 'Preventivo ya existente',
+        detail: 'Ya existe un preventivo para esta transacción.',
+        life: 4000
+      });
+    } else {
+      // Otros errores
+      toast?.add?.({
+        severity: 'error',
+        summary: 'Error al crear',
+        detail: msg,
+        life: 4000
+      });
+    }
+
+    // No cierres el modal en error
+    return;
+
   } finally {
     saving.value = false;
   }
@@ -412,15 +488,14 @@ async function save() {
 
 /** Init */
 onMounted(() => {
-ensurePreventiveOpts();
-refresh();
-ensureMaintenances();
+  ensurePreventiveOpts();
+  refresh();
+  ensureMaintenances();
 });
 function onSearch() {
   page.value = 1;
   refresh();
 }
-
 </script>
 
 <style scoped>

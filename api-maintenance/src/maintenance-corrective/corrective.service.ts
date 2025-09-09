@@ -85,4 +85,25 @@ export class CorrectiveService {
     }
     return item;
   }
+
+  async list(q: any, user?: { enterprise_id?: string }) {
+  const filter: any = { enterprise_id: user?.enterprise_id };
+
+  // placa: búsqueda parcial (prefijo, case-insensitive)
+  const rawPlaca = (q?.placa ?? q?.plate ?? '').toString().trim();
+  if (rawPlaca) {
+    const esc = rawPlaca.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    filter.placa = { $regex: '^' + esc, $options: 'i' };
+  }
+
+  const page = Math.max(1, Number(q?.page) || 1);
+  const limit = Math.max(1, Math.min(200, Number(q?.numero_items) || 10));
+  const skip = (page - 1) * limit;
+
+  const [items, total] = await Promise.all([
+    this.model.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    this.model.countDocuments(filter),
+  ]);
+  return { items, total, page, numero_items: limit };
+}
 }

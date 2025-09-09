@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards, Get, Query } from '@nestjs/common';
 import { JwtAuthGuard } from '../libs/auth/jwt-auth.guard';
 import { CorrectiveService } from './corrective.service';
 import { CreateCorrectiveDto } from './dto/create-corrective-dto';
@@ -12,12 +12,21 @@ export class CorrectiveController {
   @Post('create')
   create(@Body() dto: CreateCorrectiveDto, @Req() req: Request) {
     const user = (req as any).user;
-    return this.svc.create(dto, { enterprise_id: user.enterprise_id, sub: user.sub });
+    return this.svc.create(dto, {
+      enterprise_id: user.enterprise_id,
+      sub: user.sub,
+    });
   }
 
   @Post('view')
   view(@Body() dto: ViewCorrectiveDto, @Req() req: Request) {
     const user = (req as any).user;
     return this.svc.view(dto, { enterprise_id: user.enterprise_id });
+  }
+
+  @Get('list')
+  list(@Query() q: any, @Req() req: Request) {
+    const user = (req as any).user;
+    return this.svc.list(q, { enterprise_id: user.enterprise_id });
   }
 }

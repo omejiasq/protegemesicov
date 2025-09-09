@@ -26,7 +26,6 @@ import { Type } from 'class-transformer';
 class CreateMaintenanceDto {
   @Type(() => Number) @IsIn([1, 2, 3, 4]) tipoId!: 1 | 2 | 3 | 4;
   @IsString() placa!: string;
-  @Type(() => Number) @IsInt() vigiladoId!: number;
 }
 class UpdateMaintenanceDto {
   @IsOptional() @Type(() => Number) @IsIn([1, 2, 3, 4]) tipoId?: 1 | 2 | 3 | 4;
@@ -53,18 +52,22 @@ class ListPlatesQueryDto {
 export class MaintenanceController {
   constructor(private readonly svc: MaintenanceService) {}
 
-  @Post('create')
-  create(@Body() dto: CreateMaintenanceDto, @Req() req: Request) {
-    const user = (req as any).user;
-    const json = {
-      
-    }
-    return this.svc.create({
-      ...dto,
-      enterprise_id: user.enterprise_id,
-      createdBy: user.sub,
-    });
+@Post('create')
+create(@Body() dto: CreateMaintenanceDto, @Req() req: Request) {
+  const user = (req as any).user;
+
+  const vigiladoId = Number(process.env.SICOV_VIGILADO_ID);
+  if (!Number.isFinite(vigiladoId)) {
+    throw new BadRequestException('SICOV_VIGILADO_ID no configurado');
   }
+
+  return this.svc.create({
+    ...dto,
+    vigiladoId,
+    enterprise_id: user.enterprise_id,
+    createdBy: user.sub,
+  });
+}
 
   @Get('getAll')
   list(@Query() q: ListQueryDto, @Req() req: Request) {
