@@ -1,0 +1,93 @@
+version: "3.9"
+
+name: protegeme
+services:
+  api-auth:
+    build:
+      context: ./api-auth
+      dockerfile: Dockerfile
+    image: protegeme/api-auth:latest
+    env_file:
+      - ./api-auth/.env
+    ports:
+      - "4001:4001"
+    restart: unless-stopped
+    networks: [protegeme-net]
+
+  api-incidents:
+    build:
+      context: ./api-incidents
+      dockerfile: Dockerfile
+    image: protegeme/api-incidents:latest
+    env_file:
+      - ./api-incidents/.env
+    ports:
+      - "4002:4002"
+    restart: unless-stopped
+    networks: [protegeme-net]
+
+  api-authorizations:
+    build:
+      context: ./api-authorizations
+      dockerfile: Dockerfile
+    image: protegeme/api-authorizations:latest
+    env_file:
+      - ./api-authorizations/.env
+    ports:
+      - "4003:4003"
+    restart: unless-stopped
+    networks: [protegeme-net]
+
+  api-maintenance:
+    build:
+      context: ./api-maintenance
+      dockerfile: Dockerfile
+    image: protegeme/api-maintenance:latest
+    env_file:
+      - ./api-maintenance/.env
+    ports:
+      - "4004:4004"
+    restart: unless-stopped
+    networks: [protegeme-net]
+    volumes:
+      - ./data/uploads/maintenance:/app/uploads  # UPLOAD_DIR=./uploads
+
+  api-vehicle:
+    build:
+      context: ./api-vehicle
+      dockerfile: Dockerfile
+    image: protegeme/api-vehicle:latest
+    env_file:
+      - ./api-vehicle/.env
+    ports:
+      - "4005:4005"
+    restart: unless-stopped
+    networks: [protegeme-net]
+    volumes:
+      - ./data/uploads/vehicle:/app/uploads      # UPLOAD_DIR=./uploads
+
+  api-drivers:
+    build:
+      context: ./api-driver
+      dockerfile: Dockerfile
+    image: protegeme/api-driver:latest
+    env_file:
+      - ./api-driver/.env
+    ports:
+      - "4006:4006"
+    restart: unless-stopped
+    networks: [protegeme-net]
+
+  web:
+    build:
+      context: ./protegeme-app
+      dockerfile: Dockerfile
+    image: protegeme/web:latest
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+    networks: [protegeme-net]
+
+networks:
+  protegeme-net:
+    driver: bridge

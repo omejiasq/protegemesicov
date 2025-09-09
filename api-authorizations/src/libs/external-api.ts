@@ -1,5 +1,4 @@
 import { Injectable, HttpException, Logger } from '@nestjs/common';
-import fetch, { RequestInit } from 'node-fetch';
 import { AuditService } from '../libs/audit/audit.service'; // ajusta path si tu libs están en otra carpeta
 
 type AnyObj = Record<string, any>;

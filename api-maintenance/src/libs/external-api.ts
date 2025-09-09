@@ -1,18 +1,5 @@
 import { Injectable, HttpException, Logger } from '@nestjs/common';
-import fetch from 'node-fetch';
 
-/**
- * Servicio de acceso a la API de SICOV para operaciones de mantenimiento.
- *
- * Endpoints cubiertos:
- *  - listarPlacas:        GET  /api/v2/mantenimiento/listar-placas
- *  - guardarMantenimiento POST /api/v2/mantenimiento/guardar-mantenimieto
- *  - guardarPreventivo    POST /api/v2/mantenimiento/guardar-preventivo
- *  - visualizarPreventivo POST /api/v2/mantenimiento/visualizar-preventivo
- *  - guardarCorrectivo    POST /api/v2/mantenimiento/guardar-correctivo
- *  - visualizarCorrectivo POST /api/v2/mantenimiento/visualizar-correctivo
- *  - listarActividades    GET  /api/v2/mantenimiento/listar-actividades
- */
 @Injectable()
 export class MaintenanceExternalApiService {
   private bearerToken: string | null = null;

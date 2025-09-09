@@ -1,5 +1,4 @@
 import { Injectable, HttpException, Logger } from '@nestjs/common';
-import fetch, { RequestInit } from 'node-fetch';
 import { AuditService } from './audit/audit.service';
 
 type AnyObj = Record<string, any>;
