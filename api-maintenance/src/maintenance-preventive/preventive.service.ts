@@ -13,15 +13,52 @@ export class PreventiveService {
   ) {}
 
   async create(dto: any, user?: { enterprise_id?: string; sub?: string }) {
-    // evitar duplicados por placa
-    const exists = await this.model.exists({ placa: dto.placa, enterprise_id: user?.enterprise_id });
-    if (exists) throw new ConflictException('Ya existe un mantenimiento preventivo para esa placa');
+  // 1) Duplicados por placa + tenant
+  const exists = await this.model.exists({
+    placa: dto.placa,
+    enterprise_id: user?.enterprise_id,
+  });
+  if (exists) {
+    throw new ConflictException('Ya existe un mantenimiento preventivo para esa placa');
+  }
 
-    // persistir local
-    const doc = await this.model.create({
-      enterprise_id: user?.enterprise_id,
-      createdBy: user?.sub,
+  // 2) Asegurar mantenimientoId ANTES de crear (schema lo requiere)
+  let mantenimientoId: string | null = dto.mantenimientoId || null;
+  const vigiladoId = process.env.SICOV_VIGILADO_ID;
+
+  if (!mantenimientoId) {
+    const baseRes = await this.external.guardarMantenimiento({
       placa: dto.placa,
+      tipoId: 1, // 1 = preventivo
+      vigiladoId,
+    });
+    if (baseRes?.ok && baseRes.data?.id) {
+      mantenimientoId = String(baseRes.data.id);
+    } else {
+      throw new ConflictException('No se pudo generar el mantenimiento base');
+    }
+  }
+
+  // 3) Crear doc local con TODOS los campos requeridos (incl. mantenimientoId)
+  const doc = await this.model.create({
+    enterprise_id: user?.enterprise_id,
+    createdBy: user?.sub,
+    placa: dto.placa,
+    mantenimientoId,                                // 👈 requerido por el schema
+    fecha: dto.fecha,
+    hora: dto.hora,
+    nit: dto.nit,
+    razonSocial: dto.razonSocial,
+    tipoIdentificacion: dto.tipoIdentificacion,
+    numeroIdentificacion: dto.numeroIdentificacion,
+    nombresResponsable: dto.nombresResponsable,
+    detalleActividades: dto.detalleActividades,
+    estado: true,
+  });
+
+  // 4) Sincronizar preventivo en SICOV (best-effort)
+  try {
+    const detRes = await this.external.guardarPreventivo({
       fecha: dto.fecha,
       hora: dto.hora,
       nit: dto.nit,
@@ -29,45 +66,23 @@ export class PreventiveService {
       tipoIdentificacion: dto.tipoIdentificacion,
       numeroIdentificacion: dto.numeroIdentificacion,
       nombresResponsable: dto.nombresResponsable,
+      mantenimientoId,
       detalleActividades: dto.detalleActividades,
-      estado: true,
+      vigiladoId,
     });
-
-    // sincronizar con SICOV
-    try {
-      const baseRes = await this.external.guardarMantenimiento({
-        placa: dto.placa,
-        tipoId: 1,
-        vigiladoId: process.env.SICOV_VIGILADO_ID,
-      });
-      const mantenimientoId = baseRes.ok && baseRes.data?.id;
-      if (mantenimientoId) {
-        const detRes = await this.external.guardarPreventivo({
-          fecha: dto.fecha,
-          hora: dto.hora,
-          nit: dto.nit,
-          razonSocial: dto.razonSocial,
-          tipoIdentificacion: dto.tipoIdentificacion,
-          numeroIdentificacion: dto.numeroIdentificacion,
-          nombresResponsable: dto.nombresResponsable,
-          mantenimientoId,
-          detalleActividades: dto.detalleActividades,
-          vigiladoId: process.env.SICOV_VIGILADO_ID,
-        });
-        const externalId = detRes.ok && detRes.data?.id;
-        if (externalId) {
-          await this.model.updateOne(
-            { _id: doc._id },
-            { $set: { mantenimientoId, externalId: String(externalId) } },
-          );
-        }
-      }
-    } catch {
-      // Modo defensivo: si falla no se revierte la operación local
+    const externalId = detRes?.ok && detRes.data?.id;
+    if (externalId) {
+      await this.model.updateOne(
+        { _id: doc._id },
+        { $set: { externalId: String(externalId) } },
+      );
     }
-
-    return (await this.model.findById(doc._id).lean())!;
+  } catch {
+    // si falla la sync externa no rompemos la creación local
   }
+
+  return (await this.model.findById(doc._id).lean())!;
+}
 
   async view(dto: { id: string }, user?: { enterprise_id?: string }) {
     if (!Types.ObjectId.isValid(dto.id)) throw new NotFoundException('No encontrado');

@@ -20,80 +20,76 @@ export class AlistamientoService {
   ) {}
 
   /** Crea un nuevo alistamiento local y lo sincroniza con SICOV */
-async create(dto: any, user?: { enterprise_id?: string; sub?: string }) {
-  // 1) Duplicados por placa + tenant
-  const exists = await this.model.exists({
-    placa: dto.placa,
-    enterprise_id: user?.enterprise_id,
-  });
-  if (exists) {
-    throw new ConflictException('Ya existe un alistamiento para esa placa');
-  }
-
-  // 2) Asegurar mantenimientoId ANTES de crear (el schema lo requiere)
-  let mantenimientoId: string | null = dto.mantenimientoId || null;
-
-  if (!mantenimientoId) {
-    const baseRes = await this.external.guardarMantenimiento({
+  async create(dto: any, user?: { enterprise_id?: string; sub?: string }) {
+    // 1) Duplicados por placa dentro del tenant
+    const exists = await this.model.exists({
       placa: dto.placa,
-      tipoId: 3, // 3 = alistamiento
-      vigiladoId: process.env.SICOV_VIGILADO_ID,
+      enterprise_id: user?.enterprise_id,
     });
-    if (baseRes?.ok && baseRes.data?.id) {
-      mantenimientoId = String(baseRes.data.id);
-    } else {
-      // si no pudimos generar el mantenimiento base, no seguimos
-      throw new ConflictException('No se pudo generar el mantenimiento base');
+    if (exists) {
+      throw new ConflictException('Ya existe un alistamiento para esa placa');
     }
-  }
 
-  // 3) Crear el doc con TODOS los campos requeridos por el schema
-  const doc = await this.model.create({
-    enterprise_id: user?.enterprise_id,
-    createdBy: user?.sub,
-    placa: dto.placa,
+    // 2) Asegurar mantenimientoId antes de crear
+    let mantenimientoId: string | null = dto.mantenimientoId || null;
 
-    mantenimientoId,                   // requerido por tu schema
-    fecha: dto.fecha,                  // si es Date: new Date(dto.fecha)
-    hora: dto.hora,
-    tipoIdentificacion: dto.tipoIdentificacion,
-    numeroIdentificacion: dto.numeroIdentificacion,
-    nombresResponsable: dto.nombresResponsable,
+    if (!mantenimientoId) {
+      const baseRes = await this.external.guardarMantenimiento({
+        placa: dto.placa,
+        tipoId: 3, // 3 = alistamiento
+        vigiladoId: process.env.SICOV_VIGILADO_ID,
+      });
+      if (!(baseRes?.ok && baseRes.data?.id)) {
+        throw new ConflictException('No se pudo generar el mantenimiento base');
+      }
+      mantenimientoId = String(baseRes.data.id);
+    }
 
-    // no requeridos, pero útiles
-    detalleActividades: dto.detalleActividades,
-    actividades: dto.actividades,      // [{ codigo:string, valor:boolean }] si aplica
-    estado: true,
-  });
+    // 3) Crear doc local con requeridos
+    const doc = await this.model.create({
+      enterprise_id: user?.enterprise_id,
+      createdBy: user?.sub,
 
-  // 4) Sincronización con SICOV (best-effort; no rompe si falla)
-  try {
-    const detRes = await this.external.guardarAlistamiento({
-      tipoIdentificacionResponsable: dto.tipoIdentificacion,
-      numeroIdentificacionResponsable: dto.numeroIdentificacion,
-      nombreResponsable: dto.nombresResponsable,
-      mantenimientoId,
+      placa: dto.placa,
+      mantenimientoId, // 👈 requerido
+      fecha: dto.fecha,
+      hora: dto.hora,
+      tipoIdentificacion: dto.tipoIdentificacion,
+      numeroIdentificacion: dto.numeroIdentificacion,
+      nombresResponsable: dto.nombresResponsable,
+
       detalleActividades: dto.detalleActividades,
       actividades: dto.actividades,
-      vigiladoId: process.env.SICOV_VIGILADO_ID,
-      tipoIdentificacionConductor: 0,
-      numeroIdentificacionConductor: '',
-      nombresConductor: ''
+      estado: true,
     });
 
-    const externalId = detRes?.ok && detRes.data?.id;
-    if (externalId) {
-      await this.model.updateOne(
-        { _id: doc._id },
-        { $set: { externalId: String(externalId) } },
-      );
+    // 4) Sync SICOV (best-effort)
+    try {
+      const detRes = await this.external.guardarAlistamiento({
+        tipoIdentificacionResponsable: dto.tipoIdentificacion,
+        numeroIdentificacionResponsable: dto.numeroIdentificacion,
+        nombreResponsable: dto.nombresResponsable,
+        mantenimientoId,
+        detalleActividades: dto.detalleActividades,
+        actividades: dto.actividades,
+        vigiladoId: process.env.SICOV_VIGILADO_ID,
+        tipoIdentificacionConductor: 0,
+        numeroIdentificacionConductor: '',
+        nombresConductor: '',
+      });
+      const externalId = detRes?.ok && detRes.data?.id;
+      if (externalId) {
+        await this.model.updateOne(
+          { _id: doc._id },
+          { $set: { externalId: String(externalId) } },
+        );
+      }
+    } catch {
+      /* ignorar errores externos */
     }
-  } catch {
-    // ignoramos fallo de sync para no romper la creación local
-  }
 
-  return (await this.model.findById(doc._id).lean())!;
-}
+    return (await this.model.findById(doc._id).lean())!;
+  }
 
   /** Devuelve un alistamiento local y, si existe, lo complementa con la respuesta de SICOV */
   async view(dto: { id: string }, user?: { enterprise_id?: string }) {

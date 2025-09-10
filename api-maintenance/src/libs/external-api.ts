@@ -20,7 +20,6 @@ export class MaintenanceExternalApiService {
       headers: { 'Content-Type': 'application/json' },
       body,
     });
-    console.log(resp)
     if (!resp.ok) {
       this.logger.error(
         `Error autenticando: ${resp.status} ${resp.statusText}`,

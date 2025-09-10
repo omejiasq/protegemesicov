@@ -110,7 +110,7 @@
           <label class="block mb-2 text-900">Selecciona un mantenimiento</label>
           <UiDropdownBasic
             v-model="form.mantenimientoId"
-            :options="maintenanceOpts"
+            :options="maintenanceOptsType2"
             :disabled="store.maintenanceList.loading"
             placeholder="Seleccioná un mantenimiento"
             @update:modelValue="onPickMaintenance"
@@ -190,7 +190,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted } from "vue";
+import { reactive, ref, computed, onMounted, watch } from "vue";
 import { useMaintenanceStore } from "../../stores/maintenanceStore";
 import InputText from "primevue/inputtext";
 import Calendar from "primevue/calendar";
@@ -210,6 +210,12 @@ const toast = useToast();
 const saving = ref(false);
 const filters = reactive({ mantenimientoId: "", placa: "" });
 const dlg = reactive({ visible: false });
+watch(
+  () => dlg.visible,
+  (v) => {
+    if (v) ensureMaintenances();
+  }
+);
 const form = reactive({
   mantenimientoId: "",
   placa: "",
@@ -368,7 +374,8 @@ function toInt(v: any) {
 }
 
 async function save() {
-  const payload = {
+  // 1) Armar payload ANTES de limpiar el form
+  const payload: any = {
     mantenimientoId: String(form.mantenimientoId || "").trim(),
     placa: form.placa?.trim(),
     fecha: normDate(form.fecha),
@@ -377,59 +384,86 @@ async function save() {
     razonSocial: form.razonSocial?.trim(),
     descripcionFalla: form.descripcionFalla?.trim(),
     accionesRealizadas: form.accionesRealizadas?.trim(),
+    detalleActividades: form.detalleActividades?.trim(),
   };
-  const req = [
-    "mantenimientoId",
-    "placa",
-    "fecha",
-    "hora",
-    "nit",
-    "razonSocial",
-    "descripcionFalla",
-    "accionesRealizadas",
-  ];
-  for (const k of req) {
-    if (!payload[k as keyof typeof payload]) {
-      alert(`Falta completar: ${k}`);
-      return;
-    }
+
+  // 2) Validación mínima (evita pelear con el back al pedo)
+  const req = ["mantenimientoId", "placa", "fecha", "hora"];
+  const missing = req.filter((k) => !payload[k]);
+  if (missing.length) {
+    toast?.add?.({
+      severity: "warn",
+      summary: "Campos requeridos",
+      detail: `Completá: ${missing.join(", ")}`,
+      life: 3000,
+    });
+    return;
   }
 
   saving.value = true;
-try {
-  await store.correctiveCreateDetail(payload);
-  dlg.visible = false;
-  hasCorrective.value?.add(String(payload.mantenimientoId));
-  toast?.add?.({
-    severity: 'success',
-    summary: 'Correctivo creado',
-    detail: 'Se guardó correctamente.',
-    life: 2500
-  });
-  await refresh();
-} catch (e: any) {
-  const status = e?.response?.status;
-  const msg = e?.response?.data?.message || e?.message || 'No se pudo crear el correctivo';
-  if (status === 409 || /existe/i.test(msg) || /duplic/i.test(msg)) {
+  try {
+    // 3) Crear en API
+    await store.correctiveCreateDetail(payload);
+
+    // 4) Marcar localmente que este mantenimiento ya tiene correctivo
+    hasCorrective.value?.add(String(payload.mantenimientoId));
+
+    // 5) Feedback
     toast?.add?.({
-      severity: 'warn',
-      summary: 'Correctivo ya existente',
-      detail: 'Ya existe un correctivo para esta transacción.',
-      life: 4000
+      severity: "success",
+      summary: "Correctivo creado",
+      detail: "Se guardó correctamente.",
+      life: 2500,
     });
-  } else {
-    toast?.add?.({
-      severity: 'error',
-      summary: 'Error al crear',
-      detail: msg,
-      life: 4000
+
+    // 6) Cerrar modal, refrescar lista y opciones del dropdown (tipo 2)
+    dlg.visible = false;
+    await ensureMaintenances(); // repuebla el dropdown con tipo 2
+    await refresh();            // actualiza la tabla principal
+
+    // 7) Limpieza del form (recién acá)
+    Object.assign(form, {
+      mantenimientoId: "",
+      placa: "",
+      fecha: null,
+      hora: null,
+      tipoIdentificacion: "",
+      numeroIdentificacion: "",
+      nombresResponsable: "",
+      descripcionFalla: "",
+      accionesRealizadas: "",
+      detalleActividades: "",
     });
+
+  } catch (e: any) {
+    const status = e?.response?.status;
+    const msg =
+      e?.response?.data?.message ||
+      e?.message ||
+      "No se pudo crear el correctivo";
+
+    // Mostrar "duplicado" SOLO si el back devolvió 409
+    if (status === 409) {
+      toast?.add?.({
+        severity: "warn",
+        summary: "Correctivo ya existente",
+        detail: "Ya existe un correctivo para esta transacción.",
+        life: 4000,
+      });
+    } else {
+      toast?.add?.({
+        severity: "error",
+        summary: "Error al crear",
+        detail: msg,
+        life: 4000,
+      });
+    }
+    return;
+  } finally {
+    saving.value = false;
   }
-  return;
-} finally {
-  saving.value = false;
 }
-}
+
 
 function formatMaintLabel(m: any) {
   const placa = (m?.placa || "").toString().toUpperCase();
@@ -437,17 +471,17 @@ function formatMaintLabel(m: any) {
   return `${placa || "(sin placa)"} — Tipo ${tipo}`;
 }
 
-const maintenanceOpts = computed(() =>
-  (store.maintenanceList.items || []).map((m: any) => ({
-    label: formatMaintLabel(m),
-    value: m?._id,
-  }))
+const maintenanceOptsType2 = computed(() =>
+  (store.maintenanceList.items || [])
+    .filter((m: any) => Number(m?.tipoId) === 2)
+    .map((m: any) => ({
+      label: formatMaintLabel(m), // tu helper de etiqueta
+      value: m?._id,
+    }))
 );
 
 async function ensureMaintenances() {
-  if (!store.maintenanceList.items?.length) {
-    await store.maintenanceFetchList({ page: 1, limit: 100, tipoId: 2 });
-  }
+  await store.maintenanceFetchList({ page: 1, limit: 100, tipoId: 2 });
 }
 
 function onPickMaintenance(id: string | number | null) {

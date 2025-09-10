@@ -203,7 +203,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted } from "vue";
+import { reactive, ref, computed, onMounted, watch } from "vue";
 import { useMaintenanceStore } from "../../stores/maintenanceStore";
 import InputText from "primevue/inputtext";
 import Calendar from "primevue/calendar";
@@ -214,7 +214,7 @@ import Column from "primevue/column";
 import Tag from "primevue/tag";
 import Dialog from "primevue/dialog";
 import UiDropdownBasic from "../../components/ui/Dropdown.vue";
-import { useToast } from 'primevue/usetoast';
+import { useToast } from "primevue/usetoast";
 
 const toast = useToast();
 
@@ -360,9 +360,7 @@ const maintenanceOpts = computed(() =>
 );
 
 async function ensureMaintenances() {
-  if (!store.maintenanceList.items?.length) {
-    await store.maintenanceFetchList({ page: 1, limit: 100, tipoId: 1 }); // ← filtro por preventivo
-  }
+  await store.maintenanceFetchList({ page: 1, limit: 100, tipoId: 1 });
 }
 
 function onPickMaintenance(id: string | number | null) {
@@ -379,6 +377,12 @@ function onPickMaintenance(id: string | number | null) {
 
 /** Crear */
 const dlg = reactive({ visible: false });
+watch(
+  () => dlg.visible,
+  (v) => {
+    if (v) ensureMaintenances();
+  }
+);
 const form = reactive({
   mantenimientoId: "",
   placa: "",
@@ -445,42 +449,45 @@ async function save() {
   saving.value = true;
   try {
     await store.preventiveCreateDetail(payload);
+    await ensureMaintenances(); // 🔁 repuebla el dropdown
+    await refresh();
     dlg.visible = false;
     await refresh();
 
     // Feedback OK
     toast?.add?.({
-      severity: 'success',
-      summary: 'Preventivo creado',
-      detail: 'Se guardó correctamente.',
-      life: 2500
+      severity: "success",
+      summary: "Preventivo creado",
+      detail: "Se guardó correctamente.",
+      life: 2500,
     });
-
   } catch (e: any) {
     const status = e?.response?.status;
-    const msg = e?.response?.data?.message || e?.message || 'No se pudo crear el preventivo';
+    const msg =
+      e?.response?.data?.message ||
+      e?.message ||
+      "No se pudo crear el preventivo";
 
     // Caso duplicado / ya existe
     if (status === 409 || /existe/i.test(msg) || /duplic/i.test(msg)) {
       toast?.add?.({
-        severity: 'warn',
-        summary: 'Preventivo ya existente',
-        detail: 'Ya existe un preventivo para esta transacción.',
-        life: 4000
+        severity: "warn",
+        summary: "Preventivo ya existente",
+        detail: "Ya existe un preventivo para esta transacción.",
+        life: 4000,
       });
     } else {
       // Otros errores
       toast?.add?.({
-        severity: 'error',
-        summary: 'Error al crear',
+        severity: "error",
+        summary: "Error al crear",
         detail: msg,
-        life: 4000
+        life: 4000,
       });
     }
 
     // No cierres el modal en error
     return;
-
   } finally {
     saving.value = false;
   }
