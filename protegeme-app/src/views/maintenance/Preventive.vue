@@ -87,6 +87,26 @@
             />
           </template>
         </Column>
+        <Column header="Acciones" style="width: 160px">
+          <template #body="{ data }">
+            <div class="flex gap-2">
+              <Button
+                icon="pi pi-pencil"
+                severity="secondary"
+                text
+                :disabled="store.preventive.loading"
+                @click="openEdit(data)"
+              />
+              <Button
+                :icon="data?.estado ? 'pi pi-ban' : 'pi pi-check'"
+                :severity="data?.estado ? 'danger' : 'success'"
+                text
+                :disabled="store.preventive.loading"
+                @click="toggle(data._id)"
+              />
+            </div>
+          </template>
+        </Column>
       </DataTable>
     </div>
 
@@ -190,11 +210,22 @@
         <div class="field col-12 flex justify-content-end gap-2 mt-2">
           <Button label="Cancelar" text @click="dlg.visible = false" />
           <Button
+            v-if="!isEditing"
             label="Crear"
             icon="pi pi-save"
             class="btn-blue"
             :loading="saving"
             @click="save"
+          />
+
+          <!-- Guardar (solo si estás editando) -->
+          <Button
+            v-else
+            label="Guardar"
+            icon="pi pi-save"
+            class="btn-blue"
+            :loading="saving"
+            @click="saveEdit"
           />
         </div>
       </div>
@@ -220,6 +251,9 @@ const toast = useToast();
 
 const store = useMaintenanceStore();
 
+const isEditing = ref(false); // true cuando abrís "Editar"
+const suppressDuplicateCheck = ref(false);
+const editingId = ref<string | null>(null);
 /** Estado */
 const page = ref(1);
 const limit = ref(10);
@@ -375,6 +409,66 @@ function onPickMaintenance(id: string | number | null) {
   }
 }
 
+function openEdit(row: any) {
+  isEditing.value = true;
+  editingId.value = row?._id || null;
+
+  // Precargamos campos del form existente SIN tocar tu estructura
+  form.mantenimientoId = row?.mantenimientoId ?? form.mantenimientoId;
+  form.placa = row?.placa ?? form.placa;
+  form.fecha = row?.fecha ? new Date(row.fecha) : form.fecha; // si ya usás Date
+  form.hora = row?.hora ?? form.hora;
+  form.nit = row?.nit ?? form.nit;
+  form.razonSocial = row?.razonSocial ?? form.razonSocial;
+  form.tipoIdentificacion = row?.tipoIdentificacion ?? form.tipoIdentificacion;
+  form.numeroIdentificacion =
+    row?.numeroIdentificacion ?? form.numeroIdentificacion;
+  form.nombresResponsable = row?.nombresResponsable ?? form.nombresResponsable;
+  form.detalleActividades = row?.detalleActividades ?? form.detalleActividades;
+
+  dlg.visible = true; // reutilizo TU mismo Dialog
+}
+
+// Guardar cambios en modo edición (NO reemplaza tu save() de crear)
+async function saveEdit() {
+  if (!editingId.value) return;
+  const payload = clean({
+    mantenimientoId: form.mantenimientoId?.trim(),
+    placa: form.placa?.trim(),
+    fecha: normDate(form.fecha),
+    hora: normTime(form.hora),
+    nit: toIntOrUndef(form.nit),
+    razonSocial: form.razonSocial?.trim(),
+    tipoIdentificacion: toIntOrUndef(form.tipoIdentificacion),
+    numeroIdentificacion: form.numeroIdentificacion?.trim(),
+    nombresResponsable: form.nombresResponsable?.trim(),
+    detalleActividades: form.detalleActividades?.trim(),
+  });
+
+  saving.value = true;
+  suppressDuplicateCheck.value = true;
+  try {
+    // (opcional) limpia error viejo por las dudas
+    store.preventive.error = "";
+    await store.preventiveUpdateDetail(editingId.value, payload);
+    // ...tu lógica actual (toast/refresh/cerrar)
+  } finally {
+    suppressDuplicateCheck.value = false;
+  }
+}
+
+// Activar/Desactivar
+async function toggle(id: string) {
+  suppressDuplicateCheck.value = true;
+  try {
+    store.preventive.error = "";
+    await store.preventiveToggle(id);
+    // ...tu lógica actual (toast/refresh)
+  } finally {
+    suppressDuplicateCheck.value = false;
+  }
+}
+
 /** Crear */
 const dlg = reactive({ visible: false });
 watch(
@@ -506,8 +600,6 @@ function onSearch() {
 </script>
 
 <style scoped>
-/* ---------- Bolt look (claro) ---------- */
-
 .bolt-wrap {
   display: grid;
   gap: 1rem;
@@ -642,5 +734,30 @@ function onSearch() {
 .dialog-body .text-900,
 .dialog-body .text-700 {
   color: #111 !important;
+}
+
+:deep(.p-datatable-tbody > tr > td),
+:deep(.p-datatable-tbody > tr > td *) {
+  color: #111 !important;
+}
+.bolt-card :deep(.p-datatable),
+.bolt-card :deep(.p-datatable-wrapper),
+.bolt-card :deep(.p-datatable-header),
+.bolt-card :deep(.p-datatable-thead > tr > th),
+.bolt-card :deep(.p-datatable-tbody > tr),
+.bolt-card :deep(.p-datatable-tbody > tr > td),
+.bolt-card :deep(.p-paginator) {
+  background: #fff !important;
+}
+.detail-pane :deep(*) {
+  color: #111 !important;
+}
+.detail-pane :deep(.p-tag) {
+  color: #fff !important;
+}
+
+.dlg-2col :deep(.p-dialog-content) {
+  max-height: none;
+  overflow-y: visible;
 }
 </style>

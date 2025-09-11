@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards, Get, Query } from '@nestjs/common';
 import { JwtAuthGuard } from '../libs/auth/jwt-auth.guard';
 import { AuthorizationService } from './authorizations.service';
 
@@ -19,7 +19,10 @@ export class AuthorizationsController {
   @Post('view')
   view(@Body() dto: { id: string }, @Req() req: Request) {
     const user = (req as any).user;
-    return this.svc.view({ id: dto.id }, { enterprise_id: (user as any)?.enterprise_id });
+    return this.svc.view(
+      { id: dto.id },
+      { enterprise_id: (user as any)?.enterprise_id },
+    );
   }
 
   // Update espera UN dto con { id, changes } y opcionalmente el user como 2º arg.
@@ -34,13 +37,24 @@ export class AuthorizationsController {
       changes: changes ?? rest ?? {},
     };
 
-    return this.svc.update(payload, { enterprise_id: (user as any)?.enterprise_id });
+    return this.svc.update(payload, {
+      enterprise_id: (user as any)?.enterprise_id,
+    });
   }
 
   // Toggle espera UN dto con { id }
   @Post('toggle')
   toggle(@Body() dto: { id: string }, @Req() req: Request) {
     const user = (req as any).user;
-    return this.svc.toggleState({ id: dto.id }, { enterprise_id: (user as any)?.enterprise_id });
+    return this.svc.toggleState(
+      { id: dto.id },
+      { enterprise_id: (user as any)?.enterprise_id },
+    );
+  }
+
+  @Get('list')
+  list(@Query() q: any, @Req() req: Request) {
+    const user = (req as any).user;
+    return this.svc.list(q, { enterprise_id: (user as any)?.enterprise_id });
   }
 }

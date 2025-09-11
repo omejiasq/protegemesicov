@@ -97,6 +97,26 @@
             />
           </template>
         </Column>
+        <Column header="Acciones" style="width: 160px">
+          <template #body="{ data }">
+            <div class="flex gap-2">
+              <Button
+                icon="pi pi-pencil"
+                severity="secondary"
+                text
+                :disabled="saving || loading"
+                @click="openEditEnlistment(data)"
+              />
+              <Button
+                :icon="data?.estado ? 'pi pi-ban' : 'pi pi-check'"
+                :severity="data?.estado ? 'danger' : 'success'"
+                text
+                :disabled="saving || loading"
+                @click="toggleEnlistment(data._id)"
+              />
+            </div>
+          </template>
+        </Column>
       </DataTable>
     </div>
 
@@ -190,12 +210,24 @@
             @click="dlg.visible = false"
           />
           <Button
+            v-if="!isEditingEnlistment"
             label="Crear"
             icon="pi pi-save"
             class="btn-dark-green"
             :loading="saving"
             type="button"
             @click="save"
+          />
+
+          <!-- Guardar (solo en modo edición) -->
+          <Button
+            v-else
+            label="Guardar"
+            icon="pi pi-save"
+            class="btn-dark-green"
+            :loading="saving"
+            type="button"
+            @click="saveEditEnlistment"
           />
         </div>
       </template>
@@ -223,6 +255,209 @@ const toast = useToast();
 
 const store = useMaintenanceStore();
 
+const isEditingEnlistment = ref(false);
+const editingEnlistmentId = ref<string | null>(null);
+
+// Abre modal en modo edición y precarga SOLO campos editables
+function openEditEnlistment(row: any) {
+  isEditingEnlistment.value = true;
+  editingEnlistmentId.value = row?._id || null;
+
+  // Precarga; NO tocamos mantenimientoId ni placa si en tu flujo no se editan
+  form.fecha = row?.fecha ?? form.fecha;
+  form.hora = row?.hora ?? form.hora;
+  form.tipoIdentificacion = row?.tipoIdentificacion ?? form.tipoIdentificacion;
+  form.numeroIdentificacion =
+    row?.numeroIdentificacion ?? form.numeroIdentificacion;
+  form.nombresResponsable = row?.nombresResponsable ?? form.nombresResponsable;
+  form.detalleActividades = row?.detalleActividades ?? form.detalleActividades;
+  if ("actividades" in form)
+    form.actividades = row?.actividades ?? form.actividades;
+
+  dlg.visible = true;
+}
+
+// Guarda edición usando la STORE
+async function saveEditEnlistment() {
+  if (!editingEnlistmentId.value) return;
+
+  // Payload SOLO con campos editables (misma lógica que venías usando)
+  const payload: any = {};
+  if (form.fecha) payload.fecha = normDate(form.fecha);
+  if (form.hora) payload.hora = normTime(form.hora);
+  if (
+    form.tipoIdentificacion !== undefined &&
+    form.tipoIdentificacion !== null &&
+    form.tipoIdentificacion !== ""
+  )
+    payload.tipoIdentificacion =
+      typeof toInt === "function"
+        ? toInt(form.tipoIdentificacion)
+        : form.tipoIdentificacion;
+  if (form.numeroIdentificacion)
+    payload.numeroIdentificacion = String(form.numeroIdentificacion).trim();
+  if (form.nombresResponsable)
+    payload.nombresResponsable = String(form.nombresResponsable).trim();
+  if (form.detalleActividades)
+    payload.detalleActividades = String(form.detalleActividades).trim();
+  if ("actividades" in form && form.actividades !== undefined)
+    payload.actividades = form.actividades;
+
+  saving.value = true;
+  try {
+    // ✅ usa la store (que llama al maintenance.service.ts)
+    await store.enlistmentUpdateDetail(editingEnlistmentId.value, payload);
+
+    toast.add({
+      severity: "success",
+      summary: "Actualizado",
+      detail: "Alistamiento actualizado",
+      life: 2500,
+    });
+    dlg.visible = false;
+    await refresh();
+  } catch (e: any) {
+    const msg =
+      e?.response?.data?.message || e?.message || "No se pudo actualizar";
+    toast.add({ severity: "error", summary: "Error", detail: msg, life: 3500 });
+  } finally {
+    saving.value = false;
+  }
+}
+
+// Activar/Desactivar usando la STORE
+async function toggleEnlistment(id: string) {
+  try {
+    const res = await store.enlistmentToggle(id);
+    const estadoTxt = res?.estado ? "activado" : "desactivado";
+    toast.add({
+      severity: res?.estado ? "success" : "warn",
+      summary: "Estado",
+      detail: `Alistamiento ${estadoTxt}`,
+      life: 2500,
+    });
+    await refresh();
+  } catch (e: any) {
+    const msg =
+      e?.response?.data?.message ||
+      e?.message ||
+      "No se pudo cambiar el estado";
+    toast.add({ severity: "error", summary: "Error", detail: msg, life: 3500 });
+  }
+}
+
+const isEditingCorrective = ref(false);
+const editingCorrectiveId = ref<string | null>(null);
+
+function setIfExists<K extends string>(key: K, value: any) {
+  // setea solo si el campo existe en tu form
+  if (key in (form as any)) {
+    (form as any)[key] = value ?? (form as any)[key];
+  }
+}
+
+function pushStringIfExists(payload: any, key: string) {
+  if (key in (form as any)) {
+    const raw = (form as any)[key];
+    if (raw !== undefined && raw !== null) {
+      const v = String(raw).trim();
+      if (v !== "") payload[key] = v;
+    }
+  }
+}
+
+// --- REEMPLAZO 1: openEditCorrective ---
+function openEditCorrective(row: any) {
+  isEditingCorrective.value = true;
+  editingCorrectiveId.value = row?._id || null;
+
+  // fechas/horas (si existen en tu form)
+  if ('fecha' in (form as any)) (form as any).fecha = row?.fecha ?? (form as any).fecha;
+  if ('hora'  in (form as any)) (form as any).hora  = row?.hora  ?? (form as any).hora;
+
+  // campos opcionales: solo seteamos si existen en form
+  setIfExists('nit', row?.nit);
+  setIfExists('razonSocial', row?.razonSocial);
+  setIfExists('descripcionFalla', row?.descripcionFalla);
+  setIfExists('accionesRealizadas', row?.accionesRealizadas);
+  setIfExists('detalleActividades', row?.detalleActividades);
+
+  dlg.visible = true;
+}
+
+// --- REEMPLAZO 2: saveEditCorrective ---
+async function saveEditCorrective() {
+  if (!editingCorrectiveId.value) return;
+
+  const payload: any = {};
+
+  // fecha/hora (respetando tus normalizadores si existen)
+  if ('fecha' in (form as any) && (form as any).fecha) {
+    payload.fecha = typeof normDate === 'function' ? normDate((form as any).fecha) : (form as any).fecha;
+  }
+  if ('hora' in (form as any) && (form as any).hora) {
+    payload.hora = typeof normTime === 'function' ? normTime((form as any).hora) : (form as any).hora;
+  }
+
+  // nit -> número (usa tu toIntOrUndef/toInt si existen; si no, fallback)
+  if ('nit' in (form as any)) {
+    const rawNit = (form as any).nit;
+    const parsedNit =
+      typeof toIntOrUndef === 'function' ? toIntOrUndef(rawNit)
+      : typeof toInt === 'function' ? toInt(rawNit)
+      : (Number.isFinite(Number(rawNit)) ? Number(rawNit) : undefined);
+    if (parsedNit !== undefined) payload.nit = parsedNit;
+  }
+
+  // strings opcionales (solo si existen en form)
+  pushStringIfExists(payload, 'razonSocial');
+  pushStringIfExists(payload, 'descripcionFalla');
+  pushStringIfExists(payload, 'accionesRealizadas');
+  pushStringIfExists(payload, 'detalleActividades');
+
+  saving.value = true;
+  try {
+    // Usamos la STORE (que llama a /api/maintenance.service.ts)
+    await store.correctiveUpdateDetail(editingCorrectiveId.value, payload);
+
+    toast.add({ severity: "success", summary: "Actualizado", detail: "Correctivo actualizado", life: 2500 });
+    dlg.visible = false;
+    isEditingCorrective.value = false;
+    editingCorrectiveId.value = null;
+    await refresh();
+  } catch (e: any) {
+    const msg = e?.response?.data?.message || e?.message || "No se pudo actualizar";
+    toast.add({ severity: "error", summary: "Error", detail: msg, life: 3500 });
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function toggleCorrective(id: string) {
+  try {
+    const hasStore =
+      store && typeof (store as any).correctiveToggle === "function";
+    const res = hasStore
+      ? await (store as any).correctiveToggle(id)
+      : (await MaintenanceserviceApi.toggleCorrective(id)).data;
+
+    const estadoTxt = res?.estado ? "activado" : "desactivado";
+    toast.add({
+      severity: res?.estado ? "success" : "warn",
+      summary: "Estado",
+      detail: `Correctivo ${estadoTxt}`,
+      life: 2500,
+    });
+    await refresh();
+  } catch (e: any) {
+    const msg =
+      e?.response?.data?.message ||
+      e?.message ||
+      "No se pudo cambiar el estado";
+    toast.add({ severity: "error", summary: "Error", detail: msg, life: 3500 });
+  }
+}
+
 type EnlistmentFilters = { mantenimientoId: string; placa: string };
 const filters = reactive<EnlistmentFilters>({ mantenimientoId: "", placa: "" });
 const saving = ref(false);
@@ -230,7 +465,10 @@ const dlg = reactive({ visible: false });
 watch(
   () => dlg.visible,
   (v) => {
-    if (v) ensureMaintenances();
+    if (!v) {
+      isEditingEnlistment.value = false;
+      editingEnlistmentId.value = null;
+    }
   }
 );
 const form = reactive({
@@ -330,6 +568,20 @@ function clearFilters() {
   filters.mantenimientoId = "";
   filters.placa = ""; // 👈 importante
   refresh();
+}
+
+function toIntOrUndef(v: any): number | undefined {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function clean<T extends Record<string, any>>(obj: T) {
+  const out: any = {};
+  Object.entries(obj).forEach(([k, v]) => {
+    if (v === "" || v === null || v === undefined) return;
+    out[k] = v;
+  });
+  return out;
 }
 
 function onClear() {

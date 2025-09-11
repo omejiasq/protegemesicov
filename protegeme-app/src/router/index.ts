@@ -40,30 +40,35 @@ const routes: RouteRecordRaw[] = [
         name: "maintenance/overview",
         component: () => import("../views/maintenance/Overview.vue"),
       },
-                  {
+      {
         path: "maintenance/maintenance",
         name: "maintenance/maintenance",
         component: () => import("../views/maintenance/Maintenance.vue"),
       },
-            {
+      {
         path: "maintenance/program",
         name: "maintenance/program",
         component: () => import("../views/maintenance/ProgramView.vue"),
       },
-                  {
+      {
         path: "maintenance/preventive",
         name: "maintenance/preventive",
         component: () => import("../views/maintenance/Preventive.vue"),
       },
-                        {
+      {
         path: "maintenance/corrective",
         name: "maintenance/corrective",
         component: () => import("../views/maintenance/Corrective.vue"),
       },
-                              {
+      {
         path: "maintenance/enlistment",
         name: "maintenance/enlistment",
         component: () => import("../views/maintenance/Enlistment.vue"),
+      },
+      {
+        path: "authorizations",
+        name: "authorizations",
+        component: () => import("../views/AuthorizationsView.vue"),
       },
     ],
   },

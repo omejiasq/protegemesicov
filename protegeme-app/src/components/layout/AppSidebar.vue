@@ -147,6 +147,25 @@
                   </li>
                 </ul>
               </li>
+              <li class="layout-menuitem-category">
+                <div class="layout-menuitem-root-text">AUTORIZACIONES</div>
+                <ul>
+                  <li>
+                    <router-link
+                      to="/authorizations"
+                      class="layout-menuitem-link"
+                      :class="{
+                        'active-menuitem': $route.path.includes(
+                          '/authorizations'
+                        ),
+                      }"
+                    >
+                      <i class="pi pi-lock layout-menuitem-icon"></i>
+                      <span class="layout-menuitem-text">Autorizaciones</span>
+                    </router-link>
+                  </li>
+                </ul>
+              </li>
             </ul>
           </li>
         </ul>

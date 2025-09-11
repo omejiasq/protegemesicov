@@ -148,4 +148,47 @@ export class CorrectiveService {
     ]);
     return { items, total, page, numero_items: limit };
   }
+
+  async update(id: string, dto: any, user?: { enterprise_id?: string }) {
+  if (!Types.ObjectId.isValid(id)) throw new NotFoundException('No encontrado');
+
+  // Solo campos editables (no tocar enterprise_id, createdBy, mantenimientoId, placa)
+  const updatable: any = {};
+  for (const k of [
+    'fecha',
+    'hora',
+    'nit',
+    'razonSocial',
+    'tipoIdentificacion',
+    'numeroIdentificacion',
+    'nombresResponsable',
+    'descripcionFalla',
+    'accionesRealizadas',
+    'detalleActividades',
+  ]) {
+    if (dto[k] !== undefined) updatable[k] = dto[k];
+  }
+
+  const res = await this.model.findOneAndUpdate(
+    { _id: new Types.ObjectId(id), enterprise_id: user?.enterprise_id },
+    { $set: updatable },
+    { new: true, lean: true }
+  );
+  if (!res) throw new NotFoundException('No encontrado');
+  return res;
+}
+
+async toggle(id: string, user?: { enterprise_id?: string }) {
+  if (!Types.ObjectId.isValid(id)) throw new NotFoundException('No encontrado');
+
+  const item = await this.model.findOne({
+    _id: new Types.ObjectId(id),
+    enterprise_id: user?.enterprise_id,
+  });
+  if (!item) throw new NotFoundException('No encontrado');
+
+  const nuevo = !item.estado;
+  await this.model.updateOne({ _id: item._id }, { $set: { estado: nuevo } });
+  return { _id: String(item._id), estado: nuevo };
+}
 }

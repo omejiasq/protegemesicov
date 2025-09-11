@@ -80,6 +80,7 @@ export const useMaintenanceStore = defineStore("maintenance", {
 
     // Enlistment
     enlistment: {
+      detail: null as AnyObj | null,
       current: null as AnyObj | null,
       activities: [] as AnyObj[],
       loading: false,
@@ -563,6 +564,191 @@ export const useMaintenanceStore = defineStore("maintenance", {
           e?.message ||
           "No se pudo obtener archivo";
         throw e;
+      }
+    },
+    // maintenanceStore.ts (acciones nuevas dentro de actions:{...})
+    async preventiveUpdateDetail(id: string, payload: AnyObj) {
+      this.preventive.loading = true;
+      this.preventive.error = "";
+      try {
+        const { data } = await MaintenanceserviceApi.updatePreventive(
+          id,
+          payload
+        );
+        // si estás viendo el detalle, mergeá
+        if (
+          this.preventive.detail &&
+          (this.preventive.detail as AnyObj)._id === id
+        ) {
+          this.preventive.detail = {
+            ...(this.preventive.detail as AnyObj),
+            ...data,
+          };
+        }
+        // actualizá el item en la lista si existiera
+        const idx = this.preventiveList.items.findIndex(
+          (x: AnyObj) => x._id === id
+        );
+        if (idx !== -1)
+          this.preventiveList.items[idx] = {
+            ...this.preventiveList.items[idx],
+            ...data,
+          };
+        return data;
+      } catch (e: any) {
+        this.preventive.error =
+          e?.response?.data?.message ||
+          e?.message ||
+          "No se pudo actualizar preventivo";
+        throw e;
+      } finally {
+        this.preventive.loading = false;
+      }
+    },
+
+    async preventiveToggle(id: string) {
+      this.preventive.loading = true;
+      this.preventive.error = "";
+      try {
+        const { data } = await MaintenanceserviceApi.togglePreventive(id);
+        // sync detalle
+        if (
+          this.preventive.detail &&
+          (this.preventive.detail as AnyObj)._id === id
+        ) {
+          (this.preventive.detail as AnyObj).estado = data?.estado;
+        }
+        // sync lista
+        const idx = this.preventiveList.items.findIndex(
+          (x: AnyObj) => x._id === id
+        );
+        if (idx !== -1) this.preventiveList.items[idx].estado = data?.estado;
+        return data;
+      } catch (e: any) {
+        this.preventive.error =
+          e?.response?.data?.message ||
+          e?.message ||
+          "No se pudo cambiar estado";
+        throw e;
+      } finally {
+        this.preventive.loading = false;
+      }
+    },
+
+    async correctiveUpdateDetail(id: string, payload: any) {
+      this.corrective.loading = true;
+      this.corrective.error = "";
+      try {
+        const { data } = await MaintenanceserviceApi.updateCorrective(
+          id,
+          payload
+        );
+        const list = this.correctiveList?.items || [];
+        const idx = list.findIndex((x: any) => x._id === id);
+        if (idx !== -1) list[idx] = { ...list[idx], ...data };
+        if (
+          this.corrective.detail &&
+          (this.corrective.detail as any)._id === id
+        ) {
+          this.corrective.detail = {
+            ...(this.corrective.detail as any),
+            ...data,
+          };
+        }
+        return data;
+      } catch (e: any) {
+        this.corrective.error =
+          e?.response?.data?.message ||
+          e?.message ||
+          "No se pudo actualizar correctivo";
+        throw e;
+      } finally {
+        this.corrective.loading = false;
+      }
+    },
+
+    async correctiveToggle(id: string) {
+      this.corrective.loading = true;
+      this.corrective.error = "";
+      try {
+        const { data } = await MaintenanceserviceApi.toggleCorrective(id);
+        const list = this.correctiveList?.items || [];
+        const idx = list.findIndex((x: any) => x._id === id);
+        if (idx !== -1) list[idx].estado = data?.estado;
+        if (
+          this.corrective.detail &&
+          (this.corrective.detail as any)._id === id
+        ) {
+          (this.corrective.detail as any).estado = data?.estado;
+        }
+        return data;
+      } catch (e: any) {
+        this.corrective.error =
+          e?.response?.data?.message ||
+          e?.message ||
+          "No se pudo cambiar estado";
+        throw e;
+      } finally {
+        this.corrective.loading = false;
+      }
+    },
+
+    // === ALISTAMIENTO ===
+    async enlistmentUpdateDetail(id: string, payload: any) {
+      this.enlistment.loading = true;
+      this.enlistment.error = "";
+      try {
+        const { data } = await MaintenanceserviceApi.updateEnlistment(
+          id,
+          payload
+        );
+        const list = this.enlistmentList?.items || [];
+        const idx = list.findIndex((x: any) => x._id === id);
+        if (idx !== -1) list[idx] = { ...list[idx], ...data };
+        if (
+          this.enlistment.detail &&
+          (this.enlistment.detail as any)._id === id
+        ) {
+          this.enlistment.detail = {
+            ...(this.enlistment.detail as any),
+            ...data,
+          };
+        }
+        return data;
+      } catch (e: any) {
+        this.enlistment.error =
+          e?.response?.data?.message ||
+          e?.message ||
+          "No se pudo actualizar alistamiento";
+        throw e;
+      } finally {
+        this.enlistment.loading = false;
+      }
+    },
+
+    async enlistmentToggle(id: string) {
+      this.enlistment.loading = true;
+      this.enlistment.error = "";
+      try {
+        const { data } = await MaintenanceserviceApi.toggleEnlistment(id);
+        const list = this.enlistmentList?.items || [];
+        const idx = list.findIndex((x: any) => x._id === id);
+        if (idx !== -1) list[idx].estado = data?.estado;
+        if (
+          this.enlistment.detail &&
+          (this.enlistment.detail as any)._id === id
+        ) {
+          (this.enlistment.detail as any).estado = data?.estado;
+        }
+        return data;
+      } catch (e: any) {
+        this.enlistment.error =
+          e?.response?.data?.message ||
+          e?.message ||
+          "No se pudo cambiar estado";
+        throw e;
+      } finally {
+        this.enlistment.loading = false;
       }
     },
   },

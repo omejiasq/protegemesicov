@@ -94,6 +94,26 @@
             />
           </template>
         </Column>
+        <Column header="Acciones" style="width: 160px">
+          <template #body="{ data }">
+            <div class="flex gap-2">
+              <Button
+                icon="pi pi-pencil"
+                severity="secondary"
+                text
+                :disabled="saving || loading"
+                @click="openEditCorrective(data)"
+              />
+              <Button
+                :icon="data?.estado ? 'pi pi-ban' : 'pi pi-check'"
+                :severity="data?.estado ? 'danger' : 'success'"
+                text
+                :disabled="saving || loading"
+                @click="toggleCorrective(data._id)"
+              />
+            </div>
+          </template>
+        </Column>
       </DataTable>
     </div>
 
@@ -176,12 +196,24 @@
             @click="dlg.visible = false"
           />
           <Button
+            v-if="!isEditingCorrective"
             label="Crear"
             icon="pi pi-save"
             class="btn-dark-green"
             :loading="saving"
             type="button"
             @click="save"
+          />
+
+          <!-- Guardar (solo en modo edición) -->
+          <Button
+            v-else
+            label="Guardar"
+            icon="pi pi-save"
+            class="btn-dark-green"
+            :loading="saving"
+            type="button"
+            @click="saveEditCorrective"
           />
         </div>
       </template>
@@ -206,6 +238,89 @@ import { useToast } from "primevue/usetoast";
 
 const store = useMaintenanceStore();
 const toast = useToast();
+
+const isEditingCorrective = ref(false);
+const editingCorrectiveId = ref<string | null>(null);
+
+// Abre el modal en modo edición y precarga SOLO campos editables
+function openEditCorrective(row: any) {
+  isEditingCorrective.value = true;
+  editingCorrectiveId.value = row?._id || null;
+
+  // Precarga; NO tocamos mantenimientoId ni placa (normalmente inmutables al editar)
+  form.fecha = row?.fecha ?? form.fecha;
+  form.hora = row?.hora ?? form.hora;
+  form.nit = row?.nit ?? form.nit;
+  form.razonSocial = row?.razonSocial ?? form.razonSocial;
+  form.descripcionFalla = row?.descripcionFalla ?? form.descripcionFalla;
+  form.accionesRealizadas = row?.accionesRealizadas ?? form.accionesRealizadas;
+  form.detalleActividades = row?.detalleActividades ?? form.detalleActividades;
+
+  dlg.visible = true;
+}
+
+// Guarda edición (reusa normDate / normTime / toInt existentes en tu archivo)
+async function saveEditCorrective() {
+  if (!editingCorrectiveId.value) return;
+
+  // Payload SOLO con campos editables (mantenemos tu misma lógica)
+  const payload: any = {};
+  if (form.fecha) payload.fecha = normDate(form.fecha);
+  if (form.hora) payload.hora = normTime(form.hora);
+  if (form.nit !== undefined && form.nit !== null && form.nit !== "")
+    payload.nit = toInt(form.nit);
+  if (form.razonSocial) payload.razonSocial = String(form.razonSocial).trim();
+  if (form.descripcionFalla)
+    payload.descripcionFalla = String(form.descripcionFalla).trim();
+  if (form.accionesRealizadas)
+    payload.accionesRealizadas = String(form.accionesRealizadas).trim();
+  if (form.detalleActividades)
+    payload.detalleActividades = String(form.detalleActividades).trim();
+
+  saving.value = true;
+  try {
+    // ✅ usa la store
+    await store.correctiveUpdateDetail(editingCorrectiveId.value, payload);
+
+    toast.add({
+      severity: "success",
+      summary: "Actualizado",
+      detail: "Correctivo actualizado",
+      life: 2500,
+    });
+    dlg.visible = false;
+    await refresh();
+  } catch (e: any) {
+    const msg =
+      e?.response?.data?.message || e?.message || "No se pudo actualizar";
+    toast.add({ severity: "error", summary: "Error", detail: msg, life: 3500 });
+  } finally {
+    saving.value = false;
+  }
+}
+
+// Activar/Desactivar
+async function toggleCorrective(id: string) {
+  try {
+    // ✅ usa la store
+    const res = await store.correctiveToggle(id);
+
+    const estadoTxt = res?.estado ? "activado" : "desactivado";
+    toast.add({
+      severity: res?.estado ? "success" : "warn",
+      summary: "Estado",
+      detail: `Correctivo ${estadoTxt}`,
+      life: 2500,
+    });
+    await refresh();
+  } catch (e: any) {
+    const msg =
+      e?.response?.data?.message ||
+      e?.message ||
+      "No se pudo cambiar el estado";
+    toast.add({ severity: "error", summary: "Error", detail: msg, life: 3500 });
+  }
+}
 
 const saving = ref(false);
 const filters = reactive({ mantenimientoId: "", placa: "" });
@@ -419,7 +534,7 @@ async function save() {
     // 6) Cerrar modal, refrescar lista y opciones del dropdown (tipo 2)
     dlg.visible = false;
     await ensureMaintenances(); // repuebla el dropdown con tipo 2
-    await refresh();            // actualiza la tabla principal
+    await refresh(); // actualiza la tabla principal
 
     // 7) Limpieza del form (recién acá)
     Object.assign(form, {
@@ -434,7 +549,6 @@ async function save() {
       accionesRealizadas: "",
       detalleActividades: "",
     });
-
   } catch (e: any) {
     const status = e?.response?.status;
     const msg =
@@ -463,7 +577,6 @@ async function save() {
     saving.value = false;
   }
 }
-
 
 function formatMaintLabel(m: any) {
   const placa = (m?.placa || "").toString().toUpperCase();

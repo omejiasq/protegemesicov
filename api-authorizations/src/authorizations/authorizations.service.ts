@@ -1,8 +1,16 @@
 // api-authorizations/src/authorizations/authorizations.service.ts
-import { Injectable, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Logger,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, FilterQuery, Types } from 'mongoose';
-import { Authorization, AuthorizationDocument } from '../schema/authorizations.schema';
+import {
+  Authorization,
+  AuthorizationDocument,
+} from '../schema/authorizations.schema';
 import { ExternalApiService } from '../libs/external-api'; // clase definida en external-api.ts
 import { AuditService } from '../libs/audit/audit.service'; // 👈 NUEVO
 
@@ -26,84 +34,108 @@ export class AuthorizationService {
 
   /** Crea la autorización local y la registra en SICOV (mantenimiento tipoId=4 + autorización). */
   async create(data: any, user?: { enterprise_id?: string; sub?: string }) {
-  // 0) validar y normalizar idDespacho ANTES de crear el doc
-  const idDespacho = Number(data?.idDespacho);
-  if (!Number.isFinite(idDespacho)) {
-    throw new BadRequestException('idDespacho es requerido y debe ser numérico');
-  }
+    // 0) validar y normalizar idDespacho ANTES de crear el doc
+    const idDespacho = Number(data?.idDespacho);
+    if (!Number.isFinite(idDespacho)) {
+      throw new BadRequestException(
+        'idDespacho es requerido y debe ser numérico',
+      );
+    }
 
-  // 1) crear doc local con los campos requeridos por el schema
-  const doc = await this.model.create({
-    idDespacho,                               // 👈 requerido por el schema
-    enterprise_id: user?.enterprise_id,
-    createdBy: user?.sub,
-    // agrega acá otros campos que tu schema marque como required
-    // (por ej. estado: true) si corresponde
-  });
-
-  // 2) preparar envío a SICOV
-  const item = Array.isArray(data?.autorizacion) ? data.autorizacion[0] : undefined;
-  const placa = item?.placa || data?.placa;
-  const ctx = { userId: user?.sub, enterpriseId: user?.enterprise_id };
-
-  // 3) si no hay datos mínimos para el externo, auditar local y salir
-  if (!placa || !item) {
-    await this.audit.log({
-      module: 'authorizations',
-      operation: 'create.local-only',
-      endpoint: 'internal',
-      requestPayload: { id: String(doc._id), idDespacho, placa, hasItem: !!item },
-      responseStatus: 200,
-      responseBody: { reason: 'missing placa or autorizacion[0], external skipped' },
-      success: true,
-      userId: ctx.userId,
-      enterpriseId: ctx.enterpriseId,
+    // 1) crear doc local con los campos requeridos por el schema
+    const doc = await this.model.create({
+      idDespacho, // 👈 requerido por el schema
+      enterprise_id: user?.enterprise_id,
+      createdBy: user?.sub,
+      // agrega acá otros campos que tu schema marque como required
+      // (por ej. estado: true) si corresponde
     });
+
+    // 2) preparar envío a SICOV
+    const item = Array.isArray(data?.autorizacion)
+      ? data.autorizacion[0]
+      : undefined;
+    const placa = item?.placa || data?.placa;
+    const ctx = { userId: user?.sub, enterpriseId: user?.enterprise_id };
+
+    // 3) si no hay datos mínimos para el externo, auditar local y salir
+    if (!placa || !item) {
+      await this.audit.log({
+        module: 'authorizations',
+        operation: 'create.local-only',
+        endpoint: 'internal',
+        requestPayload: {
+          id: String(doc._id),
+          idDespacho,
+          placa,
+          hasItem: !!item,
+        },
+        responseStatus: 200,
+        responseBody: {
+          reason: 'missing placa or autorizacion[0], external skipped',
+        },
+        success: true,
+        userId: ctx.userId,
+        enterpriseId: ctx.enterpriseId,
+      });
+      return doc.toJSON();
+    }
+
+    // 4) llamadas a la API externa (auditan dentro del ExternalApiService)
+    try {
+      const baseRes = await this.external.guardarMantenimientoBase(placa, ctx);
+      const b = baseRes?.data ?? {};
+      const mantenimientoId =
+        b?.mantenimientoId ??
+        b?.id ??
+        b?.data?.mantenimientoId ??
+        b?.data?.id ??
+        null;
+
+      if (mantenimientoId != null) {
+        const authRes = await this.external.guardarAutorizacion(
+          Number(mantenimientoId),
+          item,
+          ctx,
+        );
+        const ar = authRes?.data ?? {};
+        const externalId =
+          ar?.id ?? ar?.autorizacion?.id ?? ar?.data?.id ?? null;
+
+        if (externalId != null) {
+          await this.model.updateOne(
+            { _id: doc._id },
+            { $set: { mantenimientoId, externalId: Number(externalId) } },
+          );
+        }
+      }
+    } catch {
+      // no bloquear la operación local si falla el externo; la auditoría ya quedó escrita por el external
+    }
+
     return doc.toJSON();
   }
 
-  // 4) llamadas a la API externa (auditan dentro del ExternalApiService)
-  try {
-    const baseRes = await this.external.guardarMantenimientoBase(placa, ctx);
-    const b = baseRes?.data ?? {};
-    const mantenimientoId =
-      b?.mantenimientoId ?? b?.id ?? b?.data?.mantenimientoId ?? b?.data?.id ?? null;
-
-    if (mantenimientoId != null) {
-      const authRes = await this.external.guardarAutorizacion(Number(mantenimientoId), item, ctx);
-      const ar = authRes?.data ?? {};
-      const externalId =
-        ar?.id ?? ar?.autorizacion?.id ?? ar?.data?.id ?? null;
-
-      if (externalId != null) {
-        await this.model.updateOne(
-          { _id: doc._id },
-          { $set: { mantenimientoId, externalId: Number(externalId) } },
-        );
-      }
-    }
-  } catch {
-    // no bloquear la operación local si falla el externo; la auditoría ya quedó escrita por el external
-  }
-
-  return doc.toJSON();
-}
-
   /** Vista por id, adjuntando datos externos si hay mantenimientoId */
   async view(dto: { id: string }, user?: { enterprise_id?: string }) {
-    if (!Types.ObjectId.isValid(dto.id)) throw new NotFoundException('No encontrado');
+    if (!Types.ObjectId.isValid(dto.id))
+      throw new NotFoundException('No encontrado');
 
     const filter: FilterQuery<AuthorizationDocument> = {
       _id: new Types.ObjectId(dto.id),
       ...this.tenantFilter(user),
     };
 
-    const item = await this.model.findOne(filter).lean({ getters: true }) as AnyObj;
+    const item = (await this.model
+      .findOne(filter)
+      .lean({ getters: true })) as AnyObj;
     if (!item) throw new NotFoundException('No encontrado');
 
     if (item.mantenimientoId) {
       try {
-        const res = await this.external.visualizarAutorizacion(Number(item.mantenimientoId));
+        const res = await this.external.visualizarAutorizacion(
+          Number(item.mantenimientoId),
+        );
         if (res?.ok) item.externalData = res.data;
       } catch {
         // ignorar fallos externos
@@ -113,8 +145,12 @@ export class AuthorizationService {
   }
 
   /** Update básico local (opcionalmente podés re-enviar a SICOV con otro método del external) */
-  async update(dto: { id: string; changes: AnyObj }, user?: { enterprise_id?: string }) {
-    if (!Types.ObjectId.isValid(dto.id)) throw new NotFoundException('No encontrado');
+  async update(
+    dto: { id: string; changes: AnyObj },
+    user?: { enterprise_id?: string },
+  ) {
+    if (!Types.ObjectId.isValid(dto.id))
+      throw new NotFoundException('No encontrado');
 
     const filter: FilterQuery<AuthorizationDocument> = {
       _id: new Types.ObjectId(dto.id),
@@ -130,7 +166,8 @@ export class AuthorizationService {
 
   /** Toggle estado local (si existiera un endpoint de toggle externo, podés llamarlo acá) */
   async toggleState(dto: { id: string }, user?: { enterprise_id?: string }) {
-    if (!Types.ObjectId.isValid(dto.id)) throw new NotFoundException('No encontrado');
+    if (!Types.ObjectId.isValid(dto.id))
+      throw new NotFoundException('No encontrado');
 
     const filter: FilterQuery<AuthorizationDocument> = {
       _id: new Types.ObjectId(dto.id),
@@ -144,5 +181,39 @@ export class AuthorizationService {
     await current.save();
 
     return current.toJSON();
+  }
+
+  async list(
+    query: { page?: any; limit?: any; idDespacho?: any; plate?: string },
+    user?: { enterprise_id?: string },
+  ) {
+    const page = Math.max(1, Number(query?.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(query?.limit) || 20));
+    const skip = (page - 1) * limit;
+
+    const filter: any = { ...this.tenantFilter(user) };
+
+    // filtros opcionales
+    const idDespachoNum = Number(query?.idDespacho);
+    if (Number.isFinite(idDespachoNum)) filter.idDespacho = idDespachoNum;
+
+    const plate = (query?.plate || '').trim();
+    if (plate) {
+      const rx = new RegExp(plate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      // soporta placa en raíz o dentro de autorizacion[].placa
+      filter.$or = [{ placa: rx }, { 'autorizacion.placa': rx }];
+    }
+
+    const [items, total] = await Promise.all([
+      this.model
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean({ getters: true }),
+      this.model.countDocuments(filter),
+    ]);
+
+    return { items, page, limit, total };
   }
 }

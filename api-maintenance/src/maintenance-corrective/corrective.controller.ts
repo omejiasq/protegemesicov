@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards, Get, Query } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards, Get, Query, Patch, Param } from '@nestjs/common';
 import { JwtAuthGuard } from '../libs/auth/jwt-auth.guard';
 import { CorrectiveService } from './corrective.service';
 import { CreateCorrectiveDto } from './dto/create-corrective-dto';
@@ -29,4 +29,16 @@ export class CorrectiveController {
     const user = (req as any).user;
     return this.svc.list(q, { enterprise_id: user.enterprise_id });
   }
+
+  @Patch(':id')
+update(@Param('id') id: string, @Body() dto: any, @Req() req: Request) {
+  const user = (req as any).user;
+  return this.svc.update(id, dto, { enterprise_id: user.enterprise_id });
+}
+
+@Patch(':id/toggle')
+toggle(@Param('id') id: string, @Req() req: Request) {
+  const user = (req as any).user;
+  return this.svc.toggle(id, { enterprise_id: user.enterprise_id });
+}
 }

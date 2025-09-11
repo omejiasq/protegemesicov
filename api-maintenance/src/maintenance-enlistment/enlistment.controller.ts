@@ -6,6 +6,8 @@ import {
   Req,
   UseGuards,
   Query,
+  Param,
+  Patch,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../libs/auth/jwt-auth.guard';
 import { AlistamientoService } from './enlistment.service';
@@ -41,5 +43,19 @@ export class EnlistmentController {
   list(@Query() q: any, @Req() req: Request) {
     const user = (req as any).user;
     return this.svc.list(q, { enterprise_id: (user as any).enterprise_id });
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() dto: any, @Req() req: Request) {
+    const user = (req as any).user;
+    return this.svc.update(id, dto, {
+      enterprise_id: (user as any).enterprise_id,
+    });
+  }
+
+  @Patch(':id/toggle')
+  toggle(@Param('id') id: string, @Req() req: Request) {
+    const user = (req as any).user;
+    return this.svc.toggle(id, { enterprise_id: (user as any).enterprise_id });
   }
 }
