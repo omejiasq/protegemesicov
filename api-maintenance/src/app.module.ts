@@ -7,6 +7,7 @@ import { ProgramsModule } from './maintenance-programs/program.module';
 import { PreventiveModule } from './maintenance-preventive/preventive.module';
 import { CorrectiveModule } from './maintenance-corrective/corrective.module';
 import { EnlistmentModule } from './maintenance-enlistment/enlistment.module';
+import { AuditModule } from './libs/audit/audit.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { EnlistmentModule } from './maintenance-enlistment/enlistment.module';
         uri: cfg.get<string>('MONGO_URI'),
       }),
     }),
+    AuditModule,
     MaintenanceModule,
     ProgramsModule,
     PreventiveModule,

@@ -22,7 +22,7 @@ export class IncidentsExternalApiService {
 
   private async login(): Promise<string> {
     if (this.bearerToken) return this.bearerToken;
-    const url = `${process.env.SICOV_AUTH_BASE}/api/v2/autenticacion/inicio-sesion`;
+    const url = `${process.env.SICOV_AUTH_BASE}/api/v1/autenticacion/inicio-sesion`;
     const body = JSON.stringify({
       usuario: process.env.SICOV_USERNAME,
       contrasena: process.env.SICOV_PASSWORD,
@@ -74,11 +74,13 @@ export class IncidentsExternalApiService {
 
   try {
     const token = await this.login();
+    console.log(token)
     const resp = await fetch(endpoint, {
       method,
       headers: this.buildHeaders(token),
       body: body ? JSON.stringify(body) : undefined,
     });
+    console.log(resp)
     status = resp.status;
     ok = resp.ok;
     const text = await resp.text();
@@ -111,7 +113,7 @@ export class IncidentsExternalApiService {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
       token: process.env.SICOV_TOKEN_VIGILADO as string,
-      vigiladoId: process.env.SICOV_VIGILADO_ID as string,
+      documento: process.env.SICOV_VIGILADO_ID as string,
     };
   }
 

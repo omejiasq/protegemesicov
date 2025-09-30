@@ -1,10 +1,14 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { EnlistmentDetail, EnlistmentDetailSchema } from '../schema/enlistment-schema';
+import {
+  EnlistmentDetail,
+  EnlistmentDetailSchema,
+} from '../schema/enlistment-schema';
 import { Maintenance, MaintenanceSchema } from '../schema/maintenance.schema';
 import { AlistamientoService } from './enlistment.service';
 import { EnlistmentController } from './enlistment.controller';
 import { MaintenanceExternalApiService } from 'src/libs/external-api';
+import { AuditModule } from 'src/libs/audit/audit.module';
 
 @Module({
   imports: [
@@ -12,6 +16,7 @@ import { MaintenanceExternalApiService } from 'src/libs/external-api';
       { name: EnlistmentDetail.name, schema: EnlistmentDetailSchema },
       { name: Maintenance.name, schema: MaintenanceSchema },
     ]),
+    AuditModule,
   ],
   controllers: [EnlistmentController],
   providers: [AlistamientoService, MaintenanceExternalApiService],

@@ -1,5 +1,5 @@
 import {
-    BadRequestException,
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -11,103 +11,96 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { MaintenanceService } from './maintenance.service';
 import { JwtAuthGuard } from '../libs/auth/jwt-auth.guard';
-import {
-  IsBoolean,
-  IsIn,
-  IsInt,
-  IsOptional,
-  IsString,
-  Min,
-} from 'class-validator';
+import { MaintenanceService } from './maintenance.service';
+import { MaintenanceExternalApiService } from 'src/libs/external-api';
+import { IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class CreateMaintenanceDto {
   @Type(() => Number) @IsIn([1, 2, 3, 4]) tipoId!: 1 | 2 | 3 | 4;
   @IsString() placa!: string;
+  @IsOptional() @Type(() => Number) @IsInt() vigiladoId?: number;
 }
+
 class UpdateMaintenanceDto {
   @IsOptional() @Type(() => Number) @IsIn([1, 2, 3, 4]) tipoId?: 1 | 2 | 3 | 4;
   @IsOptional() @IsString() placa?: string;
-  @IsOptional() @Type(() => Number) @IsInt() vigiladoId?: number;
-  @IsOptional() @Type(() => Boolean) @IsBoolean() estado?: boolean;
 }
+
 class ListQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number = 1;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) numero_items?: number = 10;
   @IsOptional() @Type(() => Number) @IsIn([1, 2, 3, 4]) tipoId?: 1 | 2 | 3 | 4;
   @IsOptional() @IsString() placa?: string;
-  @IsOptional() @Type(() => Boolean) @IsBoolean() estado?: boolean;
+  @IsOptional() estado?: boolean;
 }
 
 class ListPlatesQueryDto {
-  @Type(() => Number) @IsIn([1,2,3,4]) tipoId!: 1|2|3|4;
+  @Type(() => Number) @IsIn([1, 2, 3, 4]) tipoId!: 1 | 2 | 3 | 4;
   @Type(() => Number) @IsInt() vigiladoId!: number;
-  @IsOptional() @IsString() search?: string;
 }
 
 @UseGuards(JwtAuthGuard)
 @Controller('maintenance')
 export class MaintenanceController {
-  constructor(private readonly svc: MaintenanceService) {}
+  constructor(
+    private readonly svc: MaintenanceService,
+    private readonly external: MaintenanceExternalApiService,
+  ) {}
 
-@Post('create')
-create(@Body() dto: CreateMaintenanceDto, @Req() req: Request) {
-  const user = (req as any).user;
+  // CREATE -> EXTERNAL (audita via requestWithAudit)
+  @Post('create')
+  async create(@Body() dto: CreateMaintenanceDto, @Req() req: any) {
+    const vigiladoId =
+      dto.vigiladoId ??
+      Number(process.env.SICOV_VIGILADO_ID ?? NaN);
 
-  const vigiladoId = Number(process.env.SICOV_VIGILADO_ID);
-  if (!Number.isFinite(vigiladoId)) {
-    throw new BadRequestException('SICOV_VIGILADO_ID no configurado');
+    if (!Number.isFinite(vigiladoId)) {
+      throw new BadRequestException('SICOV_VIGILADO_ID no configurado');
+    }
+    return this.external.guardarMantenimiento({
+      placa: dto.placa,
+      tipoId: dto.tipoId,
+      vigiladoId: String(vigiladoId),
+    });
   }
 
-  return this.svc.create({
-    ...dto,
-    vigiladoId,
-    enterprise_id: user.enterprise_id,
-    createdBy: user.sub,
-  });
-}
-
+  // Listado local (como lo tenías)
   @Get('getAll')
-  list(@Query() q: ListQueryDto, @Req() req: Request) {
-    const user = (req as any).user;
-    return this.svc.list(q, user);
+  list(@Query() q: ListQueryDto, @Req() req: any) {
+    return this.svc.list(q, req.user);
   }
 
   @Get('getById/:id')
-  get(@Param('id') id: string, @Req() req: Request) {
-    const user = (req as any).user;
-    return this.svc.getById(id, user);
+  get(@Param('id') id: string, @Req() req: any) {
+    return this.svc.getById(id, req.user);
   }
 
   @Put('updateById/:id')
-  update(
-    @Param('id') id: string,
-    @Body() dto: UpdateMaintenanceDto,
-    @Req() req: Request,
-  ) {
-    const user = (req as any).user;
-    return this.svc.updateById(id, dto, user);
+  update(@Param('id') id: string, @Body() dto: UpdateMaintenanceDto, @Req() req: any) {
+    return this.svc.updateById(id, dto, req.user);
   }
 
   @Patch('toggleState/:id')
-  toggle(@Param('id') id: string, @Req() req: Request) {
-    const user = (req as any).user;
-    return this.svc.toggleState(id, user);
+  toggle(@Param('id') id: string, @Req() req: any) {
+    return this.svc.toggleState(id, req.user);
   }
 
-@Get('list-plates')
-listPlates(@Query() q: ListPlatesQueryDto, @Req() req: Request) {
-  const user = (req as any).user;
-  const tipo = Number(q.tipoId);
-  if (![1,2,3,4].includes(tipo)) {
-    throw new BadRequestException('tipoId inválido');
+  // LIST PLATES -> EXTERNAL (audita)
+  @Get('list-plates')
+  async listPlates(@Query() q: ListPlatesQueryDto) {
+    return this.external.listarPlacas({
+      tipoId: q.tipoId,
+      vigiladoId: String(q.vigiladoId),
+    });
   }
-  const vigiladoId = Number(q.vigiladoId);
-  return this.svc.listPlates(
-    { ...q, tipoId: tipo as 1|2|3|4, vigiladoId },
-    user
-  );
-}
+
+  // Ping externo para verificar auditoría rápido
+  @Get('__ping_sicov')
+  async pingSicov() {
+    const tipoId = 1 as 1;
+    const vigiladoId = String(process.env.SICOV_VIGILADO_ID ?? '');
+    return this.external.listarPlacas({ tipoId, vigiladoId });
+  }
 }
