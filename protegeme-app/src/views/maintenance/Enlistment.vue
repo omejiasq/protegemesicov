@@ -21,15 +21,11 @@
       <div class="bolt-center formgrid grid align-items-end">
         <!-- Dropdown de búsqueda -->
         <div class="bolt_search p-3">
-          <span class="p-input-icon-left w-full" style="flex: 1 1 520px">
-            <i class="pi pi-search" />
-            <InputText
-              v-model="filters.placa"
-              class="w-full pv-light"
-              placeholder="Buscar por placa…"
-              @keydown.enter="refresh"
-            />
-          </span>
+          <SearchBar
+            v-model="filters.placa"
+            :width="'700px'"
+            @search="refresh"
+          />
         </div>
 
         <!-- Botones -->
@@ -102,15 +98,13 @@
             <div class="flex gap-2">
               <Button
                 icon="pi pi-pencil"
-                severity="secondary"
-                text
+                class="btn-icon-white statebutton"
                 :disabled="saving || loading"
                 @click="openEditEnlistment(data)"
               />
               <Button
                 :icon="data?.estado ? 'pi pi-ban' : 'pi pi-check'"
-                :severity="data?.estado ? 'danger' : 'success'"
-                text
+                class="btn-icon-white statebutton"
                 :disabled="saving || loading"
                 @click="toggleEnlistment(data._id)"
               />
@@ -148,32 +142,19 @@
         </div>
 
         <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900">Fecha (YYYY-MM-DD)</label>
-          <Calendar
-            v-model="form.fecha"
-            dateFormat="yy-mm-dd"
-            appendTo="body"
-            class="w-full"
-          />
+          <InputDate v-model="form.fecha" :width="'100%'" />
         </div>
 
         <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900">Hora</label>
-          <Calendar
-            v-model="form.hora"
-            timeOnly
-            hourFormat="24"
-            showIcon
-            appendTo="self"
-            class="w-full"
-          />
+          <InputHour v-model="form.hora" :width="'100%'" />
         </div>
 
         <div class="field col-12 md:col-6">
           <label class="block mb-2 text-900">Tipo identificación</label>
-          <InputText
+          <UiDropdownBasic
             v-model="form.tipoIdentificacion"
-            placeholder="3"
+            :options="documentTypeOptions"
+            placeholder="Seleccione"
             class="w-full"
           />
         </div>
@@ -197,8 +178,25 @@
         </div>
 
         <div class="field col-12">
-          <label class="block mb-2 text-900">Detalle de actividades</label>
-          <Textarea v-model="form.detalleActividades" rows="4" class="w-full" />
+          <label class="block mb-2 text-900">Actividades</label>
+          <div class="grid">
+            <div
+              v-for="act in store.enlistment.activities"
+              :key="act._id || act.id || act.value"
+              class="col-12 md:col-6 flex align-items-center"
+            >
+              <Checkbox
+                v-model="form.detalleActividades"
+                :value="act._id ?? act.id ?? act.value"
+              />
+              <label class="ml-2">{{
+                act.nombre ?? act.label ?? act.descripcion ?? act._id
+              }}</label>
+            </div>
+          </div>
+          <small class="text-sm text-500">
+            Seleccioná una o más actividades.
+          </small>
         </div>
       </div>
 
@@ -239,7 +237,6 @@
 import { reactive, ref, computed, onMounted } from "vue";
 import { useMaintenanceStore } from "../../stores/maintenanceStore";
 import InputText from "primevue/inputtext";
-import Button from "primevue/button";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
 import Tag from "primevue/tag";
@@ -248,12 +245,27 @@ import UiDropdownBasic from "../../components/ui/Dropdown.vue";
 import { MaintenanceserviceApi } from "../../api/maintenance.service";
 import Calendar from "primevue/calendar";
 import Textarea from "primevue/textarea";
+import Checkbox from "primevue/checkbox";
 import { useToast } from "primevue/usetoast";
 import { watch } from "vue";
+
+import SearchBar from "../../components/ui/SearchBar.vue";
+import InputDate from "../../components/ui/InputDate.vue";
+import InputHour from "../../components/ui/InputHour.vue";
+import Button from "../../components/ui/Button.vue";
 
 const toast = useToast();
 
 const store = useMaintenanceStore();
+
+console.log('%cprotegeme-app\src\views\maintenance\Enlistment.vue:261 store.', 'color: #007acc;', store.enlistmentList);
+
+const documentTypeOptions = [
+  { label: "DNI", value: 1 },
+  { label: "RUC", value: 2 },
+  { label: "Pasaporte", value: 3 },
+  { label: "Otro", value: 4 },
+];
 
 const isEditingEnlistment = ref(false);
 const editingEnlistmentId = ref<string | null>(null);
@@ -372,15 +384,17 @@ function openEditCorrective(row: any) {
   editingCorrectiveId.value = row?._id || null;
 
   // fechas/horas (si existen en tu form)
-  if ('fecha' in (form as any)) (form as any).fecha = row?.fecha ?? (form as any).fecha;
-  if ('hora'  in (form as any)) (form as any).hora  = row?.hora  ?? (form as any).hora;
+  if ("fecha" in (form as any))
+    (form as any).fecha = row?.fecha ?? (form as any).fecha;
+  if ("hora" in (form as any))
+    (form as any).hora = row?.hora ?? (form as any).hora;
 
   // campos opcionales: solo seteamos si existen en form
-  setIfExists('nit', row?.nit);
-  setIfExists('razonSocial', row?.razonSocial);
-  setIfExists('descripcionFalla', row?.descripcionFalla);
-  setIfExists('accionesRealizadas', row?.accionesRealizadas);
-  setIfExists('detalleActividades', row?.detalleActividades);
+  setIfExists("nit", row?.nit);
+  setIfExists("razonSocial", row?.razonSocial);
+  setIfExists("descripcionFalla", row?.descripcionFalla);
+  setIfExists("accionesRealizadas", row?.accionesRealizadas);
+  setIfExists("detalleActividades", row?.detalleActividades);
 
   dlg.visible = true;
 }
@@ -392,41 +406,57 @@ async function saveEditCorrective() {
   const payload: any = {};
 
   // fecha/hora (respetando tus normalizadores si existen)
-  if ('fecha' in (form as any) && (form as any).fecha) {
-    payload.fecha = typeof normDate === 'function' ? normDate((form as any).fecha) : (form as any).fecha;
+  if ("fecha" in (form as any) && (form as any).fecha) {
+    payload.fecha =
+      typeof normDate === "function"
+        ? normDate((form as any).fecha)
+        : (form as any).fecha;
   }
-  if ('hora' in (form as any) && (form as any).hora) {
-    payload.hora = typeof normTime === 'function' ? normTime((form as any).hora) : (form as any).hora;
+  if ("hora" in (form as any) && (form as any).hora) {
+    payload.hora =
+      typeof normTime === "function"
+        ? normTime((form as any).hora)
+        : (form as any).hora;
   }
 
   // nit -> número (usa tu toIntOrUndef/toInt si existen; si no, fallback)
-  if ('nit' in (form as any)) {
+  if ("nit" in (form as any)) {
     const rawNit = (form as any).nit;
     const parsedNit =
-      typeof toIntOrUndef === 'function' ? toIntOrUndef(rawNit)
-      : typeof toInt === 'function' ? toInt(rawNit)
-      : (Number.isFinite(Number(rawNit)) ? Number(rawNit) : undefined);
+      typeof toIntOrUndef === "function"
+        ? toIntOrUndef(rawNit)
+        : typeof toInt === "function"
+        ? toInt(rawNit)
+        : Number.isFinite(Number(rawNit))
+        ? Number(rawNit)
+        : undefined;
     if (parsedNit !== undefined) payload.nit = parsedNit;
   }
 
   // strings opcionales (solo si existen en form)
-  pushStringIfExists(payload, 'razonSocial');
-  pushStringIfExists(payload, 'descripcionFalla');
-  pushStringIfExists(payload, 'accionesRealizadas');
-  pushStringIfExists(payload, 'detalleActividades');
+  pushStringIfExists(payload, "razonSocial");
+  pushStringIfExists(payload, "descripcionFalla");
+  pushStringIfExists(payload, "accionesRealizadas");
+  pushStringIfExists(payload, "detalleActividades");
 
   saving.value = true;
   try {
     // Usamos la STORE (que llama a /api/maintenance.service.ts)
     await store.correctiveUpdateDetail(editingCorrectiveId.value, payload);
 
-    toast.add({ severity: "success", summary: "Actualizado", detail: "Correctivo actualizado", life: 2500 });
+    toast.add({
+      severity: "success",
+      summary: "Actualizado",
+      detail: "Correctivo actualizado",
+      life: 2500,
+    });
     dlg.visible = false;
     isEditingCorrective.value = false;
     editingCorrectiveId.value = null;
     await refresh();
   } catch (e: any) {
-    const msg = e?.response?.data?.message || e?.message || "No se pudo actualizar";
+    const msg =
+      e?.response?.data?.message || e?.message || "No se pudo actualizar";
     toast.add({ severity: "error", summary: "Error", detail: msg, life: 3500 });
   } finally {
     saving.value = false;
@@ -526,7 +556,7 @@ async function refresh() {
   ) {
     params.plate = filters.placa.trim(); // el store lo mapea a 'placa'
   }
-  await store.enlistmentFetchList(params);
+  await store.enlistmentFetchList();
 }
 
 function normDate(v: any): string | undefined {
@@ -728,9 +758,16 @@ function onPickMaintenance(id: string | number | null) {
   }
 }
 
-onMounted(() => {
-  ensureMaintenances(); // lo mantenemos
-  refresh(); // cargá la lista apenas entra
+onMounted(async () => {
+  // traer actividades (sigue siendo útil)
+  await store.enlistmentFetchActivities();
+
+  // traer la lista de alistamientos **al montar** (sin filtros)
+  await store.enlistmentFetchList();
+
+  // logs útiles para debug — podés borrar después
+  console.log('store.enlistment.activities ->', store.enlistment.activities);
+  console.log('store.enlistmentList.items ->', store.enlistmentList.items);
 });
 </script>
 
@@ -894,5 +931,36 @@ onMounted(() => {
 .dlg-2col :deep(.p-dialog-content) {
   max-height: none;
   overflow-y: visible;
+}
+
+.btn-icon-white {
+  background: #ffffff !important;       /* fondo blanco */
+  border: 1px solid transparent !important;
+  color: #000000 !important;            /* texto (por si hubiera) */
+  box-shadow: none !important;
+  min-width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+}
+
+/* icono dentro del botón */
+.btn-icon-white .p-button-icon {
+  color: #000000 !important;            /* icono negro */
+  font-size: 1.05rem;
+}
+
+/* hover / focus: pequeña sombra o borde tenue (opcional) */
+.btn-icon-white:hover {
+  background: #ffffff !important;
+  border-color: #e6e6e6 !important;
+}
+
+/* si usás la clase statebutton en conjunto, asegurar prioridad del icon color */
+.statebutton .p-button-icon,
+.btn-icon-white.statebutton .p-button-icon {
+  color: #000 !important;
 }
 </style>

@@ -14,16 +14,14 @@
     <!-- Filtros -->
     <div class="bolt-card p-3">
       <div class="grid">
-        <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900 label">Placa</label>
-          <InputText
+        <div class="field md:col-6">
+          <SearchBar
             v-model="filters.placa"
-            class="w-full pv-light"
-            placeholder="ABC123"
-            @keydown.enter="onSearch"
+            :width="'700px'"
+            
           />
         </div>
-        <div class="field col-12 md:col-6 flex align-items-end justify-content-end gap-2">
+        <div class="field md:col-2 flex align-items-end justify-content-end gap-2">
           <Button
             label="Buscar"
             icon="pi pi-search"
@@ -33,7 +31,7 @@
           />
           <Button
             label="Limpiar"
-            icon="pi pi-eraser"
+            icon="pi pi-times"
             class="btn-filter"
             :disabled="listLoading"
             @click="clearFilters"
@@ -69,7 +67,7 @@
             </span>
           </template>
         </Column>
-        <Column header="Niña/o" style="min-width: 200px">
+        <Column header="Nombre" style="min-width: 200px">
           <template #body="{ data }">
             <span class="text-900">{{ data?.autorizacion?.[0]?.nombresApellidosNna || '—' }}</span>
           </template>
@@ -85,17 +83,13 @@
           <template #body="{ data }">
             <div class="flex gap-2">
               <Button
-                icon="pi pi-pencil"
-                severity="secondary"
-                text
-                :disabled="saving || listLoading"
+                  icon="pi pi-pencil"
+                  class="btn-icon-white statebutton"
                 @click="openEdit(data)"
               />
               <Button
-                :icon="data?.estado ? 'pi pi-ban' : 'pi pi-check'"
-                :severity="data?.estado ? 'danger' : 'success'"
-                text
-                :disabled="saving || listLoading"
+                  :icon="data?.estado ? 'pi pi-ban' : 'pi pi-check'"
+                  class="btn-icon-white"
                 @click="toggle(data._id)"
               />
             </div>
@@ -262,7 +256,6 @@
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted, watch } from 'vue';
 import { useAuthorizationStore } from '../stores/authorizationStore';
-import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
@@ -271,8 +264,13 @@ import Dialog from 'primevue/dialog';
 import Calendar from 'primevue/calendar';
 import { useToast } from 'primevue/usetoast';
 
+import SearchBar from '../components/ui/SearchBar.vue';
+import Button from '../components/ui/Button.vue';
+
 const store = useAuthorizationStore();
 const toast = useToast();
+
+console.log('%cprotegeme-app\src\views\AuthorizationsView.vue:277 store.', 'color: #007acc;', store.authorizationList);
 
 /* ====== Tabla & filtros ====== */
 const items = computed(() => store.authorizationList.items || []);
@@ -363,6 +361,8 @@ function openEdit(row: any) {
   form.nombresApellidosNna = String(row?.autorizacion?.[0]?.nombresApellidosNna ?? form.nombresApellidosNna ?? '');
   dlg.visible = true;
 }
+
+
 
 async function save() {
   // Validaciones mínimas (como en tu Postman)
@@ -467,7 +467,7 @@ async function saveEdit() {
   // Enviamos como { id, changes } (así lo espera el controller)
   saving.value = true;
   try {
-    await store.authorizationUpdateDetail(editingId.value, changes);
+    await store.authorizationUpdate(editingId.value, changes);
     toast.add({ severity: 'success', summary: 'Actualizado', detail: 'Autorización actualizada', life: 2500 });
     dlg.visible = false;
     await onSearch();
@@ -608,19 +608,6 @@ watch(() => dlg.visible, v => { if (!v) { isEditing.value = false; editingId.val
   border-color: #16a34a;
   color: #fff;
 }
-:deep(.p-button.btn-dark-green:hover) {
-  background: #15803d;
-  border-color: #15803d;
-}
-:deep(.p-button.btn-blue) {
-  background: #2563eb;
-  border-color: #2563eb;
-  color: #fff;
-}
-:deep(.p-button.btn-blue:hover) {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
-}
 
 /* Ajustes menores */
 .text-600 {
@@ -685,5 +672,39 @@ watch(() => dlg.visible, v => { if (!v) { isEditing.value = false; editingId.val
 .dlg-2col :deep(.p-dialog-content) {
   max-height: none;
   overflow-y: visible;
+}
+
+.btn-icon-white {
+  background: #ffffff !important; /* fondo blanco */
+  border: 1px solid transparent !important;
+  color: #000000 !important; /* texto (por si hubiera) */
+  box-shadow: none !important;
+  min-width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+}
+
+/* icono dentro del botón */
+.btn-icon-white .p-button-icon {
+  color: #000000 !important; /* icono negro */
+  font-size: 1.05rem;
+}
+
+/* hover / focus: pequeña sombra o borde tenue (opcional) */
+.btn-icon-white:hover {
+  background: #ffffff !important;
+  border-color: #e6e6e6 !important;
+}
+
+/* si usás la clase statebutton en conjunto, asegurar prioridad del icon color */
+.statebutton .p-button-icon,
+.btn-icon-white.statebutton .p-button-icon {
+  color: #000 !important;
+}
+label {
+  color: #111 !important;
 }
 </style>

@@ -21,16 +21,11 @@
       <div class="formgrid grid align-items-end">
         <!-- Input búsqueda -->
         <div class="col-10 flex align-items-center gap-3">
-          <span class="p-input-icon-left w-full" style="flex: 1 1 520px">
-            <i class="pi pi-search" />
-            <InputText
-              v-model="filters.placa"
-              class="w-full pv-light"
-              placeholder="Buscar por placa…"
-              @keydown.enter="onSearch"
-            />
-          </span>
-
+          <SearchBar
+            v-model="filters.placa"
+            :width="'700px'"
+            @search="refresh"
+          />
           <div class="filters-actions">
             <Button
               label="Buscar"
@@ -92,15 +87,13 @@
             <div class="flex gap-2">
               <Button
                 icon="pi pi-pencil"
-                severity="secondary"
-                text
+                class="btn-icon-white statebutton"
                 :disabled="store.preventive.loading"
                 @click="openEdit(data)"
               />
               <Button
                 :icon="data?.estado ? 'pi pi-ban' : 'pi pi-check'"
-                :severity="data?.estado ? 'danger' : 'success'"
-                text
+                class="btn-icon-white"
                 :disabled="store.preventive.loading"
                 @click="toggle(data._id)"
               />
@@ -118,7 +111,7 @@
     >
       <div class="formgrid grid dialog-body">
         <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900">mantenimientoId *</label>
+          <label class="block mb-2 text-900">Mantenimiento</label>
           <UiDropdownBasic
             v-model="form.mantenimientoId"
             :options="maintenanceOpts"
@@ -138,26 +131,11 @@
           <InputText v-model="form.placa" class="w-full" />
         </div>
         <div class="field col-6 md:col-3">
-          <label class="block mb-2 text-900">Fecha</label>
-          <Calendar
-            v-model="form.fecha"
-            dateFormat="yy-mm-dd"
-            showIcon
-            appendTo="body"
-            class="w-full pv-light"
-          />
+          <InputDate v-model="form.fecha" :width="'100%'" />
         </div>
 
         <div class="field col-6 md:col-3">
-          <label class="block mb-2 text-900">Hora</label>
-          <Calendar
-            v-model="form.hora"
-            timeOnly
-            hourFormat="24"
-            showIcon
-            appendTo="self"
-            class="w-full pv-light"
-          />
+          <InputHour v-model="form.hora" :width="'100%'" />
         </div>
         <div class="field col-6 md:col-3">
           <label class="block mb-2 text-900">NIT</label>
@@ -173,11 +151,12 @@
         </div>
 
         <div class="field col-6 md:col-3">
-          <label class="block mb-2 text-900">Tipo Identificación</label>
-          <InputText
+          <label class="block mb-2 text-900">Tipo identificación</label>
+          <UiDropdownBasic
             v-model="form.tipoIdentificacion"
+            :options="documentTypeOptions"
+            placeholder="Seleccione"
             class="w-full"
-            placeholder="1"
           />
         </div>
         <div class="field col-6 md:col-3">
@@ -213,7 +192,7 @@
             v-if="!isEditing"
             label="Crear"
             icon="pi pi-save"
-            class="btn-blue"
+            class="btn-dark-green"
             :loading="saving"
             @click="save"
           />
@@ -223,7 +202,7 @@
             v-else
             label="Guardar"
             icon="pi pi-save"
-            class="btn-blue"
+            class="btn-dark-green"
             :loading="saving"
             @click="saveEdit"
           />
@@ -236,16 +215,21 @@
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted, watch } from "vue";
 import { useMaintenanceStore } from "../../stores/maintenanceStore";
+
 import InputText from "primevue/inputtext";
 import Calendar from "primevue/calendar";
 import Textarea from "primevue/textarea";
-import Button from "primevue/button";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
 import Tag from "primevue/tag";
 import Dialog from "primevue/dialog";
-import UiDropdownBasic from "../../components/ui/Dropdown.vue";
 import { useToast } from "primevue/usetoast";
+
+import UiDropdownBasic from "../../components/ui/Dropdown.vue";
+import InputDate from "../../components/ui/InputDate.vue";
+import InputHour from "../../components/ui/InputHour.vue";
+import Button from "../../components/ui/Button.vue";
+import SearchBar from "../../components/ui/SearchBar.vue";
 
 const toast = useToast();
 
@@ -262,10 +246,16 @@ const filters = reactive({
   placa: "",
 });
 
+const documentTypeOptions = [
+  { label: "DNI", value: 1 },
+  { label: "RUC", value: 2 },
+  { label: "Pasaporte", value: 3 },
+  { label: "Otro", value: 4 },
+];
+
 /** Store computeds (preventivo) */
 const items = computed(() => store.preventiveList.items);
 
-console.log(items);
 const total = computed(() => store.preventiveList.total);
 const loading = computed(() => store.preventiveList.loading);
 
@@ -759,5 +749,37 @@ function onSearch() {
 .dlg-2col :deep(.p-dialog-content) {
   max-height: none;
   overflow-y: visible;
+}
+
+/* botones icon-only blanco con icono negro */
+.btn-icon-white {
+  background: #ffffff !important;       /* fondo blanco */
+  border: 1px solid transparent !important;
+  color: #000000 !important;            /* texto (por si hubiera) */
+  box-shadow: none !important;
+  min-width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+}
+
+/* icono dentro del botón */
+.btn-icon-white .p-button-icon {
+  color: #000000 !important;            /* icono negro */
+  font-size: 1.05rem;
+}
+
+/* hover / focus: pequeña sombra o borde tenue (opcional) */
+.btn-icon-white:hover {
+  background: #ffffff !important;
+  border-color: #e6e6e6 !important;
+}
+
+/* si usás la clase statebutton en conjunto, asegurar prioridad del icon color */
+.statebutton .p-button-icon,
+.btn-icon-white.statebutton .p-button-icon {
+  color: #000 !important;
 }
 </style>

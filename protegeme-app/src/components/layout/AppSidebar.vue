@@ -166,6 +166,25 @@
                   </li>
                 </ul>
               </li>
+              <li class="layout-menuitem-category">
+                <div class="layout-menuitem-root-text">NOVEDADES</div>
+                <ul>
+                  <li>
+                    <router-link
+                      to="/incidents"
+                      class="layout-menuitem-link"
+                      :class="{
+                        'active-menuitem': $route.path.includes(
+                          '/incidents'
+                        ),
+                      }"
+                    >
+                      <i class="pi pi-info-circle layout-menuitem-icon"></i>
+                      <span class="layout-menuitem-text">Novedades</span>
+                    </router-link>
+                  </li>
+                </ul>
+              </li>
             </ul>
           </li>
         </ul>

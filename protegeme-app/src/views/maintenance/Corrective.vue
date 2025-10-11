@@ -21,15 +21,11 @@
       <div class="bolt-center formgrid grid align-items-end">
         <!-- Input búsqueda -->
         <div class="bolt_search p-3">
-          <span class="p-input-icon-left w-full" style="flex: 1 1 520px">
-            <i class="pi pi-search" />
-            <InputText
-              v-model="filters.placa"
-              class="w-full pv-light"
-              placeholder="Buscar por placa…"
-              @keydown.enter="onSearch"
-            />
-          </span>
+          <SearchBar
+            v-model="filters.placa"
+            :width="'700px'"
+            @search="refresh"
+          />
         </div>
         <div class="field col-12 md:col-2 flex align-items-end">
           <div class="filters-actions">
@@ -99,15 +95,13 @@
             <div class="flex gap-2">
               <Button
                 icon="pi pi-pencil"
-                severity="secondary"
-                text
+                class="btn-icon-white statebutton"
                 :disabled="saving || loading"
                 @click="openEditCorrective(data)"
               />
               <Button
                 :icon="data?.estado ? 'pi pi-ban' : 'pi pi-check'"
-                :severity="data?.estado ? 'danger' : 'success'"
-                text
+                class="btn-icon-white"
                 :disabled="saving || loading"
                 @click="toggleCorrective(data._id)"
               />
@@ -143,24 +137,11 @@
         </div>
 
         <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900">Fecha (YYYY-MM-DD)</label>
-          <Calendar
-            v-model="form.fecha"
-            date-format="yy-mm-dd"
-            class="w-full"
-          />
+          <InputDate v-model="form.fecha" :width="'100%'" />
         </div>
 
         <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900">Hora</label>
-          <Calendar
-            v-model="form.hora"
-            timeOnly
-            hourFormat="24"
-            showIcon
-            appendTo="self"
-            class="w-full"
-          />
+          <InputHour v-model="form.hora" :width="'100%'" />
         </div>
 
         <div class="field col-12 md:col-6">
@@ -227,7 +208,6 @@ import { useMaintenanceStore } from "../../stores/maintenanceStore";
 import InputText from "primevue/inputtext";
 import Calendar from "primevue/calendar";
 import Textarea from "primevue/textarea";
-import Button from "primevue/button";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
 import Tag from "primevue/tag";
@@ -235,6 +215,11 @@ import Dialog from "primevue/dialog";
 import UiDropdownBasic from "../../components/ui/Dropdown.vue";
 import { MaintenanceserviceApi } from "../../api/maintenance.service"; // <-- Add this import
 import { useToast } from "primevue/usetoast";
+
+import SearchBar from "../../components/ui/SearchBar.vue";
+import InputDate from "../../components/ui/InputDate.vue";
+import InputHour from "../../components/ui/InputHour.vue";
+import Button from "../../components/ui/Button.vue";
 
 const store = useMaintenanceStore();
 const toast = useToast();
@@ -770,5 +755,36 @@ onMounted(() => {
 /* Mantener el texto del Tag legible */
 .detail-pane :deep(.p-tag) {
   color: #fff !important;
+}
+
+.btn-icon-white {
+  background: #ffffff !important;       /* fondo blanco */
+  border: 1px solid transparent !important;
+  color: #000000 !important;            /* texto (por si hubiera) */
+  box-shadow: none !important;
+  min-width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+}
+
+/* icono dentro del botón */
+.btn-icon-white .p-button-icon {
+  color: #000000 !important;            /* icono negro */
+  font-size: 1.05rem;
+}
+
+/* hover / focus: pequeña sombra o borde tenue (opcional) */
+.btn-icon-white:hover {
+  background: #ffffff !important;
+  border-color: #e6e6e6 !important;
+}
+
+/* si usás la clase statebutton en conjunto, asegurar prioridad del icon color */
+.statebutton .p-button-icon,
+.btn-icon-white.statebutton .p-button-icon {
+  color: #000 !important;
 }
 </style>

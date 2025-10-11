@@ -9,4 +9,5 @@ export class CreateEnlistmentDto {
   @IsString() @IsNotEmpty() numeroIdentificacion!: string;
   @IsString() @IsNotEmpty() nombresResponsable!: string;
   @IsString() detalleActividades?: string;
+  actividades?: string[];
 }

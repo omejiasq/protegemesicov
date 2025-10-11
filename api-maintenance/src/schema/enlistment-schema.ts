@@ -6,8 +6,8 @@ export type EnlistmentDetailDocument = HydratedDocument<EnlistmentDetail>;
 @Schema({ collection: 'enlistments', timestamps: true })
 export class EnlistmentDetail {
   @Prop() externalId?: string;
-    @Prop({ type: Object, required: false })
-externalData?: Record<string, unknown>;
+  @Prop({ type: Object, required: false })
+  externalData?: Record<string, unknown>;
   @Prop({ required: true, index: true })
   mantenimientoId!: string;
 
@@ -15,10 +15,10 @@ externalData?: Record<string, unknown>;
   placa!: string;
 
   @Prop({ required: true, trim: true })
-  fecha!: string; 
+  fecha!: string;
 
   @Prop({ required: true, trim: true })
-  hora!: string; 
+  hora!: string;
 
   @Prop({ required: true }) tipoIdentificacion!: number;
   @Prop({ required: true, trim: true }) numeroIdentificacion!: string;
@@ -30,7 +30,13 @@ externalData?: Record<string, unknown>;
   @Prop() createdBy?: string;
 
   @Prop({ default: true, index: true }) estado!: boolean;
+  @Prop({ type: [String], default: [] })
+  actividades?: string[];
 }
-export const EnlistmentDetailSchema = SchemaFactory.createForClass(EnlistmentDetail);
+export const EnlistmentDetailSchema =
+  SchemaFactory.createForClass(EnlistmentDetail);
 
-EnlistmentDetailSchema.index({ enterprise_id: 1, mantenimientoId: 1 }, { unique: true });
+EnlistmentDetailSchema.index(
+  { enterprise_id: 1, mantenimientoId: 1 },
+  { unique: true },
+);

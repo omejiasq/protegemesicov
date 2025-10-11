@@ -486,17 +486,27 @@ export const useMaintenanceStore = defineStore("maintenance", {
       this.enlistment.loading = true;
       this.enlistment.error = "";
       try {
-        const { data } = await MaintenanceserviceApi.enlistmentActivities();
-        this.enlistment.activities = Array.isArray(data)
-          ? data
-          : data?.items ?? [];
+        const resp = await MaintenanceserviceApi.enlistmentActivities();
+        // resp puede ser:
+        // 1) un array directo
+        // 2) axios response -> resp.data = payload
+        // 3) payload envelope -> payload = { ok, status, data: [...] }
+        const payload =
+          resp && typeof resp === "object" && "data" in resp ? resp.data : resp;
+        // Ahora extraemos el array de la forma más probable
+        const arr = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload?.items)
+          ? payload.items
+          : [];
+        this.enlistment.activities = arr;
         return this.enlistment.activities;
       } catch (e: any) {
         this.enlistment.error =
-          e?.response?.data?.message ||
-          e?.message ||
-          "No se pudieron obtener actividades";
-        throw e;
+          e?.response?.data?.message || e?.message || "Error";
+        return [];
       } finally {
         this.enlistment.loading = false;
       }
@@ -517,7 +527,11 @@ export const useMaintenanceStore = defineStore("maintenance", {
         }
 
         const { data } = await MaintenanceserviceApi.listEnlistments(query);
-
+        console.log(
+          "%cprotegeme-appsrcstoresmaintenanceStore.ts:522 data",
+          "color: #007acc;",
+          data
+        );
         const items = Array.isArray(data) ? data : data?.items ?? [];
         this.enlistmentList.items = items;
         this.enlistmentList.total =

@@ -38,7 +38,7 @@ export const MaintenanceserviceApi = {
   createEnlistment: (data: any) =>
     http.post(`${baseURL}/enlistment/create`, data),
   viewEnlistment: (data: any) => http.post(`${baseURL}/enlistment/view`, data),
-  enlistmentActivities: () => http.get(`${baseURL}/maintenance/enlistment`),
+  enlistmentActivities: () => http.get(`${baseURL}/enlistment/activities`),
   listMaintenances: (params?: Record<string, any>) =>
     http.get(`${baseURL}/maintenance/getAll`, { params }),
 
