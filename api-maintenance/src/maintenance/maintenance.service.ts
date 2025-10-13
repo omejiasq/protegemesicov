@@ -1,7 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, Types } from 'mongoose';
 import { Maintenance, MaintenanceDocument } from '../schema/maintenance.schema';
+import { MaintenanceExternalApiService } from 'src/libs/external-api';
 
 type UserCtx = { enterprise_id?: string };
 
@@ -31,6 +36,7 @@ export class MaintenanceService {
   constructor(
     @InjectModel(Maintenance.name)
     private readonly model: Model<MaintenanceDocument>,
+    private readonly external: MaintenanceExternalApiService,
   ) {}
 
   private tenant(user?: UserCtx): FilterQuery<MaintenanceDocument> {
@@ -38,9 +44,91 @@ export class MaintenanceService {
     return { enterprise_id: '__none__' };
   }
 
-  async create(data: CreateMaintenanceInput) {
-    const doc = await this.model.create({ ...data, estado: true });
-    return doc.toJSON();
+  async create(
+    dto: { placa: string; tipoId: 1 | 2 | 3 | 4; vigiladoId?: number | string },
+    user?: {
+      enterprise_id?: string;
+      sub?: string;
+      vigiladoId?: number | string;
+      vigiladoToken?: string;
+    },
+    opts?: { awaitExternal?: boolean },
+  ) {
+    // ... tu validación de vigiladoId y creación local
+    const local = await this.model.create({
+      placa: dto.placa?.trim(),
+      tipoId: dto.tipoId,
+      enterprise_id: user?.enterprise_id,
+      createdBy: user?.sub,
+      vigiladoId: Number(user?.vigiladoId ?? dto?.vigiladoId),
+    });
+
+    // --- NUEVO: variable para capturar el id externo
+    let externalIdFromExternal: string | null = null;
+
+    // preparar headers
+    const vigiladoIdStr = String(user?.vigiladoId ?? dto?.vigiladoId);
+    const vigiladoToken =
+      (user as any)?.vigiladoToken ??
+      (user as any)?.tokenVigilado ??
+      (user as any)?.vigilado_token ??
+      undefined;
+
+    // disparo a la API externa
+    const call = this.external
+      .guardarMantenimiento({
+        placa: dto.placa,
+        tipoId: dto.tipoId,
+        vigiladoId: vigiladoIdStr,
+        vigiladoToken,
+      })
+      .then(async (res) => {
+        // tomar el id externo con claves comunes
+        const extId =
+          (res?.ok &&
+            (res?.data?.id ??
+              res?.data?.mantenimientoId ??
+              res?.data?.Id ??
+              res?.data?.ID ??
+              res?.data?.data?.id ??
+              res?.data?.data?.mantenimientoId)) ||
+          null;
+
+        // guardar en variable para devolverlo
+        externalIdFromExternal = extId ? String(extId) : null;
+
+        // opcional: persistir en tu doc si el schema lo tiene
+        if (externalIdFromExternal) {
+          await this.model.updateOne(
+            { _id: local._id },
+            { $set: { externalId: externalIdFromExternal } },
+          );
+        }
+      })
+      .catch(() => {
+        /* no relanzar: local ya quedó */
+      });
+
+    // si el caller necesita el id externo YA, esperá acá
+    if (opts?.awaitExternal) {
+      await call;
+    } else {
+      void call;
+    }
+
+    // re-leer el doc y anexar el externalId capturado (aunque no esté en schema)
+    const out = await this.model.findById(local._id).lean();
+
+    // si lo querés adjuntar al doc por conveniencia en runtime, no cambia el tipo TS:
+    if (externalIdFromExternal && out && !(out as any).externalId) {
+      (out as any).externalId = externalIdFromExternal;
+    }
+
+    // 🔸 NUEVO: devolvemos forma tipada y explícita
+    return {
+      doc: out as any,
+      externalId: externalIdFromExternal, // string | null
+    };
   }
 
   async list(q: ListMaintenanceQuery, user?: UserCtx) {

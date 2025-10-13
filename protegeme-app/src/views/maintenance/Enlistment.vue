@@ -125,7 +125,7 @@
     >
       <!-- wrapper de grilla para 2 columnas -->
       <div class="formgrid grid">
-        <div class="field col-12">
+        <!--         <div class="field col-12">
           <label class="block mb-2 text-900">Mantenimiento</label>
           <UiDropdownBasic
             v-model="form.mantenimientoId"
@@ -134,7 +134,7 @@
             placeholder="Seleccioná un mantenimiento (tipo 3)"
             @update:modelValue="onPickMaintenance"
           />
-        </div>
+        </div> -->
 
         <div class="field col-12 md:col-6">
           <label class="block mb-2 text-900">Placa</label>
@@ -150,7 +150,9 @@
         </div>
 
         <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900">Tipo identificación</label>
+          <label class="block mb-2 text-900"
+            >Tipo identificación (Responsable)</label
+          >
           <UiDropdownBasic
             v-model="form.tipoIdentificacion"
             :options="documentTypeOptions"
@@ -160,7 +162,9 @@
         </div>
 
         <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900">Número identificación</label>
+          <label class="block mb-2 text-900"
+            >Número identificación (Responsable)</label
+          >
           <InputText
             v-model="form.numeroIdentificacion"
             placeholder="12345678"
@@ -169,35 +173,71 @@
         </div>
 
         <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900">Responsable</label>
+          <label class="block mb-2 text-900">Nombre (Responsable)</label>
           <InputText
             v-model="form.nombresResponsable"
             placeholder="Juan Pérez"
             class="w-full"
           />
         </div>
-
-        <div class="field col-12">
-          <label class="block mb-2 text-900">Actividades</label>
-          <div class="grid">
-            <div
-              v-for="act in store.enlistment.activities"
-              :key="act._id || act.id || act.value"
-              class="col-12 md:col-6 flex align-items-center"
-            >
-              <Checkbox
-                v-model="form.detalleActividades"
-                :value="act._id ?? act.id ?? act.value"
-              />
-              <label class="ml-2">{{
-                act.nombre ?? act.label ?? act.descripcion ?? act._id
-              }}</label>
-            </div>
-          </div>
-          <small class="text-sm text-500">
-            Seleccioná una o más actividades.
-          </small>
+        <div class="field col-12 md:col-6">
+          <label class="block mb-2 text-900"
+            >Tipo identificación (Conductor)</label
+          >
+          <UiDropdownBasic
+            v-model="form.tipoIdentificacionConductor"
+            :options="documentTypeOptions"
+            placeholder="Seleccioná tipo de documento"
+          />
         </div>
+
+        <div class="field col-12 md:col-6">
+          <label class="block mb-2 text-900"
+            >Número identificación (Conductor)</label
+          >
+          <InputText
+            v-model="form.numeroIdentificacionConductor"
+            placeholder="12345678"
+            class="w-full"
+          />
+        </div>
+
+        <div class="field col-12 md:col-6">
+          <label class="block mb-2 text-900">Nombres (Conductor)</label>
+          <InputText
+            v-model="form.nombresConductor"
+            placeholder="María Gómez"
+            class="w-full"
+          />
+        </div>
+                <div class="field col-12 md:col-6">
+          <label class="block mb-2 text-900">Detalle actividades</label>
+          <InputText
+            v-model="form.detalleActividades"
+            placeholder="Indique detalle"
+            class="w-full"
+          />
+        </div>
+
+        <label class="block mb-2 text-900">Actividades</label>
+        <div class="grid">
+          <div
+            v-for="act in store.enlistment.activities"
+            :key="act._id || act.id || act.value"
+            class="col-12 md:col-6 flex align-items-center"
+          >
+            <Checkbox
+              v-model="form.actividades"
+              :value="+(act.id ?? act._id ?? act.value)"
+            />
+            <label class="ml-2">
+              {{ act.nombre ?? act.label ?? act.descripcion ?? act._id }}
+            </label>
+          </div>
+        </div>
+        <small class="text-sm text-500"
+          >Seleccioná una o más actividades.</small
+        >
       </div>
 
       <template #footer>
@@ -258,13 +298,21 @@ const toast = useToast();
 
 const store = useMaintenanceStore();
 
-console.log('%cprotegeme-app\src\views\maintenance\Enlistment.vue:261 store.', 'color: #007acc;', store.enlistmentList);
+console.log(
+  "%cprotegeme-app\src\views\maintenance\Enlistment.vue:261 store.",
+  "color: #007acc;",
+  store.enlistmentList
+);
 
 const documentTypeOptions = [
-  { label: "DNI", value: 1 },
-  { label: "RUC", value: 2 },
-  { label: "Pasaporte", value: 3 },
-  { label: "Otro", value: 4 },
+  { label: "Cédula de ciudadanía", value: 1 },
+  { label: "Cédula de ciudadanía digital", value: 2 },
+  { label: "Tarjeta de identidad", value: 3 },
+  { label: "Registro civil", value: 4 },
+  { label: "Cédula de extranjería", value: 5},
+  { label: "Pasaporte", value: 6 },
+  { label: "Permiso Especial de Permanencia (PEP)", value: 7 },
+  { label: "Documento de Identificación Extranjero (DIE)", value: 8 },
 ];
 
 const isEditingEnlistment = ref(false);
@@ -502,14 +550,17 @@ watch(
   }
 );
 const form = reactive({
-  mantenimientoId: "",
   placa: "",
   fecha: null as any,
   hora: null as any,
   tipoIdentificacion: "",
   numeroIdentificacion: "",
   nombresResponsable: "",
+  tipoIdentificacionConductor: "",
+  numeroIdentificacionConductor: "",
+  nombresConductor: "",
   detalleActividades: "",
+  actividades: [] as number[],
 });
 
 const loading = computed(() => store.enlistmentList.loading);
@@ -626,29 +677,47 @@ function openCreate() {
 }
 
 async function save() {
-  const payload: any = {
-    mantenimientoId: String(form.mantenimientoId || "").trim(),
+  const payload: any = clean({
+    // opcionales para tu UI/flujo interno
     placa: form.placa?.trim() || undefined,
     fecha: normDate(form.fecha),
     hora: normTime(form.hora),
-    tipoIdentificacion: toInt(form.tipoIdentificacion),
-    numeroIdentificacion: form.numeroIdentificacion?.trim() || undefined,
-    nombresResponsable: form.nombresResponsable?.trim() || undefined,
-    detalleActividades: form.detalleActividades?.trim() || undefined,
-  };
 
+    // Responsable
+    tipoIdentificacion: toInt(form.tipoIdentificacion),
+    numeroIdentificacion:
+      form.numeroIdentificacion?.toString().replace(/\D+/g, "") || undefined,
+    nombresResponsable: form.nombresResponsable?.trim() || undefined,
+
+    // Conductor (NUEVO)
+    tipoIdentificacionConductor: toInt(form.tipoIdentificacionConductor),
+    numeroIdentificacionConductor:
+      form.numeroIdentificacionConductor?.toString().replace(/\D+/g, "") ||
+      undefined,
+    nombresConductor: form.nombresConductor?.trim() || undefined,
+
+    // Alistamiento
+    detalleActividades: form.detalleActividades?.trim() || undefined,
+    actividades: Array.isArray(form.actividades)
+      ? form.actividades
+          .map((x: any) => Number(x))
+          .filter((n) => Number.isFinite(n))
+      : undefined,
+  });
+
+  // Requeridos reales para guardar-alistamiento
   const req = [
-    "mantenimientoId",
-    "placa",
-    "fecha",
-    "hora",
     "tipoIdentificacion",
     "numeroIdentificacion",
     "nombresResponsable",
+    "tipoIdentificacionConductor",
+    "numeroIdentificacionConductor",
+    "nombresConductor",
     "detalleActividades",
+    "actividades",
   ];
   for (const k of req) {
-    if (!payload[k]) {
+    if (!payload[k] || (Array.isArray(payload[k]) && payload[k].length === 0)) {
       alert(`Falta completar: ${k}`);
       return;
     }
@@ -658,38 +727,24 @@ async function save() {
   try {
     await store.enlistmentCreate(payload);
     dlg.visible = false;
-
-    toast?.add?.({
+    toast.add({
       severity: "success",
       summary: "Alistamiento creado",
       detail: "Se guardó correctamente.",
       life: 2500,
     });
-
     await refresh();
   } catch (e: any) {
-    const status = e?.response?.status;
     const msg =
       e?.response?.data?.message ||
       e?.message ||
       "No se pudo crear el alistamiento";
-
-    if (status === 409 || /existe/i.test(msg) || /duplic/i.test(msg)) {
-      toast?.add?.({
-        severity: "warn",
-        summary: "Alistamiento ya existente",
-        detail: "Ya existe un alistamiento para esta placa/transacción.",
-        life: 4000,
-      });
-    } else {
-      toast?.add?.({
-        severity: "error",
-        summary: "Error al crear",
-        detail: msg,
-        life: 4000,
-      });
-    }
-    return;
+    toast.add({
+      severity: "error",
+      summary: "Error al crear",
+      detail: msg,
+      life: 4500,
+    });
   } finally {
     saving.value = false;
   }
@@ -766,8 +821,8 @@ onMounted(async () => {
   await store.enlistmentFetchList();
 
   // logs útiles para debug — podés borrar después
-  console.log('store.enlistment.activities ->', store.enlistment.activities);
-  console.log('store.enlistmentList.items ->', store.enlistmentList.items);
+  console.log("store.enlistment.activities ->", store.enlistment.activities);
+  console.log("store.enlistmentList.items ->", store.enlistmentList.items);
 });
 </script>
 
@@ -934,9 +989,9 @@ onMounted(async () => {
 }
 
 .btn-icon-white {
-  background: #ffffff !important;       /* fondo blanco */
+  background: #ffffff !important; /* fondo blanco */
   border: 1px solid transparent !important;
-  color: #000000 !important;            /* texto (por si hubiera) */
+  color: #000000 !important; /* texto (por si hubiera) */
   box-shadow: none !important;
   min-width: 36px;
   height: 36px;
@@ -948,7 +1003,7 @@ onMounted(async () => {
 
 /* icono dentro del botón */
 .btn-icon-white .p-button-icon {
-  color: #000000 !important;            /* icono negro */
+  color: #000000 !important; /* icono negro */
   font-size: 1.05rem;
 }
 

@@ -11,17 +11,28 @@ import {
   EnlistmentDetailDocument,
 } from '../schema/enlistment-schema';
 
+import { MaintenanceService } from 'src/maintenance/maintenance.service';
+
 @Injectable()
 export class AlistamientoService {
   constructor(
     @InjectModel(EnlistmentDetail.name)
     private readonly model: Model<EnlistmentDetailDocument>,
     private readonly external: MaintenanceExternalApiService,
+    private readonly maintenanceService: MaintenanceService,
   ) {}
 
   /** Crea un nuevo alistamiento local y lo sincroniza con SICOV */
-  async create(dto: any, user?: { enterprise_id?: string; sub?: string }) {
-    // 1) Duplicados por placa dentro del tenant
+  async create(
+    dto: any,
+    user?: {
+      enterprise_id?: string;
+      sub?: string;
+      vigiladoId?: number | string;
+      vigiladoToken: string;
+    },
+  ) {
+    // 1) Anti-duplicados por placa + tenant
     const exists = await this.model.exists({
       placa: dto.placa,
       enterprise_id: user?.enterprise_id,
@@ -30,68 +41,110 @@ export class AlistamientoService {
       throw new ConflictException('Ya existe un alistamiento para esa placa');
     }
 
-    // 2) Asegurar mantenimientoId antes de crear
-    let mantenimientoId: string | null = dto.mantenimientoId || null;
+    // 2) Asegurar maintenance local (requisito del esquema)
+    let mantenimientoIdLocal: string | null = dto.mantenimientoId || null;
+    // guardaremos acá el EXTERNO (numérico en la externa)
+    let mantenimientoIdExterno: string | null = null;
 
-    if (!mantenimientoId) {
-      const baseRes = await this.external.guardarMantenimiento({
+    const vigiladoId = user?.vigiladoId;
+
+    if (!mantenimientoIdLocal) {
+      const maintPayload = {
         placa: dto.placa,
-        tipoId: 3, // 3 = alistamiento
-        vigiladoId: process.env.SICOV_VIGILADO_ID,
-      });
-      if (!(baseRes?.ok && baseRes.data?.id)) {
+        tipoId: 3 as const, // 3 = alistamiento
+        vigiladoId: vigiladoId as number,
+        enterprise_id: user?.enterprise_id,
+        createdBy: user?.sub,
+      };
+
+      // ⬇️ devolvemos { doc, externalId }
+      const createdMaintenance = await this.maintenanceService.create(
+        maintPayload,
+        user,
+        { awaitExternal: true }, // garantiza que SICOV ya tenga el mantenimiento
+      );
+
+      const newId =
+        createdMaintenance?.doc?._id ?? createdMaintenance?.doc?.id ?? null;
+
+      if (!newId) {
         throw new ConflictException('No se pudo generar el mantenimiento base');
       }
-      mantenimientoId = String(baseRes.data.id);
+
+      mantenimientoIdLocal = String(newId);
+      mantenimientoIdExterno = createdMaintenance?.externalId
+        ? String(createdMaintenance.externalId)
+        : null;
+    } else {
+      // Si te llega por DTO el id local, acá podrías intentar buscar su externo si lo persistís.
+      mantenimientoIdExterno = null;
     }
 
-    // 3) Crear doc local con requeridos
+    // 3) Crear SIEMPRE el registro local (éste es el objetivo)
     const doc = await this.model.create({
       enterprise_id: user?.enterprise_id,
       createdBy: user?.sub,
 
       placa: dto.placa,
-      mantenimientoId, // 👈 requerido
+      mantenimientoId: mantenimientoIdLocal, // requerido por tu schema (id local)
       fecha: dto.fecha,
       hora: dto.hora,
+
+      // Responsable
       tipoIdentificacion: dto.tipoIdentificacion,
       numeroIdentificacion: dto.numeroIdentificacion,
       nombresResponsable: dto.nombresResponsable,
 
+      // Detalle
       detalleActividades: dto.detalleActividades,
-      actividades: dto.actividades,
+      actividades: Array.isArray(dto.actividades) ? dto.actividades : [],
+
+      // Conductor (si no te lo pasan, lo dejás vacío/0)
+      tipoIdentificacionConductor: dto.tipoIdentificacionConductor ?? 0,
+      numeroIdentificacionConductor: dto.numeroIdentificacionConductor ?? '',
+      nombresConductor: dto.nombresConductor ?? '',
+
       estado: true,
     });
 
-    // 4) Sync SICOV (best-effort)
+    // 4) Sincronización externa (best-effort). Requiere id EXTERNO y credenciales del vigilado.
     try {
-      const detRes = await this.external.guardarAlistamiento({
-        tipoIdentificacionResponsable: dto.tipoIdentificacion,
-        numeroIdentificacionResponsable: dto.numeroIdentificacion,
-        nombreResponsable: dto.nombresResponsable,
-        mantenimientoId,
-        detalleActividades: dto.detalleActividades,
-        actividades: dto.actividades,
-        vigiladoId: process.env.SICOV_VIGILADO_ID,
-        tipoIdentificacionConductor: 0,
-        numeroIdentificacionConductor: '',
-        nombresConductor: '',
-      });
-      const externalId = detRes?.ok && detRes.data?.id;
-      if (externalId) {
-        await this.model.updateOne(
-          { _id: doc._id },
-          { $set: { externalId: String(externalId) } },
-        );
+      if (mantenimientoIdExterno && vigiladoId && user?.vigiladoToken) {
+        await this.external.guardarAlistamiento({
+          // Responsable
+          tipoIdentificacionResponsable: Number(dto.tipoIdentificacion),
+          numeroIdentificacionResponsable: String(dto.numeroIdentificacion),
+          nombreResponsable: String(dto.nombresResponsable),
+
+          // Conductor
+          tipoIdentificacionConductor: Number(
+            dto.tipoIdentificacionConductor,
+          ),
+          numeroIdentificacionConductor: dto.numeroIdentificacionConductor,
+          nombresConductor: String(dto.nombresConductor ?? ''),
+
+          // Mantenimiento externo (CRÍTICO: número)
+          mantenimientoId: Number(mantenimientoIdExterno),
+
+          // Detalle
+          detalleActividades: String(dto.detalleActividades ?? ''),
+          actividades: (Array.isArray(dto.actividades)
+            ? dto.actividades
+            : []
+          ).map((x: any) => Number(x)),
+
+          // Headers (se usan en external-api.ts)
+          vigiladoId: String(vigiladoId),
+          vigiladoToken: user.vigiladoToken,
+        });
       }
     } catch {
-      /* ignorar errores externos */
+      // No relanzamos: el registro local ya quedó. La sync externa se puede reintentar luego.
     }
 
     return (await this.model.findById(doc._id).lean())!;
   }
 
-  /** Devuelve un alistamiento local y, si existe, lo complementa con la respuesta de SICOV */
   async view(dto: { id: string }, user?: { enterprise_id?: string }) {
     if (!Types.ObjectId.isValid(dto.id))
       throw new NotFoundException('No encontrado');

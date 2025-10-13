@@ -15,13 +15,19 @@ export class UsersService {
       ...userInfo,
       password: hashedPassword,
       token: null,
+      vigiladoId:
+        typeof userInfo.vigiladoId !== 'undefined' ? userInfo.vigiladoId : null,
+      vigiladoToken:
+        typeof userInfo.vigiladoToken !== 'undefined'
+          ? userInfo.vigiladoToken
+          : null,
     });
 
     return newUser.save();
   }
 
   async findByUsername(usuario: string) {
-    return this.userModel.findOne({ "usuario.usuario": usuario }).exec();
+    return this.userModel.findOne({ 'usuario.usuario': usuario }).exec();
   }
 
   async validateUser(usuario: string, password: string) {

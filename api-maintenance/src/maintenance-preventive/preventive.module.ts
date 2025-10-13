@@ -8,6 +8,7 @@ import {
 } from '../schema/preventive.schema';
 import { MaintenanceExternalApiService } from 'src/libs/external-api';
 import { AuditModule } from 'src/libs/audit/audit.module';
+import { MaintenanceModule } from 'src/maintenance/maintenance.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { AuditModule } from 'src/libs/audit/audit.module';
       { name: PreventiveDetail.name, schema: PreventiveDetailSchema },
     ]),
     AuditModule,
+    MaintenanceModule
   ],
   controllers: [PreventiveController],
   providers: [PreventiveService, MaintenanceExternalApiService],

@@ -23,6 +23,8 @@ export class AuthService {
       sub: String(user._id),
       username: u.usuario,
       enterprise_id: user.enterprise_id,
+      vigiladoId: user.vigiladoId ?? null,
+      vigiladoToken: user.vigiladoToken ?? null,
     };
     const token = this.jwtService.sign(payload);
 
@@ -38,6 +40,7 @@ export class AuthService {
       token,
       rol: user.rol ?? null,
       enterprise_id: user.enterprise_id ?? null,
+      
     };
   }
 }

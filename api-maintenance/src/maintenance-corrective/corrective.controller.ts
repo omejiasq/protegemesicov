@@ -15,6 +15,8 @@ export class CorrectiveController {
     return this.svc.create(dto, {
       enterprise_id: user.enterprise_id,
       sub: user.sub,
+      vigiladoId: user.vigiladId,
+      vigiladoToken: user.vigiladoToken
     });
   }
 

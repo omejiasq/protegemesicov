@@ -62,33 +62,6 @@
               <li class="layout-menuitem-category">
                 <div class="layout-menuitem-root-text">MANTENIMIENTOS</div>
                 <ul>
-                  <li>
-                    <router-link
-                      to="/maintenance/overview"
-                      class="layout-menuitem-link"
-                      :class="{
-                        'active-menuitem':
-                          $route.path === '/maintenance/overview',
-                      }"
-                    >
-                      <i class="pi pi-chart-line layout-menuitem-icon"></i>
-                      <span class="layout-menuitem-text">Overview</span>
-                    </router-link>
-                  </li>
-                    <li>
-                    <router-link
-                      to="/maintenance/maintenance"
-                      class="layout-menuitem-link"
-                      :class="{
-                        'active-menuitem': $route.path.includes(
-                          '/maintenance/maintenance'
-                        ),
-                      }"
-                    >
-                      <i class="pi pi-book layout-menuitem-icon"></i>
-                      <span class="layout-menuitem-text">Transacciones</span>
-                    </router-link>
-                  </li>
  <!--                  <li>
                     <router-link
                       to="/maintenance/program"

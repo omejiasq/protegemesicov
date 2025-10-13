@@ -5,7 +5,7 @@
       <div
         class="surface-0 panel-white p-3 border-round shadow-1 flex align-items-center justify-content-between"
       >
-        <h2 class="m-0 text-900">Mantenimientos</h2>
+        <h2 class="m-0 text-900">Transacciones</h2>
         <Button
           label="Nuevo mantenimiento"
           icon="pi pi-plus"

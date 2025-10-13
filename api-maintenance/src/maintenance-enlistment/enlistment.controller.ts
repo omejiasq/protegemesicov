@@ -23,8 +23,10 @@ export class EnlistmentController {
   create(@Body() dto: CreateEnlistmentDto, @Req() req: Request) {
     const user = (req as any).user;
     return this.svc.create(dto, {
-      enterprise_id: (user as any).enterprise_id,
-      sub: (user as any).sub,
+      enterprise_id: user.enterprise_id,
+      sub: user.sub,
+      vigiladoId: user.vigiladId,
+      vigiladoToken: user.vigiladoToken,
     });
   }
 

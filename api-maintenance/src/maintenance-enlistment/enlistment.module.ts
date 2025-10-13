@@ -9,6 +9,7 @@ import { AlistamientoService } from './enlistment.service';
 import { EnlistmentController } from './enlistment.controller';
 import { MaintenanceExternalApiService } from 'src/libs/external-api';
 import { AuditModule } from 'src/libs/audit/audit.module';
+import { MaintenanceModule } from 'src/maintenance/maintenance.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AuditModule } from 'src/libs/audit/audit.module';
       { name: Maintenance.name, schema: MaintenanceSchema },
     ]),
     AuditModule,
+    MaintenanceModule
   ],
   controllers: [EnlistmentController],
   providers: [AlistamientoService, MaintenanceExternalApiService],

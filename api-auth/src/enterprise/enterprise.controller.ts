@@ -9,8 +9,6 @@ export class EnterpriseController {
   constructor(private readonly enterpriseService: EnterpriseService) {}
 
   @Post('create')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('Administrativo General')
   async createEnterprise(@Body() body: { name: string; description: string }) {
     return this.enterpriseService.create(body);
   }

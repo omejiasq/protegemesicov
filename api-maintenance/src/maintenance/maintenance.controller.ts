@@ -52,17 +52,13 @@ export class MaintenanceController {
   // CREATE -> EXTERNAL (audita via requestWithAudit)
   @Post('create')
   async create(@Body() dto: CreateMaintenanceDto, @Req() req: any) {
-    const vigiladoId =
-      dto.vigiladoId ??
-      Number(process.env.SICOV_VIGILADO_ID ?? NaN);
-
-    if (!Number.isFinite(vigiladoId)) {
-      throw new BadRequestException('SICOV_VIGILADO_ID no configurado');
-    }
+    const user = (req as any).user;
+    console.log('%capi-maintenance\src\maintenance\maintenance.controller.ts:56 user en controller', 'color: #007acc;', user);
     return this.external.guardarMantenimiento({
       placa: dto.placa,
       tipoId: dto.tipoId,
-      vigiladoId: String(vigiladoId),
+      vigiladoId: user.vigiladoId,
+      vigiladoToken: user.vigiladoToken
     });
   }
 

@@ -21,6 +21,13 @@ export class User {
 
   @Prop({ required: false })
   enterprise_id: string;
+
+  @Prop({ type: Number, default: null })
+  vigiladoId?: number | null;
+
+  // Nuevo: token o string asociado al vigilado (puede ser JWT u otro token)
+  @Prop({ type: String, default: null })
+  vigiladoToken?: string | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

@@ -15,24 +15,34 @@ export class MaintenanceExternalApiService {
   }
 
   async __smokeAuditOnce() {
-  await this.audit.log({
-    module: 'maintenance',
-    operation: '__smoke',
-    endpoint: 'local://smoke',
-    responseStatus: 200,
-    success: true,
-    responseBody: { hello: 'world' },
-  });
-}
+    await this.audit.log({
+      module: 'maintenance',
+      operation: '__smoke',
+      endpoint: 'local://smoke',
+      responseStatus: 200,
+      success: true,
+      responseBody: { hello: 'world' },
+    });
+  }
 
   private async safeJson(resp: Response) {
     const text = await resp.text();
-    try { return text ? JSON.parse(text) : undefined; } catch { return text; }
+    try {
+      return text ? JSON.parse(text) : undefined;
+    } catch {
+      return text;
+    }
   }
 
   private redact<T extends AnyObj | undefined>(obj: T): T {
     if (!obj || typeof obj !== 'object') return obj;
-    const SENSITIVE = ['password', 'contrasena', 'authorization', 'token', 'bearer'];
+    const SENSITIVE = [
+      'password',
+      'contrasena',
+      'authorization',
+      'token',
+      'bearer',
+    ];
     const clone: AnyObj = JSON.parse(JSON.stringify(obj));
     for (const k of Object.keys(clone)) {
       if (SENSITIVE.includes(k.toLowerCase())) clone[k] = '***redacted***';
@@ -45,6 +55,19 @@ export class MaintenanceExternalApiService {
     const base = process.env.SICOV_MANT_BASE;
     if (!base) throw new Error('Falta variable SICOV_MANT_BASE');
     return `${base}${path}`;
+  }
+
+  private asInt(v: unknown): number {
+    const n = Number((v ?? '').toString().trim());
+    if (!Number.isFinite(n))
+      throw new HttpException('Valor numérico inválido', 400);
+    return n;
+  }
+  private asStr(v: unknown): string {
+    return (v ?? '').toString().trim();
+  }
+  private toDocumento(v: unknown): string {
+    return (v ?? '').toString().replace(/\D+/g, '');
   }
 
   /** Login robusto: soporta varias formas de token */
@@ -74,7 +97,10 @@ export class MaintenanceExternalApiService {
       module: 'maintenance',
       operation: 'login',
       endpoint: url,
-      requestPayload: { usuario: process.env.SICOV_USERNAME, contrasena: '***redacted***' },
+      requestPayload: {
+        usuario: process.env.SICOV_USERNAME,
+        contrasena: '***redacted***',
+      },
       responseStatus: resp.status,
       responseBody: data,
       success: resp.ok,
@@ -82,7 +108,9 @@ export class MaintenanceExternalApiService {
     });
 
     if (!resp.ok) {
-      this.logger.error(`Error autenticando: ${resp.status} ${resp.statusText}`);
+      this.logger.error(
+        `Error autenticando: ${resp.status} ${resp.statusText}`,
+      );
       throw new HttpException('No se pudo autenticar en SICOV', resp.status);
     }
 
@@ -101,43 +129,38 @@ export class MaintenanceExternalApiService {
     return this.bearerToken;
   }
 
-  /** Construye headers incluyendo variantes comunes; normaliza documento */
-private buildHeaders(token: string, vigiladoId?: string) {
-  if (!token || token === 'undefined') {
-    throw new HttpException('Token Bearer no inicializado', 500);
+  private buildHeaders(
+    token: string,
+    vigiladoId?: string,
+    vigiladoToken?: string,
+  ) {
+    const nit = (vigiladoId ?? process.env.SICOV_VIGILADO_ID ?? '')
+      .toString()
+      .replace(/\D+/g, '');
+    const vToken = vigiladoToken ?? process.env.SICOV_TOKEN_VIGILADO ?? '';
+    if (!nit) this.logger.warn('vigiladoId vacío (JWT/env)');
+    if (!vToken) this.logger.warn('vigiladoToken vacío (JWT/env)');
+    return {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      token: vToken,
+      vigiladoId: nit,
+    } as Record<string, string>;
   }
 
-  const tokenVigilado = process.env.SICOV_TOKEN_VIGILADO ?? '';
-  if (!tokenVigilado) this.logger.warn('SICOV_TOKEN_VIGILADO vacío');
-
-  const rawDoc =
-    (vigiladoId ?? process.env.SICOV_VIGILADO_ID ?? '').toString();
-  const documento = rawDoc.replace(/[.\- ]/g, ''); // normaliza “12.345.678” -> “12345678”
-  if (!documento) this.logger.warn('Documento de vigilado vacío (ni param ni env)');
-
-  // Headers que el proveedor te pidió expresamente:
-  return {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-    token: tokenVigilado,
-    documento, // 👈 SIEMPRE va en cada petición
-  } as Record<string, string>;
-}
-
-  /** Core de request con auditoría y re-intento si expira el token */
   private async requestWithAudit(
     endpoint: string,
     method: HttpMethod,
     operation: string,
     body?: AnyObj,
     vigiladoId?: string,
+    vigiladoToken?: string,
   ) {
     const started = Date.now();
     const token = await this.login();
-
     const resp = await fetch(endpoint, {
       method,
-      headers: this.buildHeaders(token, vigiladoId),
+      headers: this.buildHeaders(token, vigiladoId, vigiladoToken),
       body: body ? JSON.stringify(body) : undefined,
     });
 
@@ -154,15 +177,14 @@ private buildHeaders(token: string, vigiladoId?: string) {
       durationMs: Date.now() - started,
     });
 
-    // Reintento si 401/403 (token vencido)
     if (resp.status === 401 || resp.status === 403) {
-      this.bearerToken = null; // forzar nuevo login
+      this.bearerToken = null;
       const retryStarted = Date.now();
       const retryToken = await this.login();
 
       const retry = await fetch(endpoint, {
         method,
-        headers: this.buildHeaders(retryToken, vigiladoId),
+        headers: this.buildHeaders(retryToken, vigiladoId, vigiladoToken),
         body: body ? JSON.stringify(body) : undefined,
       });
       const retryData = await this.safeJson(retry);
@@ -178,12 +200,53 @@ private buildHeaders(token: string, vigiladoId?: string) {
         durationMs: Date.now() - retryStarted,
       });
 
-      if (!retry.ok) throw new HttpException('Error en SICOV', retry.status);
+      if (!resp.ok) {
+        throw new HttpException(
+          { message: 'Error en SICOV', data },
+          resp.status,
+        );
+      }
       return { ok: true, status: retry.status, data: retryData };
     }
 
     if (!resp.ok) throw new HttpException('Error en SICOV', resp.status);
     return { ok: true, status: resp.status, data };
+  }
+
+  private async requestWithAuditSafe(
+    endpoint: string,
+    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+    operation: string,
+    body?: Record<string, any>,
+    vigiladoId?: string,
+    vigiladoToken?: string,
+  ) {
+    try {
+      return await this.requestWithAudit(
+        endpoint,
+        method,
+        operation,
+        body,
+        vigiladoId,
+        vigiladoToken,
+      );
+    } catch (e: any) {
+      await this.audit.log({
+        module: 'maintenance',
+        operation: `${operation}:safe-error`,
+        endpoint,
+        requestPayload: this.redact(body),
+        responseStatus: e?.status ?? 500,
+        responseBody: e?.response?.data ?? e?.data ?? { message: e?.message || 'safe error' },
+        success: false,
+        durationMs: 0,
+      });
+      return {
+        ok: false,
+        status: e?.status ?? 500,
+        error: e?.message ?? String(e),
+      };
+    }
   }
 
   /** -------------------------
@@ -194,59 +257,96 @@ private buildHeaders(token: string, vigiladoId?: string) {
   async listarPlacas(query: { tipoId: number; vigiladoId?: string }) {
     const params = new URLSearchParams();
     params.set('tipoId', String(query.tipoId));
-    const endpoint = this.mantBase(`/api/v2/mantenimiento/listar-placas?${params.toString()}`);
-    return this.requestWithAudit(endpoint, 'GET', 'listarPlacas', undefined, query.vigiladoId);
+    const endpoint = this.mantBase(
+      `/api/v2/mantenimiento/listar-placas?${params.toString()}`,
+    );
+    return this.requestWithAudit(
+      endpoint,
+      'GET',
+      'listarPlacas',
+      undefined,
+      query.vigiladoId,
+    );
   }
 
-  /** Registra un mantenimiento base y devuelve su ID */
   async guardarMantenimiento(payload: {
     placa: string;
     tipoId: number;
     vigiladoId?: string;
+    vigiladoToken?: string;
   }) {
-    const endpoint = this.mantBase('/api/v2/mantenimiento/guardar-mantenimieto');
+    const endpoint = this.mantBase(
+      '/api/v2/mantenimiento/guardar-mantenimieto',
+    );
     const body = {
-      vigiladoId: payload.vigiladoId || process.env.SICOV_VIGILADO_ID,
+      vigiladoId: payload.vigiladoId,
       placa: payload.placa,
       tipoId: payload.tipoId,
     };
-    return this.requestWithAudit(endpoint, 'POST', 'guardarMantenimiento', body, payload.vigiladoId);
+    return this.requestWithAudit(
+      endpoint,
+      'POST',
+      'guardarMantenimiento',
+      body,
+      payload.vigiladoId,
+      payload.vigiladoToken,
+    );
   }
 
-  /** Registra el mantenimiento preventivo detallado */
   async guardarPreventivo(payload: {
     fecha: string;
     hora: string;
-    nit: number | string;
+    nit: string | number;
     razonSocial: string;
-    tipoIdentificacion: number;
-    numeroIdentificacion: number | string;
+    tipoIdentificacion: number | string;
+    numeroIdentificacion: string | number;
     nombresResponsable: string;
-    mantenimientoId: number | string;
+    mantenimientoId: number | string; // <- viene string desde tu externalId
     detalleActividades: string;
     vigiladoId?: string;
+    vigiladoToken?: string;
   }) {
     const endpoint = this.mantBase('/api/v2/mantenimiento/guardar-preventivo');
+
+    // NORMALIZACIÓN ESTRICTA DE TIPOS
     const body = {
-      fecha: payload.fecha,
-      hora: payload.hora,
-      nit: payload.nit,
-      razonSocial: payload.razonSocial,
-      tipoIdentificacion: payload.tipoIdentificacion,
-      numeroIdentificacion: payload.numeroIdentificacion,
-      nombresResponsable: payload.nombresResponsable,
-      mantenimientoId: payload.mantenimientoId,
-      detalleActividades: payload.detalleActividades,
-      documento_vigilado: (payload.vigiladoId || process.env.SICOV_VIGILADO_ID || '').toString().replace(/[.\- ]/g, ''),
+      fecha: this.asStr(payload.fecha),
+      hora: this.asStr(payload.hora),
+      nit: this.asInt(payload.nit), // string
+      razonSocial: this.asStr(payload.razonSocial),
+      tipoIdentificacion: this.asInt(payload.tipoIdentificacion), // number
+      numeroIdentificacion: this.asStr(payload.numeroIdentificacion),
+      nombresResponsable: this.asStr(payload.nombresResponsable),
+      mantenimientoId: this.asInt(payload.mantenimientoId), // number (clave)
+      detalleActividades: this.asStr(payload.detalleActividades),
     };
-    return this.requestWithAudit(endpoint, 'POST', 'guardarPreventivo', body, payload.vigiladoId);
+
+    return this.requestWithAuditSafe(
+      endpoint,
+      'POST',
+      'guardarPreventivo',
+      body,
+      payload.vigiladoId,
+      payload.vigiladoToken,
+    );
   }
 
   /** Visualiza el mantenimiento preventivo */
-  async visualizarPreventivo(mantenimientoId: number | string, vigiladoId?: string) {
-    const endpoint = this.mantBase('/api/v2/mantenimiento/visualizar-preventivo');
+  async visualizarPreventivo(
+    mantenimientoId: number | string,
+    vigiladoId?: string,
+  ) {
+    const endpoint = this.mantBase(
+      '/api/v2/mantenimiento/visualizar-preventivo',
+    );
     const body = { mantenimientoId };
-    return this.requestWithAudit(endpoint, 'POST', 'visualizarPreventivo', body, vigiladoId);
+    return this.requestWithAudit(
+      endpoint,
+      'POST',
+      'visualizarPreventivo',
+      body,
+      vigiladoId,
+    );
   }
 
   /** Registra el mantenimiento correctivo */
@@ -263,6 +363,7 @@ private buildHeaders(token: string, vigiladoId?: string) {
     detalleActividades: string;
     accionesRealizadas: string;
     vigiladoId?: string;
+    vigiladoToken?: string;
   }) {
     const endpoint = this.mantBase('/api/v2/mantenimiento/guardar-correctivo');
     const body = {
@@ -277,57 +378,109 @@ private buildHeaders(token: string, vigiladoId?: string) {
       descripcionFalla: payload.descripcionFalla,
       detalleActividades: payload.detalleActividades,
       accionesRealizadas: payload.accionesRealizadas,
-      documento_vigilado: (payload.vigiladoId || process.env.SICOV_VIGILADO_ID || '').toString().replace(/[.\- ]/g, ''),
+      documento_vigilado: (payload.vigiladoId || '')
+        .toString()
+        .replace(/[.\- ]/g, ''),
     };
-    return this.requestWithAudit(endpoint, 'POST', 'guardarCorrectivo', body, payload.vigiladoId);
+    return this.requestWithAudit(
+      endpoint,
+      'POST',
+      'guardarCorrectivo',
+      body,
+      payload.vigiladoId,
+      payload.vigiladoToken,
+    );
   }
 
   /** Visualiza el mantenimiento correctivo */
-  async visualizarCorrectivo(mantenimientoId: number | string, vigiladoId?: string) {
-    const endpoint = this.mantBase('/api/v2/mantenimiento/visualizar-correctivo');
+  async visualizarCorrectivo(
+    mantenimientoId: number | string,
+    vigiladoId?: string,
+  ) {
+    const endpoint = this.mantBase(
+      '/api/v2/mantenimiento/visualizar-correctivo',
+    );
     const body = { mantenimientoId };
-    return this.requestWithAudit(endpoint, 'POST', 'visualizarCorrectivo', body, vigiladoId);
+    return this.requestWithAudit(
+      endpoint,
+      'POST',
+      'visualizarCorrectivo',
+      body,
+      vigiladoId,
+    );
   }
 
   /** Registra un alistamiento */
   async guardarAlistamiento(payload: {
     tipoIdentificacionResponsable: number;
-    numeroIdentificacionResponsable: number | string;
+    numeroIdentificacionResponsable: string;
     nombreResponsable: string;
-    tipoIdentificacionConductor: number;
-    numeroIdentificacionConductor: number | string;
+    tipoIdentificacionConductor: number | string;
+    numeroIdentificacionConductor: number;
     nombresConductor: string;
-    mantenimientoId: number | string;
+    mantenimientoId: number | string; // externo
     detalleActividades: string;
-    actividades: { codigo: string; valor: boolean }[];
-    vigiladoId?: string;
+    actividades: (number | string)[];
+    vigiladoId?: string; // headers
+    vigiladoToken?: string; // headers
   }) {
-    const endpoint = this.mantBase('/api/v2/mantenimiento/guardar-alistamiento');
+    const url = `https://rutasback.supertransporte.gov.co/api/v2/mantenimiento/guardar-alistamiento`;
+
     const body = {
-      tipoIdentificacionResponsable: payload.tipoIdentificacionResponsable,
-      numeroIdentificacionResponsable: payload.numeroIdentificacionResponsable,
-      nombreResponsable: payload.nombreResponsable,
-      tipoIdentificacionConductor: payload.tipoIdentificacionConductor,
-      numeroIdentificacionConductor: payload.numeroIdentificacionConductor,
-      nombresConductor: payload.nombresConductor,
-      mantenimientoId: payload.mantenimientoId,
-      detalleActividades: payload.detalleActividades,
-      actividades: payload.actividades,
-      documento_vigilado: (payload.vigiladoId || process.env.SICOV_VIGILADO_ID || '').toString().replace(/[.\- ]/g, ''),
+      tipoIdentificacionResponsable: Number(
+        payload.tipoIdentificacionResponsable,
+      ),
+      numeroIdentificacionResponsable: String(
+        payload.numeroIdentificacionResponsable,
+      ).trim(),
+      nombreResponsable: String(payload.nombreResponsable).trim(),
+      tipoIdentificacionConductor: Number(payload.tipoIdentificacionConductor),
+      numeroIdentificacionConductor: String(
+        payload.numeroIdentificacionConductor,
+      ).trim(),
+      nombresConductor: String(payload.nombresConductor).trim(),
+      mantenimientoId: Number(payload.mantenimientoId),
+      detalleActividades: String(payload.detalleActividades).trim(),
+      actividades: (payload.actividades ?? []).map((x) => Number(x)),
     };
-    return this.requestWithAudit(endpoint, 'POST', 'guardarAlistamiento', body, payload.vigiladoId);
+
+    return this.requestWithAuditSafe(
+      url,
+      'POST',
+      'guardarAlistamiento',
+      body,
+      payload.vigiladoId,
+      payload.vigiladoToken,
+    );
   }
 
   /** Visualiza un alistamiento existente */
-  async visualizarAlistamiento(mantenimientoId: number | string, vigiladoId?: string) {
-    const endpoint = this.mantBase('/api/v2/mantenimiento/visualizar-alistamiento');
+  async visualizarAlistamiento(
+    mantenimientoId: number | string,
+    vigiladoId?: string,
+  ) {
+    const endpoint = this.mantBase(
+      '/api/v2/mantenimiento/visualizar-alistamiento',
+    );
     const body = { mantenimientoId };
-    return this.requestWithAudit(endpoint, 'POST', 'visualizarAlistamiento', body, vigiladoId);
+    return this.requestWithAudit(
+      endpoint,
+      'POST',
+      'visualizarAlistamiento',
+      body,
+      vigiladoId,
+    );
   }
 
   /** Lista las actividades de alistamiento */
   async listarActividades(vigiladoId?: string) {
     const endpoint = this.mantBase('/api/v2/mantenimiento/listar-actividades');
-    return this.requestWithAudit(endpoint, 'GET', 'listarActividades', undefined, vigiladoId);
+    return this.requestWithAudit(
+      endpoint,
+      'GET',
+      'listarActividades',
+      undefined,
+      vigiladoId,
+    );
   }
 }
