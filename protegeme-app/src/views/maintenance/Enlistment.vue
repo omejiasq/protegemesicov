@@ -93,7 +93,7 @@
             />
           </template>
         </Column>
-        <Column header="Acciones" style="width: 160px">
+        <!-- <Column header="Acciones" style="width: 160px">
           <template #body="{ data }">
             <div class="flex gap-2">
               <Button
@@ -110,7 +110,7 @@
               />
             </div>
           </template>
-        </Column>
+        </Column> -->
       </DataTable>
     </div>
 
