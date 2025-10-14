@@ -355,7 +355,7 @@ export class MaintenanceExternalApiService {
     hora: string;
     nit: number | string;
     razonSocial: string;
-    tipoIdentificacion: number;
+    tipoIdentificacion: number | string;
     numeroIdentificacion: number | string;
     nombresResponsable: string;
     mantenimientoId: number | string;

@@ -21,68 +21,69 @@ export class PreventiveService {
     private readonly maintenanceService: MaintenanceService,
   ) {}
 
+  // preventive.service.ts
   async create(
-  dto: any,
-  user?: {
-    enterprise_id?: string;
-    sub?: string;
-    vigiladoId: number;
-    vigiladoToken: string;
-  },
-) {
-  // 1) Duplicados por placa + tenant
-  const exists = await this.model.exists({
-    placa: dto.placa,
-    enterprise_id: user?.enterprise_id,
-  });
-  if (exists) {
-    throw new ConflictException(
-      'Ya existe un mantenimiento preventivo para esa placa',
+    dto: any,
+    user?: {
+      enterprise_id?: string;
+      sub?: string;
+      vigiladoId: number;
+      vigiladoToken: string;
+    },
+  ) {
+    await this.model.updateMany(
+      { placa: dto.placa, enterprise_id: user?.enterprise_id, estado: true },
+      { $set: { estado: false } },
     );
-  }
 
-  // 2) Asegurar mantenimiento antes (y esperar el id externo)
-  let mantenimientoIdLocal: string | null = dto.mantenimientoId || null;
+    let mantenimientoIdLocal: string | null = dto.mantenimientoId || null;
+    let mantenimientoIdExterno: number | null = null;
 
-  const vigiladoId = user?.vigiladoId ?? process.env.SICOV_VIGILADO_ID;
+    const vigiladoId = user?.vigiladoId ?? process.env.SICOV_VIGILADO_ID;
 
-  if (!mantenimientoIdLocal) {
-    const maintPayload = {
-      placa: dto.placa,
-      tipoId: 1 as const, // 1 = preventivo
-      vigiladoId: user?.vigiladoId,
-      enterprise_id: user?.enterprise_id,
-      createdBy: user?.sub,
-    };
-
-    // ⬇️ devolvemos { doc, externalId }
-    const { doc: createdMaintenance, externalId: externalMaintId } =
-      await this.maintenanceService.create(maintPayload, user, {
-        awaitExternal: true,
-      });
-
-    // id local (Mongo)
-    const newId =
-      (createdMaintenance as any)?._id ??
-      (createdMaintenance as any)?.id ??
-      null;
-
-    if (!externalMaintId) {
-      throw new ConflictException('No se pudo obtener el id externo');
-    }
-    if (!newId) {
-      throw new ConflictException('No se pudo generar el mantenimiento base');
+    if (mantenimientoIdLocal && /^\d+$/.test(String(mantenimientoIdLocal))) {
+      mantenimientoIdExterno = Number(mantenimientoIdLocal);
     }
 
-    mantenimientoIdLocal = String(newId);
+    if (!mantenimientoIdExterno) {
+      const maintPayload = {
+        placa: dto.placa,
+        tipoId: 1 as const,
+        vigiladoId: user?.vigiladoId,
+        enterprise_id: user?.enterprise_id,
+        createdBy: user?.sub,
+      };
 
-    // ↙️ guardamos el preventivo **interno** referenciando el id EXTERNO
-    //    (si tu schema quiere el externo en mantenimientoId)
+      const { doc: createdMaintenance, externalId: externalMaintId } =
+        await this.maintenanceService.create(maintPayload, user, {
+          awaitExternal: true,
+        });
+
+      const newLocal =
+        (createdMaintenance as any)?._id ??
+        (createdMaintenance as any)?.id ??
+        null;
+
+      if (!externalMaintId) {
+        throw new ConflictException(
+          'No se pudo obtener el id externo del mantenimiento base',
+        );
+      }
+      if (!newLocal) {
+        throw new ConflictException(
+          'No se pudo generar el mantenimiento base (local)',
+        );
+      }
+
+      mantenimientoIdLocal = String(newLocal);
+      mantenimientoIdExterno = Number(externalMaintId);
+    }
+
     const doc = await this.model.create({
       enterprise_id: user?.enterprise_id,
       createdBy: user?.sub,
       placa: dto.placa,
-      mantenimientoId: externalMaintId, // ← usamos el EXTERNO
+      mantenimientoId: mantenimientoIdExterno,
       fecha: dto.fecha,
       hora: dto.hora,
       nit: dto.nit,
@@ -94,7 +95,6 @@ export class PreventiveService {
       estado: true,
     });
 
-    // 4) Sincronizar preventivo en SICOV (best-effort) usando el id EXTERNO
     try {
       await this.external.guardarPreventivo({
         fecha: dto.fecha,
@@ -104,54 +104,15 @@ export class PreventiveService {
         tipoIdentificacion: dto.tipoIdentificacion,
         numeroIdentificacion: dto.numeroIdentificacion,
         nombresResponsable: dto.nombresResponsable,
-        mantenimientoId: externalMaintId, // ← EXTERNO a SICOV
+        mantenimientoId: mantenimientoIdExterno!,
         detalleActividades: dto.detalleActividades,
         vigiladoId: String(vigiladoId),
         vigiladoToken: user?.vigiladoToken,
       });
-    } catch {
-      /* ignorar fallos externos */
-    }
+    } catch {}
 
     return (await this.model.findById(doc._id).lean())!;
   }
-
-  // Si ya venía mantenimientoId (caso poco común), creamos con ese:
-  const doc = await this.model.create({
-    enterprise_id: user?.enterprise_id,
-    createdBy: user?.sub,
-    placa: dto.placa,
-    mantenimientoId: mantenimientoIdLocal,
-    fecha: dto.fecha,
-    hora: dto.hora,
-    nit: dto.nit,
-    razonSocial: dto.razonSocial,
-    tipoIdentificacion: dto.tipoIdentificacion,
-    numeroIdentificacion: dto.numeroIdentificacion,
-    nombresResponsable: dto.nombresResponsable,
-    detalleActividades: dto.detalleActividades,
-    estado: true,
-  });
-
-  try {
-    await this.external.guardarPreventivo({
-      fecha: dto.fecha,
-      hora: dto.hora,
-      nit: dto.nit,
-      razonSocial: dto.razonSocial,
-      tipoIdentificacion: dto.tipoIdentificacion,
-      numeroIdentificacion: dto.numeroIdentificacion,
-      nombresResponsable: dto.nombresResponsable,
-      // si ya venía el externo en dto, usalo; si no, queda el local
-      mantenimientoId: mantenimientoIdLocal,
-      detalleActividades: dto.detalleActividades,
-      vigiladoId: String(vigiladoId),
-      vigiladoToken: user?.vigiladoToken,
-    });
-  } catch {}
-
-  return (await this.model.findById(doc._id).lean())!;
-}
 
   async view(dto: { id: string }, user?: { enterprise_id?: string }) {
     if (!Types.ObjectId.isValid(dto.id))
@@ -182,7 +143,6 @@ export class PreventiveService {
   async list(q: any, user?: { enterprise_id?: string }) {
     const filter: any = { enterprise_id: user?.enterprise_id };
 
-    // placa: búsqueda parcial (prefijo, case-insensitive)
     const rawPlaca = (q?.placa ?? q?.plate ?? '').toString().trim();
     if (rawPlaca) {
       const esc = rawPlaca.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -205,11 +165,18 @@ export class PreventiveService {
     return { items, total, page, numero_items: limit };
   }
 
-  async update(id: string, dto: any, user?: { enterprise_id?: string }) {
+  async update(
+    id: string,
+    dto: any,
+    user?: {
+      enterprise_id?: string;
+      vigiladoId?: number | string;
+      vigiladoToken?: string;
+    },
+  ) {
     if (!Types.ObjectId.isValid(id))
       throw new NotFoundException('No encontrado');
 
-    // Solo los campos editables; NO tocar enterprise_id, createdBy, mantenimientoId
     const updatable: any = {};
     for (const k of [
       'fecha',
@@ -220,9 +187,8 @@ export class PreventiveService {
       'numeroIdentificacion',
       'nombresResponsable',
       'detalleActividades',
-    ]) {
+    ])
       if (dto[k] !== undefined) updatable[k] = dto[k];
-    }
 
     const res = await this.model.findOneAndUpdate(
       { _id: new Types.ObjectId(id), enterprise_id: user?.enterprise_id },
@@ -230,6 +196,28 @@ export class PreventiveService {
       { new: true, lean: true },
     );
     if (!res) throw new NotFoundException('No encontrado');
+
+    try {
+      if (
+        res.mantenimientoId &&
+        (user?.vigiladoToken || process.env.SICOV_TOKEN)
+      ) {
+        await this.external.guardarPreventivo({
+          fecha: res.fecha,
+          hora: res.hora,
+          nit: res.nit,
+          razonSocial: res.razonSocial,
+          tipoIdentificacion: res.tipoIdentificacion,
+          numeroIdentificacion: res.numeroIdentificacion,
+          nombresResponsable: res.nombresResponsable,
+          mantenimientoId: res.mantenimientoId,
+          detalleActividades: res.detalleActividades,
+          vigiladoId: String(user?.vigiladoId ?? process.env.SICOV_VIGILADO_ID),
+          vigiladoToken: user?.vigiladoToken ?? process.env.SICOV_TOKEN,
+        });
+      }
+    } catch {}
+
     return res;
   }
 

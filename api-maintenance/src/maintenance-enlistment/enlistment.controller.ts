@@ -51,7 +51,9 @@ export class EnlistmentController {
   update(@Param('id') id: string, @Body() dto: any, @Req() req: Request) {
     const user = (req as any).user;
     return this.svc.update(id, dto, {
-      enterprise_id: (user as any).enterprise_id,
+      enterprise_id: user.enterprise_id,
+      vigiladoId: user.vigiladId,
+      vigiladoToken: user.vigiladoToken,
     });
   }
 

@@ -24,6 +24,10 @@ export class EnlistmentDetail {
   @Prop({ required: true, trim: true }) numeroIdentificacion!: string;
   @Prop({ required: true, trim: true }) nombresResponsable!: string;
 
+  @Prop({ required: true, trim: true }) tipoIdentificacionConductor!: string;
+  @Prop({ required: true, trim: true }) numeroIdentificacionConductor!: string;
+  @Prop({ required: true, trim: true }) nombresConductor!: string;
+
   @Prop({ trim: true }) detalleActividades?: string;
 
   @Prop({ index: true }) enterprise_id?: string;

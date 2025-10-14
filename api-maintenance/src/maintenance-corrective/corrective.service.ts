@@ -32,109 +32,82 @@ export class CorrectiveService {
       vigiladoToken: string;
     },
   ) {
-    // 1) Validación de duplicados si aplica (igual que en preventivos). Ajustá si no corresponde.
-    if (dto.placa && user?.enterprise_id) {
-      const exists = await this.model.exists({
-        placa: dto.placa,
-        enterprise_id: user.enterprise_id,
-      });
-      if (exists) {
-        throw new ConflictException(
-          'Ya existe un mantenimiento correctivo para esa placa',
-        );
-      }
-    }
-
-    // 2) Asegurar mantenimientoId (crearlo si no viene)
-    let mantenimientoId: string | null = dto.mantenimientoId ?? null;
-    console.log(
-      '%capi-maintenance\src\maintenance-corrective\corrective.service.ts:40 user.vigiladoId',
-      'color: #007acc;',
-      user?.vigiladoId,
+    await this.model.updateMany(
+      { placa: dto.placa, enterprise_id: user?.enterprise_id, estado: true },
+      { $set: { estado: false } },
     );
-    if (!mantenimientoId) {
-      try {
-        // Reutilizamos el create del maintenanceService (tipo 2 = correctivo)
-        const maintPayload = {
-          placa: dto.placa,
-          tipoId: 2 as const,
-          vigiladoId: user?.vigiladoId,
-          enterprise_id: user?.enterprise_id,
-          createdBy: user?.sub,
-        };
 
-        const createdMaintenance = await this.maintenanceService.create(
-          maintPayload,
-          user,
-          { awaitExternal: true },
-        );
+    let mantenimientoIdLocal: string | null = dto.mantenimientoId || null;
+    let mantenimientoIdExterno: string | null = null;
+    const vigiladoId = user?.vigiladoId;
 
-        // El service de maintenance en tu repo devuelve la entidad Mongo (toJSON), por lo que _id es la forma.
-        const newId = createdMaintenance?.doc._id ?? createdMaintenance?.doc.id ?? null;
-
-        if (!newId) {
-          throw new ConflictException(
-            'La creación del mantenimiento no devolvió _id válido.',
-          );
-        }
-
-        mantenimientoId = String(newId);
-      } catch (err: any) {
-        // Mensaje claro para el front
-        throw new ConflictException(
-          `No se pudo crear el mantenimiento asociado: ${err?.message ?? 'error'}`,
-        );
-      }
-    }
-
-    // 3) Crear el correctivo localmente (sólo si tenemos mantenimientoId)
-    if (!mantenimientoId) {
-      throw new ConflictException(
-        'Mantenimiento asociado no disponible, no se crea el correctivo.',
-      );
-    }
-
-    try {
-      const payloadToSave: any = {
-        mantenimientoId,
-        placa: dto.placa?.trim(),
-        fecha: dto.fecha ?? undefined,
-        hora: dto.hora ?? undefined,
-        nit: dto.nit ?? undefined,
-        razonSocial: dto.razonSocial ?? undefined,
-        descripcionFalla: dto.descripcionFalla ?? undefined,
-        accionesRealizadas: dto.accionesRealizadas ?? undefined,
-        estado: typeof dto.estado !== 'undefined' ? dto.estado : true,
+    if (!mantenimientoIdLocal) {
+      const maintPayload = {
+        placa: dto.placa,
+        tipoId: 2 as const,
+        vigiladoId: vigiladoId as number,
         enterprise_id: user?.enterprise_id,
         createdBy: user?.sub,
-        // agregar otros campos necesarios por tu esquema
       };
 
-      const created = await this.model.create(payloadToSave);
+      const createdMaintenance = await this.maintenanceService.create(
+        maintPayload,
+        user,
+        { awaitExternal: true },
+      );
 
-      try {
+      const newId =
+        createdMaintenance?.doc?._id ?? createdMaintenance?.doc?.id ?? null;
+      if (!newId) {
+        throw new ConflictException('No se pudo generar el mantenimiento base');
+      }
+      mantenimientoIdLocal = String(newId);
+      mantenimientoIdExterno = createdMaintenance?.externalId
+        ? String(createdMaintenance.externalId)
+        : null;
+    } else {
+      mantenimientoIdExterno = null;
+    }
+
+    const doc = await this.model.create({
+      enterprise_id: user?.enterprise_id,
+      createdBy: user?.sub,
+      placa: String(dto.placa ?? '').trim(),
+      mantenimientoId: mantenimientoIdExterno,
+      fecha: dto.fecha,
+      hora: dto.hora,
+      nit: dto.nit,
+      razonSocial: String(dto.razonSocial ?? '').trim(),
+      tipoIdentificacion: dto.tipoIdentificacion,
+      numeroIdentificacion: dto.numeroIdentificacion,
+      nombresResponsable: String(dto.nombresResponsable ?? '').trim(),
+      descripcionFalla: String(dto.descripcionFalla ?? '').trim(),
+      detalleActividades: String(dto.detalleActividades ?? '').trim(),
+      accionesRealizadas: String(dto.accionesRealizadas ?? '').trim(),
+      estado: true,
+    });
+
+    try {
+      if (mantenimientoIdExterno && vigiladoId && user?.vigiladoToken) {
         await this.external.guardarCorrectivo({
-          fecha: dto.fecha,
-          hora: dto.hora,
+          fecha: String(dto.fecha ?? ''),
+          hora: String(dto.hora ?? ''),
           nit: dto.nit,
-          mantenimientoId,
-          razonSocial: dto.razonSocial,
+          razonSocial: String(dto.razonSocial ?? ''),
           tipoIdentificacion: dto.tipoIdentificacion,
           numeroIdentificacion: dto.numeroIdentificacion,
-          nombresResponsable: dto.nombreResponsable,
-          descripcionFalla: dto.descripcionFalla,
-          detalleActividades: dto.detalleActividades,
-          accionesRealizadas: dto.accionesRealizadas,
-          vigiladoId: String(user?.vigiladoId),
-          vigiladoToken: user?.vigiladoToken,
+          nombresResponsable: String(dto.nombresResponsable ?? ''),
+          mantenimientoId: Number(mantenimientoIdExterno),
+          descripcionFalla: String(dto.descripcionFalla ?? ''),
+          detalleActividades: String(dto.detalleActividades ?? ''),
+          accionesRealizadas: String(dto.accionesRealizadas ?? ''),
+          vigiladoId: String(vigiladoId),
+          vigiladoToken: user.vigiladoToken,
         });
-      } catch (e) {}
-      return await this.model.findById(created._id).lean();
-    } catch (err: any) {
-      throw new InternalServerErrorException(
-        err?.message || 'Error creando correctivo',
-      );
-    }
+      }
+    } catch {}
+
+    return (await this.model.findById(doc._id).lean())!;
   }
 
   async view(dto: { id: string }, user?: { enterprise_id?: string }) {
@@ -189,11 +162,18 @@ export class CorrectiveService {
     return { items, total, page, numero_items: limit };
   }
 
-  async update(id: string, dto: any, user?: { enterprise_id?: string }) {
+  async update(
+    id: string,
+    dto: any,
+    user?: {
+      enterprise_id?: string;
+      vigiladoId?: number | string;
+      vigiladoToken?: string;
+    },
+  ) {
     if (!Types.ObjectId.isValid(id))
       throw new NotFoundException('No encontrado');
 
-    // Solo campos editables (no tocar enterprise_id, createdBy, mantenimientoId, placa)
     const updatable: any = {};
     for (const k of [
       'fecha',
@@ -204,11 +184,10 @@ export class CorrectiveService {
       'numeroIdentificacion',
       'nombresResponsable',
       'descripcionFalla',
-      'accionesRealizadas',
       'detalleActividades',
-    ]) {
+      'accionesRealizadas',
+    ])
       if (dto[k] !== undefined) updatable[k] = dto[k];
-    }
 
     const res = await this.model.findOneAndUpdate(
       { _id: new Types.ObjectId(id), enterprise_id: user?.enterprise_id },
@@ -216,6 +195,32 @@ export class CorrectiveService {
       { new: true, lean: true },
     );
     if (!res) throw new NotFoundException('No encontrado');
+
+    // 🔁 Sincronizar con SICOV
+    try {
+      if (
+        res.mantenimientoId &&
+        (user?.vigiladoToken || process.env.SICOV_TOKEN)
+      ) {
+        await this.external.guardarCorrectivo({
+          fecha: res.fecha,
+          hora: res.hora,
+          nit: res.nit,
+          razonSocial: res.razonSocial,
+          tipoIdentificacion: res.tipoIdentificacion,
+          numeroIdentificacion: res.numeroIdentificacion,
+          nombresResponsable: res.nombresResponsable,
+          mantenimientoId: res.mantenimientoId,
+          descripcionFalla: res.descripcionFalla,
+          detalleActividades: res.detalleActividades,
+          accionesRealizadas: res.accionesRealizadas,
+          vigiladoId: String(user?.vigiladoId ?? process.env.SICOV_VIGILADO_ID),
+          vigiladoToken: user?.vigiladoToken ?? process.env.SICOV_TOKEN,
+        });
+      }
+    } catch {
+    }
+
     return res;
   }
 
