@@ -344,8 +344,11 @@ export const useMaintenanceStore = defineStore("maintenance", {
       this.preventiveList.loading = true;
       this.preventiveList.error = "";
       try {
-        // map FE -> BE
         const query: any = { ...params };
+
+        if (query.numero_items == null && query.limit == null) {
+          query.numero_items = 100000;
+        }
         if (query.limit) {
           query.numero_items = query.limit;
           delete query.limit;
@@ -380,6 +383,9 @@ export const useMaintenanceStore = defineStore("maintenance", {
       this.correctiveList.error = "";
       try {
         const query: any = { ...params };
+        if (query.numero_items == null && query.limit == null) {
+          query.numero_items = 100000;
+        }
         if (query.limit) {
           query.numero_items = query.limit;
           delete query.limit;
@@ -517,6 +523,9 @@ export const useMaintenanceStore = defineStore("maintenance", {
       this.enlistmentList.error = "";
       try {
         const query: any = { ...params };
+        if (query.numero_items == null && query.limit == null) {
+          query.numero_items = 100000;
+        }
         if (query.limit) {
           query.numero_items = query.limit;
           delete query.limit;

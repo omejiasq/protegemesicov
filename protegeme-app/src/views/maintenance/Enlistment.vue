@@ -56,7 +56,10 @@
         :loading="loading"
         dataKey="_id"
         responsive-layout="scroll"
-        :paginator="false"
+        :paginator="true"
+        :rows="limit"
+        :totalRecords="total"
+        :first="(page - 1) * limit"
         class="p-datatable-sm"
       >
         <Column header="Descripcion" style="min-width: 240px">
@@ -93,7 +96,7 @@
             />
           </template>
         </Column>
-        <!-- <Column header="Acciones" style="width: 160px">
+        <Column header="Acciones" style="width: 160px">
           <template #body="{ data }">
             <div class="flex gap-2">
               <Button
@@ -102,15 +105,15 @@
                 :disabled="saving || loading"
                 @click="openEditEnlistment(data)"
               />
-              <Button
+<!--               <Button
                 :icon="data?.estado ? 'pi pi-ban' : 'pi pi-check'"
                 class="btn-icon-white statebutton"
                 :disabled="saving || loading"
                 @click="toggleEnlistment(data._id)"
-              />
+              /> -->
             </div>
           </template>
-        </Column> -->
+        </Column>
       </DataTable>
     </div>
 
@@ -303,6 +306,9 @@ console.log(
   "color: #007acc;",
   store.enlistmentList
 );
+const total = computed(() => store.enlistmentList.total);
+const page = ref(1);
+const limit = ref(10);
 
 const documentTypeOptions = [
   { label: "Cédula de ciudadanía", value: 1 },

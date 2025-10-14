@@ -91,12 +91,12 @@
                 :disabled="store.preventive.loading"
                 @click="openEdit(data)"
               />
-              <Button
+<!--               <Button
                 :icon="data?.estado ? 'pi pi-ban' : 'pi pi-check'"
                 class="btn-icon-white"
                 :disabled="store.preventive.loading"
                 @click="toggle(data._id)"
-              />
+              /> -->
             </div>
           </template>
         </Column>
@@ -753,9 +753,9 @@ function onSearch() {
 
 /* botones icon-only blanco con icono negro */
 .btn-icon-white {
-  background: #ffffff !important;       /* fondo blanco */
+  background: #ffffff !important; /* fondo blanco */
   border: 1px solid transparent !important;
-  color: #000000 !important;            /* texto (por si hubiera) */
+  color: #000000 !important; /* texto (por si hubiera) */
   box-shadow: none !important;
   min-width: 36px;
   height: 36px;
@@ -767,7 +767,7 @@ function onSearch() {
 
 /* icono dentro del botón */
 .btn-icon-white .p-button-icon {
-  color: #000000 !important;            /* icono negro */
+  color: #000000 !important; /* icono negro */
   font-size: 1.05rem;
 }
 

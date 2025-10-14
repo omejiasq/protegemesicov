@@ -99,12 +99,12 @@
                 :disabled="saving || loading"
                 @click="openEditCorrective(data)"
               />
-              <Button
+<!--               <Button
                 :icon="data?.estado ? 'pi pi-ban' : 'pi pi-check'"
                 class="btn-icon-white"
                 :disabled="saving || loading"
                 @click="toggleCorrective(data._id)"
-              />
+              /> -->
             </div>
           </template>
         </Column>
