@@ -84,7 +84,7 @@
         <Column header="Fecha">
           <template #body="{ data }"
             ><span class="text-900">{{
-              fmtDate(data.fecha || data.createdAt)
+              fmtDate(data.createdAt)
             }}</span></template
           >
         </Column>
@@ -105,7 +105,7 @@
                 :disabled="saving || loading"
                 @click="openEditEnlistment(data)"
               />
-<!--               <Button
+              <!--               <Button
                 :icon="data?.estado ? 'pi pi-ban' : 'pi pi-check'"
                 class="btn-icon-white statebutton"
                 :disabled="saving || loading"
@@ -144,13 +144,13 @@
           <InputText v-model="form.placa" class="w-full" />
         </div>
 
-        <div class="field col-12 md:col-6">
+<!--         <div class="field col-12 md:col-6">
           <InputDate v-model="form.fecha" :width="'100%'" />
         </div>
 
         <div class="field col-12 md:col-6">
           <InputHour v-model="form.hora" :width="'100%'" />
-        </div>
+        </div> -->
 
         <div class="field col-12 md:col-6">
           <label class="block mb-2 text-900"
@@ -213,7 +213,7 @@
             class="w-full"
           />
         </div>
-                <div class="field col-12 md:col-6">
+        <div class="field col-12 md:col-6">
           <label class="block mb-2 text-900">Detalle actividades</label>
           <InputText
             v-model="form.detalleActividades"
@@ -231,7 +231,7 @@
           >
             <Checkbox
               v-model="form.actividades"
-              :value="+(act.id ?? act._id ?? act.value)"
+              :value="+(act.id)"
             />
             <label class="ml-2">
               {{ act.nombre ?? act.label ?? act.descripcion ?? act._id }}
@@ -309,13 +309,14 @@ console.log(
 const total = computed(() => store.enlistmentList.total);
 const page = ref(1);
 const limit = ref(10);
+const searchPlate = ref("");
 
 const documentTypeOptions = [
   { label: "Cédula de ciudadanía", value: 1 },
   { label: "Cédula de ciudadanía digital", value: 2 },
   { label: "Tarjeta de identidad", value: 3 },
   { label: "Registro civil", value: 4 },
-  { label: "Cédula de extranjería", value: 5},
+  { label: "Cédula de extranjería", value: 5 },
   { label: "Pasaporte", value: 6 },
   { label: "Permiso Especial de Permanencia (PEP)", value: 7 },
   { label: "Documento de Identificación Extranjero (DIE)", value: 8 },
@@ -410,6 +411,21 @@ async function toggleEnlistment(id: string) {
       "No se pudo cambiar el estado";
     toast.add({ severity: "error", summary: "Error", detail: msg, life: 3500 });
   }
+}
+
+function onSearch() {
+  const plate = searchPlate.value
+    ?.trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, "");
+  // clave correcta: plate  -> el store la transforma a placa
+  store.enlistmentFetchList({ plate });
+}
+
+function onClear() {
+  searchPlate.value = "";
+  // sin plate => sin filtro
+  store.enlistmentFetchList({});
 }
 
 const isEditingCorrective = ref(false);
@@ -566,7 +582,7 @@ const form = reactive({
   numeroIdentificacionConductor: "",
   nombresConductor: "",
   detalleActividades: "",
-  actividades: [] as number[],
+  actividades: [] as number[], 
 });
 
 const loading = computed(() => store.enlistmentList.loading);
@@ -596,12 +612,13 @@ function normalize(r: any) {
 }
 
 function fmtDate(s?: string) {
-  if (!s) return "—";
-  try {
-    return new Date(s).toLocaleDateString();
-  } catch {
-    return s as any;
-  }
+  if (!s) return '—';
+  // YYYY-MM-DD → DD/MM/YYYY (sin TZ, sin corrimientos)
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s.trim());
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  // Si no viene en YMD estricto, caemos a parseo normal
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? s : d.toLocaleDateString();
 }
 
 async function refresh() {
@@ -613,7 +630,7 @@ async function refresh() {
   ) {
     params.plate = filters.placa.trim(); // el store lo mapea a 'placa'
   }
-  await store.enlistmentFetchList();
+  await store.enlistmentFetchList(params);
 }
 
 function normDate(v: any): string | undefined {
@@ -671,11 +688,6 @@ function clean<T extends Record<string, any>>(obj: T) {
   return out;
 }
 
-function onClear() {
-  filters.mantenimientoId = "";
-  refresh();
-}
-
 function openCreate() {
   Object.assign(form, { mantenimientoId: "" });
   dlg.visible = true;
@@ -705,11 +717,10 @@ async function save() {
     // Alistamiento
     detalleActividades: form.detalleActividades?.trim() || undefined,
     actividades: Array.isArray(form.actividades)
-      ? form.actividades
-          .map((x: any) => Number(x))
-          .filter((n) => Number.isFinite(n))
+      ? form.actividades.map(Number)
       : undefined,
-  });
+  }
+);
 
   // Requeridos reales para guardar-alistamiento
   const req = [
