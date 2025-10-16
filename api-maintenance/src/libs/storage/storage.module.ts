@@ -1,18 +1,17 @@
 import { Module } from '@nestjs/common';
-import { FILE_STORAGE } from './storage.types';
+import { MinioStorageAdapter } from './minio';
 import { LocalStorage } from './local.storage';
-import { OracleStorage } from './oracle.storage';
+
+import { FILE_STORAGE } from './storage.types'; 
 
 @Module({
   providers: [
     {
       provide: FILE_STORAGE,
       useFactory: () => {
-        const provider = (process.env.STORAGE_PROVIDER || 'local').toLowerCase();
-        if (provider === 'oracle') {
-          return new OracleStorage();
-        }
-        return new LocalStorage();
+        const p = (process.env.STORAGE_PROVIDER || 'local').toLowerCase();
+        if (p === 'minio') return new MinioStorageAdapter();
+        return new LocalStorage();                 // ← fallback correcto
       },
     },
   ],

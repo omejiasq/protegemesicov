@@ -1,4 +1,4 @@
-export type StorageProvider = 'local' | 'oracle';
+export type StorageProvider = 'local' | 'oracle' | 'minio';
 
 export interface StoredObject {
   key: string;          // identificador del objeto (nombreAlmacenado)

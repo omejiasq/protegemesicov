@@ -87,7 +87,32 @@ services:
       - "5173:80"
     restart: unless-stopped
     networks: [protegeme-net]
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - ./data/minio:/data
+    ports:
+      - "9000:9000"   # API S3
+      - "9001:9001"   # Consola Web
+    restart: unless-stopped
+    networks: [protegeme-net]
 
+  # init de bucket (one-shot)
+  minio-mc:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: ["/bin/sh","-c"]
+    command: >
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} &&
+      mc mb -p local/${MINIO_BUCKET} || true &&
+      mc anonymous set download local/${MINIO_BUCKET} || true
+    networks: [protegeme-net]
+    restart: "no"
 networks:
   protegeme-net:
     driver: bridge

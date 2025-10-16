@@ -16,4 +16,4 @@ export class FileAsset {
   @Prop() createdBy?: string;
 }
 export const FileAssetSchema = SchemaFactory.createForClass(FileAsset);
-FileAssetSchema.index({ enterprise_id: 1, vigiladoId: 1, createdAt: -1 });
+FileAssetSchema.index({ enterprise_id: 1,  createdAt: -1 });

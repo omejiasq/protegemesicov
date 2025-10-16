@@ -47,9 +47,14 @@ export class FilesService {
     file: Express.Multer.File;
     user?: UserCtx;
   }) {
+    console.log('%capi-maintenance\src\maintenance-programs\files.service.ts:50 Entro al controller', 'color: #007acc;', );
     const file = params.file;
+    console.log(
+      '%capi-maintenance\src\maintenance-programs\files.service.ts:51 file',
+      'color: #007acc;',
+      file,
+    );
 
-    // Revalidación defensiva
     if (!file?.buffer || typeof file.size !== 'number') {
       throw new BadRequestException('Archivo inválido');
     }
@@ -57,7 +62,9 @@ export class FilesService {
       throw new BadRequestException('El archivo supera los 5MB');
     }
     if (!ALLOWED_MIME.has(file.mimetype)) {
-      throw new BadRequestException('Tipo no permitido. Solo PDF, XLSX, PNG o JPG/JPEG');
+      throw new BadRequestException(
+        'Tipo no permitido. Solo PDF, XLSX, PNG o JPG/JPEG',
+      );
     }
 
     // Guardar a través del adapter (local u oracle)
@@ -68,19 +75,34 @@ export class FilesService {
       size: file.size,
     });
 
-    // Persistimos metadatos en tu colección existente
+    // Nueva lógica de ruta: siempre resolvemos una URL/ruta válida
+    const publicBase =
+      process.env.MINIO_PUBLIC_URL || process.env.PUBLIC_BASE_URL || '';
+
+    const rutaFinal =
+      stored.url ??
+      (stored.provider === 'local'
+        ? join(this.uploadDir(), stored.key)
+        : publicBase
+          ? `${publicBase.replace(/\/+$/, '')}/${stored.key}`
+          : undefined);
+
+    if (!rutaFinal) {
+      // Sin URL pública y no local → falta configurar MINIO_PUBLIC_URL
+      throw new BadRequestException(
+        'Storage sin URL pública: configure MINIO_PUBLIC_URL',
+      );
+    }
+
     const doc = await this.model.create({
       vigiladoId: params.vigiladoId,
       nombreOriginalArchivo: file.originalname,
-      nombreAlmacenado: stored.key,          // clave única (key) del objeto
-      ruta: stored.url || (stored.provider === 'local' ? join(this.uploadDir(), stored.key) : undefined),
+      nombreAlmacenado: stored.key,
+      ruta: rutaFinal, // ← nunca undefined
       mimeType: file.mimetype,
       size: file.size,
       enterprise_id: params.user?.enterprise_id,
       createdBy: params.user?.sub,
-      // Si tu schema admite campos extra, podrías agregar:
-      // storageProvider: stored.provider,
-      // bucket: stored.bucket,
     });
 
     return {
@@ -100,7 +122,9 @@ export class FilesService {
     if (!found) throw new NotFoundException('Archivo no encontrado');
 
     // Recuperamos desde el adapter por key (documento)
-    const { base64, mimeType } = await this.storage.getBase64(found.nombreAlmacenado);
+    const { base64, mimeType } = await this.storage.getBase64(
+      found.nombreAlmacenado,
+    );
     return {
       base64,
       mimeType: found.mimeType || mimeType || 'application/octet-stream',

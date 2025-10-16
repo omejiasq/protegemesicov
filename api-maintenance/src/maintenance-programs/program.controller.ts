@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, UseGuards, Req, BadRequestException } from '@nestjs/common';
 import { JwtAuthGuard } from '../libs/auth/jwt-auth.guard';
 import { ProgramsService } from './program.service';
 import { IsInt, IsIn, IsNotEmpty, IsString } from 'class-validator';
@@ -25,9 +25,10 @@ export class ProgramsController {
   @Post('/create')
   save(@Body() dto: SaveProgramDto, @Req() req: Request) {
     const user = (req as any).user;
-    return this.svc.save(dto, user);
+    const vigiladoId = Number(user?.vigiladoId);
+    if (!vigiladoId) throw new BadRequestException('El usuario no tiene vigiladoId asignado');
+    return this.svc.save({ ...dto, vigiladoId }, user);
   }
-
   @Get('/list')
   list(@Query() q: ListProgramsQuery, @Req() req: Request) {
     const user = (req as any).user;

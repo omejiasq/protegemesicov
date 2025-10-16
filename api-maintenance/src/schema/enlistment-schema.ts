@@ -14,12 +14,6 @@ export class EnlistmentDetail {
   @Prop({ required: true, trim: true, index: true })
   placa!: string;
 
-  @Prop({ required: true, trim: true })
-  fecha!: string;
-
-  @Prop({ required: true, trim: true })
-  hora!: string;
-
   @Prop({ required: true }) tipoIdentificacion!: number;
   @Prop({ required: true, trim: true }) numeroIdentificacion!: string;
   @Prop({ required: true, trim: true }) nombresResponsable!: string;
