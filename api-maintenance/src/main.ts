@@ -5,7 +5,7 @@ function parseAllowedFromEnv(): string[] {
   // CORS_ALLOWED= https://tu-app.vercel.app, http://localhost:5173
   return (process.env.CORS_ALLOWED ?? '')
     .split(',')
-    .map(s => s.trim())
+    .map((s) => s.trim())
     .filter(Boolean);
 }
 

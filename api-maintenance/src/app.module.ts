@@ -8,6 +8,8 @@ import { PreventiveModule } from './maintenance-preventive/preventive.module';
 import { CorrectiveModule } from './maintenance-corrective/corrective.module';
 import { EnlistmentModule } from './maintenance-enlistment/enlistment.module';
 import { AuditModule } from './libs/audit/audit.module';
+import { FileModule } from './maintenance-files/files.module';
+import { StorageDebugModule } from './debug/storage-debug.module';
 
 @Module({
   imports: [
@@ -23,7 +25,9 @@ import { AuditModule } from './libs/audit/audit.module';
     ProgramsModule,
     PreventiveModule,
     CorrectiveModule,
-    EnlistmentModule
+    EnlistmentModule, 
+    FileModule,
+    StorageDebugModule
   ],
   providers: [JwtStrategy],
 })
