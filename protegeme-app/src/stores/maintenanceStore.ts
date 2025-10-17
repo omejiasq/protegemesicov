@@ -420,6 +420,7 @@ export const useMaintenanceStore = defineStore("maintenance", {
       this.corrective.error = "";
       try {
         const { data } = await MaintenanceserviceApi.createCorrective(payload);
+        console.log('%cprotegeme-app\src\stores\maintenanceStore.ts:423 data', 'color: #007acc;', data);
         this.corrective.detail = data;
         return data;
       } catch (e: any) {

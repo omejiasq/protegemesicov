@@ -86,17 +86,11 @@
           <template #body="{ data }">
             <div class="flex gap-2">
               <Button
-                icon="pi pi-pencil"
+                icon="pi pi-eye"
                 class="btn-icon-white statebutton"
-                :disabled="store.preventive.loading"
-                @click="openEdit(data)"
+                :disabled="saving || loading"
+                @click="openViewEnlistment(data)"
               />
-<!--               <Button
-                :icon="data?.estado ? 'pi pi-ban' : 'pi pi-check'"
-                class="btn-icon-white"
-                :disabled="store.preventive.loading"
-                @click="toggle(data._id)"
-              /> -->
             </div>
           </template>
         </Column>
@@ -109,45 +103,41 @@
       header="Nuevo preventivo"
       class="w-11 md:w-7 lg:w-6"
     >
-      <div class="formgrid grid dialog-body">
-        <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900">Mantenimiento</label>
-          <UiDropdownBasic
-            v-model="form.mantenimientoId"
-            :options="maintenanceOpts"
-            :disabled="store.maintenanceList.loading"
-            placeholder="Seleccioná un mantenimiento"
-            @update:modelValue="onPickMaintenance"
-          />
-          <small
-            v-if="!maintenanceOpts.length && !store.maintenanceList.loading"
-            class="text-700"
-          >
-            No hay mantenimientos disponibles.
-          </small>
-        </div>
+      <div
+        class="formgrid grid dialog-body"
+        :class="{ 'is-view-mode': viewMode }"
+      >
         <div class="field col-6 md:col-3">
           <label class="block mb-2 text-900">Placa</label>
-          <InputText v-model="form.placa" class="w-full" />
+          <InputText v-model="form.placa" class="w-full" :disabled="viewMode" />
         </div>
         <div class="field col-6 md:col-3">
-          <InputDate v-model="form.fecha" :width="'100%'" />
+          <InputDate
+            v-model="form.fecha"
+            :width="'100%'"
+            :disabled="viewMode"
+          />
         </div>
 
         <div class="field col-6 md:col-3">
-          <InputHour v-model="form.hora" :width="'100%'" />
+          <InputHour v-model="form.hora" :width="'100%'" :disabled="viewMode" />
         </div>
         <div class="field col-6 md:col-3">
-          <label class="block mb-2 text-900">NIT</label>
+          <label class="block mb-2 text-900" :disabled="viewMode">NIT</label>
           <InputText
             v-model="form.nit"
             class="w-full"
             placeholder="7007007007"
+            :disabled="viewMode"
           />
         </div>
         <div class="field col-12 md:col-6">
           <label class="block mb-2 text-900">Razón Social</label>
-          <InputText v-model="form.razonSocial" class="w-full" />
+          <InputText
+            v-model="form.razonSocial"
+            class="w-full"
+            :disabled="viewMode"
+          />
         </div>
 
         <div class="field col-6 md:col-3">
@@ -157,6 +147,7 @@
             :options="documentTypeOptions"
             placeholder="Seleccione"
             class="w-full"
+            :disabled="viewMode"
           />
         </div>
         <div class="field col-6 md:col-3">
@@ -165,6 +156,7 @@
             v-model="form.numeroIdentificacion"
             class="w-full"
             placeholder="12345678"
+            :disabled="viewMode"
           />
         </div>
         <div class="field col-12 md:col-6">
@@ -173,6 +165,7 @@
             v-model="form.nombresResponsable"
             class="w-full"
             placeholder="Juan Pérez"
+            :disabled="viewMode"
           />
         </div>
 
@@ -183,31 +176,28 @@
             rows="3"
             autoResize
             class="w-full"
+            :disabled="viewMode"
           />
         </div>
-
-        <div class="field col-12 flex justify-content-end gap-2 mt-2">
-          <Button label="Cancelar" text @click="dlg.visible = false" />
+      </div>
+      <template #footer>
+        <div class="flex justify-content-end gap-2">
           <Button
-            v-if="!isEditing"
+            label="Cerrar"
+            class="p-button-text"
+            @click="dlg.visible = false"
+          />
+          <Button
+            v-if="!viewMode"
             label="Crear"
             icon="pi pi-save"
             class="btn-dark-green"
             :loading="saving"
+            type="button"
             @click="save"
           />
-
-          <!-- Guardar (solo si estás editando) -->
-          <Button
-            v-else
-            label="Guardar"
-            icon="pi pi-save"
-            class="btn-dark-green"
-            :loading="saving"
-            @click="saveEdit"
-          />
         </div>
-      </div>
+      </template>
     </Dialog>
   </div>
 </template>
@@ -247,10 +237,14 @@ const filters = reactive({
 });
 
 const documentTypeOptions = [
-  { label: "DNI", value: 1 },
-  { label: "RUC", value: 2 },
-  { label: "Pasaporte", value: 3 },
-  { label: "Otro", value: 4 },
+  { label: "Cédula de ciudadanía", value: 1 },
+  { label: "Cédula de ciudadanía digital", value: 2 },
+  { label: "Tarjeta de identidad", value: 3 },
+  { label: "Registro civil", value: 4 },
+  { label: "Cédula de extranjería", value: 5 },
+  { label: "Pasaporte", value: 6 },
+  { label: "Permiso Especial de Permanencia (PEP)", value: 7 },
+  { label: "Documento de Identificación Extranjero (DIE)", value: 8 },
 ];
 
 /** Store computeds (preventivo) */
@@ -348,6 +342,11 @@ async function refresh() {
   await store.preventiveFetchList(params);
 }
 
+const viewMode = ref(false);
+const dialogTitle = computed(() =>
+  viewMode.value ? "Detalle de alistamiento" : "Nuevo alistamiento"
+);
+
 function clearFilters() {
   filters.mantenimientoId = "";
   page.value = 1;
@@ -402,9 +401,6 @@ function onPickMaintenance(id: string | number | null) {
 function openEdit(row: any) {
   isEditing.value = true;
   editingId.value = row?._id || null;
-
-  // Precargamos campos del form existente SIN tocar tu estructura
-  form.mantenimientoId = row?.mantenimientoId ?? form.mantenimientoId;
   form.placa = row?.placa ?? form.placa;
   form.fecha = row?.fecha ? new Date(row.fecha) : form.fecha; // si ya usás Date
   form.hora = row?.hora ?? form.hora;
@@ -423,7 +419,6 @@ function openEdit(row: any) {
 async function saveEdit() {
   if (!editingId.value) return;
   const payload = clean({
-    mantenimientoId: form.mantenimientoId?.trim(),
     placa: form.placa?.trim(),
     fecha: normDate(form.fecha),
     hora: normTime(form.hora),
@@ -465,10 +460,10 @@ watch(
   () => dlg.visible,
   (v) => {
     if (v) ensureMaintenances();
+    if (!v) viewMode.value = false;
   }
 );
 const form = reactive({
-  mantenimientoId: "",
   placa: "",
   fecha: null as any,
   hora: null as any, // ← antes era ""
@@ -483,7 +478,6 @@ const saving = ref(false);
 
 function openCreate() {
   Object.assign(form, {
-    mantenimientoId: "",
     placa: "",
     fecha: null,
     hora: "",
@@ -516,9 +510,40 @@ async function ensurePreventiveOpts() {
   }
 }
 
+async function fetchEnlistmentById(id: string) {
+  if (typeof (store as any).enlistmentGetDetail === "function") {
+    return await (store as any).enlistmentGetDetail(id);
+  }
+  const local = (store.enlistmentList.items || []).find(
+    (x: any) => x?._id === id
+  );
+  if (local) return local;
+  await store.enlistmentFetchList({ id });
+  return (
+    (store.enlistmentList.items || []).find((x: any) => x?._id === id) || null
+  );
+}
+
+function fillFormFromRow(row: any) {
+  form.placa = row?.placa ?? "";
+  form.fecha = row?.fecha ?? null;
+  form.hora = row?.hora ?? null;
+  form.tipoIdentificacion = row?.tipoIdentificacion ?? "";
+  form.numeroIdentificacion = row?.numeroIdentificacion ?? "";
+  form.nombresResponsable = row?.nombresResponsable ?? "";
+  form.detalleActividades = row?.detalleActividades ?? "";
+}
+
+async function openViewEnlistment(row: any) {
+  viewMode.value = true;
+  const id = row?._id;
+  const full = id ? await fetchEnlistmentById(id) : row;
+  fillFormFromRow(full || row);
+  dlg.visible = true;
+}
+
 async function save() {
   const payload = clean({
-    mantenimientoId: form.mantenimientoId?.trim(),
     placa: form.placa?.trim(),
     fecha: normDate(form.fecha),
     hora: normTime(form.hora), // <- si ya aplicaste el time picker
@@ -781,5 +806,24 @@ function onSearch() {
 .statebutton .p-button-icon,
 .btn-icon-white.statebutton .p-button-icon {
   color: #000 !important;
+}
+
+.is-view-mode :deep(.p-inputtext),
+.is-view-mode :deep(.p-dropdown),
+.is-view-mode :deep(.p-calendar .p-inputtext),
+.is-view-mode :deep(.p-checkbox-box),
+.is-view-mode :deep(textarea),
+.is-view-mode :deep(input),
+.is-view-mode :deep(select) {
+  filter: grayscale(100%);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.is-view-mode :deep(.p-checkbox-box.p-highlight),
+.is-view-mode :deep(.p-checkbox.p-checkbox-checked .p-checkbox-box),
+.is-view-mode :deep(.p-checkbox.p-highlight .p-checkbox-box) {
+  background: #9ca3af !important;
+  border-color: #9ca3af !important;
 }
 </style>

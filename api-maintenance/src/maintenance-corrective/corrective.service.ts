@@ -36,7 +36,7 @@ export class CorrectiveService {
       { placa: dto.placa, enterprise_id: user?.enterprise_id, estado: true },
       { $set: { estado: false } },
     );
-
+    console.log('%capi-maintenance\src\maintenance-corrective\corrective.service.ts:39 dto', 'color: #007acc;', dto);
     let mantenimientoIdLocal: string | null = dto.mantenimientoId || null;
     let mantenimientoIdExterno: string | null = null;
     const vigiladoId = user?.vigiladoId;
@@ -68,7 +68,7 @@ export class CorrectiveService {
     } else {
       mantenimientoIdExterno = null;
     }
-
+    console.log('%capi-maintenance\src\maintenance-corrective\corrective.service.ts:71 dto.nombreResponsable', 'color: #007acc;', dto.nombreResponsable);
     const doc = await this.model.create({
       enterprise_id: user?.enterprise_id,
       createdBy: user?.sub,

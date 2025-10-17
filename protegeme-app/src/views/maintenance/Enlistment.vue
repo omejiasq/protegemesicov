@@ -100,17 +100,11 @@
           <template #body="{ data }">
             <div class="flex gap-2">
               <Button
-                icon="pi pi-pencil"
+                icon="pi pi-eye"
                 class="btn-icon-white statebutton"
                 :disabled="saving || loading"
-                @click="openEditEnlistment(data)"
+                @click="openViewEnlistment(data)"
               />
-              <!--               <Button
-                :icon="data?.estado ? 'pi pi-ban' : 'pi pi-check'"
-                class="btn-icon-white statebutton"
-                :disabled="saving || loading"
-                @click="toggleEnlistment(data._id)"
-              /> -->
             </div>
           </template>
         </Column>
@@ -127,7 +121,7 @@
       :contentStyle="{ overflowY: 'visible', maxHeight: 'none' }"
     >
       <!-- wrapper de grilla para 2 columnas -->
-      <div class="formgrid grid">
+      <div class="formgrid grid" :class="{ 'is-view-mode': viewMode }">
         <!--         <div class="field col-12">
           <label class="block mb-2 text-900">Mantenimiento</label>
           <UiDropdownBasic
@@ -141,10 +135,10 @@
 
         <div class="field col-12 md:col-6">
           <label class="block mb-2 text-900">Placa</label>
-          <InputText v-model="form.placa" class="w-full" />
+          <InputText v-model="form.placa" class="w-full" :disabled="viewMode" />
         </div>
 
-<!--         <div class="field col-12 md:col-6">
+        <!--         <div class="field col-12 md:col-6">
           <InputDate v-model="form.fecha" :width="'100%'" />
         </div>
 
@@ -161,6 +155,7 @@
             :options="documentTypeOptions"
             placeholder="Seleccione"
             class="w-full"
+            :disabled="viewMode" 
           />
         </div>
 
@@ -172,6 +167,7 @@
             v-model="form.numeroIdentificacion"
             placeholder="12345678"
             class="w-full"
+            :disabled="viewMode" 
           />
         </div>
 
@@ -181,6 +177,7 @@
             v-model="form.nombresResponsable"
             placeholder="Juan Pérez"
             class="w-full"
+            :disabled="viewMode" 
           />
         </div>
         <div class="field col-12 md:col-6">
@@ -191,6 +188,7 @@
             v-model="form.tipoIdentificacionConductor"
             :options="documentTypeOptions"
             placeholder="Seleccioná tipo de documento"
+            :disabled="viewMode" 
           />
         </div>
 
@@ -202,6 +200,7 @@
             v-model="form.numeroIdentificacionConductor"
             placeholder="12345678"
             class="w-full"
+            :disabled="viewMode" 
           />
         </div>
 
@@ -211,6 +210,7 @@
             v-model="form.nombresConductor"
             placeholder="María Gómez"
             class="w-full"
+            :disabled="viewMode" 
           />
         </div>
         <div class="field col-12 md:col-6">
@@ -219,6 +219,7 @@
             v-model="form.detalleActividades"
             placeholder="Indique detalle"
             class="w-full"
+            :disabled="viewMode" 
           />
         </div>
 
@@ -229,10 +230,7 @@
             :key="act._id || act.id || act.value"
             class="col-12 md:col-6 flex align-items-center"
           >
-            <Checkbox
-              v-model="form.actividades"
-              :value="+(act.id)"
-            />
+            <Checkbox v-model="form.actividades" :value="+act.id" :disabled="viewMode" />
             <label class="ml-2">
               {{ act.nombre ?? act.label ?? act.descripcion ?? act._id }}
             </label>
@@ -246,29 +244,18 @@
       <template #footer>
         <div class="flex justify-content-end gap-2">
           <Button
-            label="Cancelar"
+            label="Cerrar"
             class="p-button-text"
             @click="dlg.visible = false"
           />
           <Button
-            v-if="!isEditingEnlistment"
+            v-if="!viewMode"
             label="Crear"
             icon="pi pi-save"
             class="btn-dark-green"
             :loading="saving"
             type="button"
             @click="save"
-          />
-
-          <!-- Guardar (solo en modo edición) -->
-          <Button
-            v-else
-            label="Guardar"
-            icon="pi pi-save"
-            class="btn-dark-green"
-            :loading="saving"
-            type="button"
-            @click="saveEditEnlistment"
           />
         </div>
       </template>
@@ -324,6 +311,49 @@ const documentTypeOptions = [
 
 const isEditingEnlistment = ref(false);
 const editingEnlistmentId = ref<string | null>(null);
+
+const viewMode = ref(false);
+const dialogTitle = computed(() =>
+  viewMode.value ? "Detalle de alistamiento" : "Nuevo alistamiento"
+);
+
+async function fetchEnlistmentById(id: string) {
+  if (typeof (store as any).enlistmentGetDetail === "function") {
+    return await (store as any).enlistmentGetDetail(id);
+  }
+  const local = (store.enlistmentList.items || []).find(
+    (x: any) => x?._id === id
+  );
+  if (local) return local;
+  await store.enlistmentFetchList({ id });
+  return (
+    (store.enlistmentList.items || []).find((x: any) => x?._id === id) || null
+  );
+}
+
+function fillFormFromRow(row: any) {
+  form.placa = row?.placa ?? "";
+  form.fecha = row?.fecha ?? null;
+  form.hora = row?.hora ?? null;
+  form.tipoIdentificacion = row?.tipoIdentificacion ?? "";
+  form.numeroIdentificacion = row?.numeroIdentificacion ?? "";
+  form.nombresResponsable = row?.nombresResponsable ?? "";
+  form.tipoIdentificacionConductor = row?.tipoIdentificacionConductor ?? "";
+  form.numeroIdentificacionConductor = row?.numeroIdentificacionConductor ?? "";
+  form.nombresConductor = row?.nombresConductor ?? "";
+  form.detalleActividades = row?.detalleActividades ?? "";
+  form.actividades = Array.isArray(row?.actividades)
+    ? row.actividades.map((v: any) => (typeof v === "number" ? v : String(v)))
+    : [];
+}
+
+async function openViewEnlistment(row: any) {
+  viewMode.value = true;
+  const id = row?._id;
+  const full = id ? await fetchEnlistmentById(id) : row;
+  fillFormFromRow(full || row);
+  dlg.visible = true;
+}
 
 // Abre modal en modo edición y precarga SOLO campos editables
 function openEditEnlistment(row: any) {
@@ -568,6 +598,7 @@ watch(
     if (!v) {
       isEditingEnlistment.value = false;
       editingEnlistmentId.value = null;
+      if (!v) viewMode.value = false;
     }
   }
 );
@@ -582,7 +613,7 @@ const form = reactive({
   numeroIdentificacionConductor: "",
   nombresConductor: "",
   detalleActividades: "",
-  actividades: [] as number[], 
+  actividades: [] as number[],
 });
 
 const loading = computed(() => store.enlistmentList.loading);
@@ -612,7 +643,7 @@ function normalize(r: any) {
 }
 
 function fmtDate(s?: string) {
-  if (!s) return '—';
+  if (!s) return "—";
   // YYYY-MM-DD → DD/MM/YYYY (sin TZ, sin corrimientos)
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s.trim());
   if (m) return `${m[3]}/${m[2]}/${m[1]}`;
@@ -719,8 +750,7 @@ async function save() {
     actividades: Array.isArray(form.actividades)
       ? form.actividades.map(Number)
       : undefined,
-  }
-);
+  });
 
   // Requeridos reales para guardar-alistamiento
   const req = [
@@ -1005,6 +1035,16 @@ onMounted(async () => {
   overflow-y: visible;
 }
 
+:deep(.p-checkbox-box.p-highlight),
+:deep(.p-checkbox.p-checkbox-checked .p-checkbox-box),
+:deep(.p-checkbox.p-highlight .p-checkbox-box) {
+  background: #16a34a !important;
+  border-color: #16a34a !important;
+}
+:deep(.p-checkbox .p-checkbox-icon) {
+  color: #fff !important;
+}
+
 .btn-icon-white {
   background: #ffffff !important; /* fondo blanco */
   border: 1px solid transparent !important;
@@ -1034,5 +1074,24 @@ onMounted(async () => {
 .statebutton .p-button-icon,
 .btn-icon-white.statebutton .p-button-icon {
   color: #000 !important;
+}
+
+.is-view-mode :deep(.p-inputtext),
+.is-view-mode :deep(.p-dropdown),
+.is-view-mode :deep(.p-calendar .p-inputtext),
+.is-view-mode :deep(.p-checkbox-box),
+.is-view-mode :deep(textarea),
+.is-view-mode :deep(input),
+.is-view-mode :deep(select) {
+  filter: grayscale(100%);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.is-view-mode :deep(.p-checkbox-box.p-highlight),
+.is-view-mode :deep(.p-checkbox.p-checkbox-checked .p-checkbox-box),
+.is-view-mode :deep(.p-checkbox.p-highlight .p-checkbox-box) {
+  background: #9ca3af !important;
+  border-color: #9ca3af !important;
 }
 </style>

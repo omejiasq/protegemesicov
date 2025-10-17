@@ -2,11 +2,12 @@
   <div :style="{ width }">
     <label class="block mb-2" for="input-hour">Hora</label>
     <Calendar
-      v-model="calendarValue"
+      v-model="inner"
       timeOnly
       hourFormat="24"
+      :stepHour="step"
       :stepMinute="step"
-      :readonlyInput="readonlyInput"
+      :readonlyInput="false"
       :placeholder="placeholder"
       :disabled="disabled"
       :showIcon="showIcon"
@@ -28,12 +29,12 @@ const props = defineProps({
   disabled: { type: Boolean, default: false },
   readonlyInput: { type: Boolean, default: true },
   showIcon: { type: Boolean, default: true },
-  step: { type: Number, default: 15 },
+  step: { type: Number, default: 1 },
   emitAs: { type: String as PropType<'date' | 'hh:mm'>, default: 'date' }, // por defecto Date
 });
 
 const emit = defineEmits(['update:modelValue', 'change']);
-
+const inner = ref<Date | null>(null)
 const calendarValue = ref<Date | null>(null);
 
 // parsea HH:mm o Date o null a Date

@@ -94,17 +94,11 @@
           <template #body="{ data }">
             <div class="flex gap-2">
               <Button
-                icon="pi pi-pencil"
+                icon="pi pi-eye"
                 class="btn-icon-white statebutton"
                 :disabled="saving || loading"
-                @click="openEditCorrective(data)"
+                @click="openViewEnlistment(data)"
               />
-<!--               <Button
-                :icon="data?.estado ? 'pi pi-ban' : 'pi pi-check'"
-                class="btn-icon-white"
-                :disabled="saving || loading"
-                @click="toggleCorrective(data._id)"
-              /> -->
             </div>
           </template>
         </Column>
@@ -119,8 +113,8 @@
       class="dialog-body"
       :style="{ width: '720px' }"
     >
-      <div class="formgrid grid">
-        <div class="field col-12">
+      <div class="formgrid grid" :class="{ 'is-view-mode': viewMode }">
+        <!--         <div class="field col-12">
           <label class="block mb-2 text-900">Selecciona un mantenimiento</label>
           <UiDropdownBasic
             v-model="form.mantenimientoId"
@@ -129,72 +123,110 @@
             placeholder="Seleccioná un mantenimiento"
             @update:modelValue="onPickMaintenance"
           />
-        </div>
+        </div> -->
 
         <div class="field col-12 md:col-6">
           <label class="block mb-2 text-900">Placa</label>
-          <InputText v-model="form.placa" class="w-full" />
+          <InputText v-model="form.placa" class="w-full" :disabled="viewMode" />
         </div>
 
         <div class="field col-12 md:col-6">
-          <InputDate v-model="form.fecha" :width="'100%'" />
+          <InputDate
+            v-model="form.fecha"
+            :width="'100%'"
+            :disabled="viewMode"
+          />
         </div>
 
         <div class="field col-12 md:col-6">
-          <InputHour v-model="form.hora" :width="'100%'" />
+          <InputHour v-model="form.hora" :width="'100%'" :disabled="viewMode" />
         </div>
 
         <div class="field col-12 md:col-6">
           <label class="block mb-2 text-900">NIT</label>
-          <InputText v-model="form.nit" class="w-full" />
+          <InputText v-model="form.nit" class="w-full" :disabled="viewMode" />
         </div>
 
-        <div class="field col-12">
+        <div class="field md:col-6">
+          <label class="block mb-2 text-900">Nombre Responsable</label>
+          <InputText
+            v-model="form.nombreResponsable"
+            class="w-full"
+            :disabled="viewMode"
+          />
+        </div>
+
+        <div class="field md:col-6">
+          <label class="block mb-2 text-900">Tipo identificacion</label>
+          <UiDropdownBasic
+            v-model="form.tipoIdentificacion"
+            :options="documentTypeOptions"
+            placeholder="Seleccioná tipo de documento"
+            :disabled="viewMode"
+          />
+        </div>
+        <div class="field md:col-6">
+          <label class="block mb-2 text-900">Numero de Identificacion</label>
+          <InputText
+            v-model="form.numeroIdentificacion"
+            class="w-full"
+            :disabled="viewMode"
+          />
+        </div>
+        <div class="field md:col-6">
           <label class="block mb-2 text-900">Razón Social</label>
-          <InputText v-model="form.razonSocial" class="w-full" />
+          <InputText
+            v-model="form.razonSocial"
+            class="w-full"
+            :disabled="viewMode"
+          />
         </div>
 
         <div class="field col-12">
           <label class="block mb-2 text-900">Descripción de la falla</label>
-          <Textarea v-model="form.descripcionFalla" rows="3" class="w-full" />
+          <Textarea
+            v-model="form.descripcionFalla"
+            rows="3"
+            class="w-full"
+            :disabled="viewMode"
+          />
         </div>
 
         <div class="field col-12">
           <label class="block mb-2 text-900">Acciones realizadas</label>
-          <Textarea v-model="form.accionesRealizadas" rows="3" class="w-full" />
+          <Textarea
+            v-model="form.accionesRealizadas"
+            rows="3"
+            class="w-full"
+            :disabled="viewMode"
+          />
         </div>
 
         <div class="field col-12">
           <label class="block mb-2 text-900">Detalle de actividades</label>
-          <Textarea v-model="form.detalleActividades" rows="4" class="w-full" />
+          <Textarea
+            v-model="form.detalleActividades"
+            :disabled="viewMode"
+            rows="4"
+            class="w-full"
+          />
         </div>
       </div>
       <template #footer>
         <div class="flex justify-content-end gap-2">
           <Button
-            label="Cancelar"
+            label="Cerrar"
             class="p-button-text"
             @click="dlg.visible = false"
           />
           <Button
-            v-if="!isEditingCorrective"
+            v-if="!viewMode"
             label="Crear"
             icon="pi pi-save"
             class="btn-dark-green"
             :loading="saving"
             type="button"
             @click="save"
-          />
-
-          <!-- Guardar (solo en modo edición) -->
-          <Button
-            v-else
-            label="Guardar"
-            icon="pi pi-save"
-            class="btn-dark-green"
-            :loading="saving"
-            type="button"
-            @click="saveEditCorrective"
           />
         </div>
       </template>
@@ -284,6 +316,37 @@ async function saveEditCorrective() {
   }
 }
 
+async function fetchEnlistmentById(id: string) {
+  if (typeof (store as any).enlistmentGetDetail === "function") {
+    return await (store as any).enlistmentGetDetail(id);
+  }
+  const local = (store.enlistmentList.items || []).find(
+    (x: any) => x?._id === id
+  );
+  if (local) return local;
+  await store.enlistmentFetchList({ id });
+  return (
+    (store.enlistmentList.items || []).find((x: any) => x?._id === id) || null
+  );
+}
+
+function fillFormFromRow(row: any) {
+  form.placa = row?.placa ?? "";
+  form.fecha = row?.fecha ?? null;
+  form.hora = row?.hora ?? null;
+  form.tipoIdentificacion = row?.tipoIdentificacion ?? "";
+  form.numeroIdentificacion = row?.numeroIdentificacion ?? "";
+  form.detalleActividades = row?.detalleActividades ?? "";
+}
+
+async function openViewEnlistment(row: any) {
+  viewMode.value = true;
+  const id = row?._id;
+  const full = id ? await fetchEnlistmentById(id) : row;
+  fillFormFromRow(full || row);
+  dlg.visible = true;
+}
+
 // Activar/Desactivar
 async function toggleCorrective(id: string) {
   try {
@@ -307,6 +370,22 @@ async function toggleCorrective(id: string) {
   }
 }
 
+const documentTypeOptions = [
+  { label: "Cédula de ciudadanía", value: 1 },
+  { label: "Cédula de ciudadanía digital", value: 2 },
+  { label: "Tarjeta de identidad", value: 3 },
+  { label: "Registro civil", value: 4 },
+  { label: "Cédula de extranjería", value: 5 },
+  { label: "Pasaporte", value: 6 },
+  { label: "Permiso Especial de Permanencia (PEP)", value: 7 },
+  { label: "Documento de Identificación Extranjero (DIE)", value: 8 },
+];
+
+const viewMode = ref(false);
+const dialogTitle = computed(() =>
+  viewMode.value ? "Detalle de alistamiento" : "Nuevo alistamiento"
+);
+
 const saving = ref(false);
 const filters = reactive({ mantenimientoId: "", placa: "" });
 const dlg = reactive({ visible: false });
@@ -314,15 +393,19 @@ watch(
   () => dlg.visible,
   (v) => {
     if (v) ensureMaintenances();
+    if (!v) viewMode.value = false
   }
 );
 const form = reactive({
   mantenimientoId: "",
+  nombreResponsable: "",
   placa: "",
   fecha: null as any,
   hora: null as any,
   nit: "",
   razonSocial: "",
+  tipoIdentificacion: "",
+  numeroIdentificacion: "",
   descripcionFalla: "",
   accionesRealizadas: "",
   detalleActividades: "",
@@ -476,7 +559,9 @@ function toInt(v: any) {
 async function save() {
   // 1) Armar payload ANTES de limpiar el form
   const payload: any = {
-    mantenimientoId: String(form.mantenimientoId || "").trim(),
+    nombresResponsable: form.nombreResponsable,
+    tipoIdentificacion: form.tipoIdentificacion,
+    numeroIdentificacion: form.numeroIdentificacion,
     placa: form.placa?.trim(),
     fecha: normDate(form.fecha),
     hora: normTime(form.hora),
@@ -488,7 +573,7 @@ async function save() {
   };
 
   // 2) Validación mínima (evita pelear con el back al pedo)
-  const req = ["mantenimientoId", "placa", "fecha", "hora"];
+  const req = ["placa", "fecha", "hora"];
   const missing = req.filter((k) => !payload[k]);
   if (missing.length) {
     toast?.add?.({
@@ -758,9 +843,9 @@ onMounted(() => {
 }
 
 .btn-icon-white {
-  background: #ffffff !important;       /* fondo blanco */
+  background: #ffffff !important; /* fondo blanco */
   border: 1px solid transparent !important;
-  color: #000000 !important;            /* texto (por si hubiera) */
+  color: #000000 !important; /* texto (por si hubiera) */
   box-shadow: none !important;
   min-width: 36px;
   height: 36px;
@@ -772,7 +857,7 @@ onMounted(() => {
 
 /* icono dentro del botón */
 .btn-icon-white .p-button-icon {
-  color: #000000 !important;            /* icono negro */
+  color: #000000 !important; /* icono negro */
   font-size: 1.05rem;
 }
 
@@ -786,5 +871,24 @@ onMounted(() => {
 .statebutton .p-button-icon,
 .btn-icon-white.statebutton .p-button-icon {
   color: #000 !important;
+}
+
+.is-view-mode :deep(.p-inputtext),
+.is-view-mode :deep(.p-dropdown),
+.is-view-mode :deep(.p-calendar .p-inputtext),
+.is-view-mode :deep(.p-checkbox-box),
+.is-view-mode :deep(textarea),
+.is-view-mode :deep(input),
+.is-view-mode :deep(select) {
+  filter: grayscale(100%);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.is-view-mode :deep(.p-checkbox-box.p-highlight),
+.is-view-mode :deep(.p-checkbox.p-checkbox-checked .p-checkbox-box),
+.is-view-mode :deep(.p-checkbox.p-highlight .p-checkbox-box) {
+  background: #9ca3af !important;
+  border-color: #9ca3af !important;
 }
 </style>
