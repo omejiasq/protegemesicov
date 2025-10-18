@@ -27,13 +27,106 @@ export class AuthorizationService {
     private readonly audit: AuditService, // 👈 NUEVO: inyectamos auditoría
   ) {}
 
+  private mapItemToExternal(it: any, mantenimientoId: number) {
+    const toStr = (v: any) => (v == null ? '' : String(v).trim());
+    const toNum = (v: any) => (v == null || v === '' ? undefined : Number(v));
+
+    return {
+      // clave del endpoint
+      mantenimientoId: Number(mantenimientoId),
+
+      // viaje
+      fechaViaje: it.fechaViaje,
+      origen: toStr(it.origen), // la externa lo trata como string (código)
+      destino: toStr(it.destino), // idem
+
+      // NNA
+      tipoIdentificacionNna: toNum(it.tipoIdentificacionNna),
+      numeroIdentificacionNna: toStr(it.numeroIdentificacionNna),
+      nombresApellidosNna: it.nombresApellidosNna,
+      situacionDiscapacidad: toStr(it.situacionDiscapacidad), // "SI" | "NO"
+      tipoDiscapacidad: toNum(it.tipoDiscapacidad), // number requerido por tu schema
+      perteneceComunidadEtnica: toStr(it.perteneceComunidadEtnica), // "SI" | "NO"
+      tipoPoblacionEtnica: toNum(it.tipoPoblacionEtnica), // number requerido por tu schema
+
+      // Otorgante
+      tipoIdentificacionOtorgante: toNum(it.tipoIdentificacionOtorgante),
+      numeroIdentificacionOtorgante: toStr(it.numeroIdentificacionOtorgante),
+      nombresApellidosOtorgante: it.nombresApellidosOtorgante,
+      numeroTelefonicoOtorgante: toStr(it.numeroTelefonicoOtorgante),
+      correoElectronicoOtorgante: it.correoElectronicoOtorgante,
+      direccionFisicaOtorgante: it.direccionFisicaOtorgante,
+      sexoOtorgante: toNum(it.sexoOtorgante),
+      generoOtorgante: toNum(it.generoOtorgante),
+      // 🔴 nombre que espera la externa (tu schema lo guarda como 'calidadActual')
+      calidadActua: toNum(it.calidadActua),
+
+      // Autorizado a viajar
+      tipoIdentificacionAutorizadoViajar: toNum(
+        it.tipoIdentificacionAutorizadoViajar,
+      ),
+      numeroIdentificacionAutorizadoViajar: toStr(
+        it.numeroIdentificacionAutorizadoViajar,
+      ),
+      nombresApellidosAutorizadoViajar: it.nombresApellidosAutorizadoViajar,
+      numeroTelefonicoAutorizadoViajar: toStr(
+        it.numeroTelefonicoAutorizadoViajar,
+      ),
+      direccionFisicaAutorizadoViajar: it.direccionFisicaAutorizadoViajar,
+
+      // Autorizado a recoger
+      tipoIdentificacionAutorizadoRecoger: toNum(
+        it.tipoIdentificacionAutorizadoRecoger,
+      ),
+      numeroIdentificacionAutorizadoRecoger: toStr(
+        it.numeroIdentificacionAutorizadoRecoger,
+      ),
+      nombresApellidosAutorizadoRecoger: it.nombresApellidosAutorizadoRecoger,
+      numeroTelefonicoAutorizadoRecoger: toStr(
+        it.numeroTelefonicoAutorizadoRecoger,
+      ),
+      direccionFisicaAutorizadoRecoger: it.direccionFisicaAutorizadoRecoger,
+
+      // Archivos
+      copiaAutorizacionViajeNombreOriginal:
+        it.copiaAutorizacionViajeNombreOriginal,
+      copiaAutorizacionViajeDocumento: it.copiaAutorizacionViajeDocumento,
+      copiaAutorizacionViajeRuta: it.copiaAutorizacionViajeRuta,
+
+      copiaDocumentoParentescoNombreOriginal:
+        it.copiaDocumentoParentescoNombreOriginal,
+      copiaDocumentoParentescoDocumento: it.copiaDocumentoParentescoDocumento,
+      copiaDocumentoParentescoRuta: it.copiaDocumentoParentescoRuta,
+
+      copiaDocumentoIdentidadAutorizadoNombreOriginal:
+        it.copiaDocumentoIdentidadAutorizadoNombreOriginal,
+      copiaDocumentoIdentidadAutorizadoDocumento:
+        it.copiaDocumentoIdentidadAutorizadoDocumento,
+      copiaDocumentoIdentidadAutorizadoRuta:
+        it.copiaDocumentoIdentidadAutorizadoRuta,
+
+      copiaConstanciaEntregaNombreOriginal:
+        it.copiaConstanciaEntregaNombreOriginal,
+      copiaConstanciaEntregaDocumento: it.copiaConstanciaEntregaDocumento,
+      copiaConstanciaEntregaRuta: it.copiaConstanciaEntregaRuta,
+    };
+  }
+
   /** Helper para filtrar por tenant si viene enterprise_id */
   private tenantFilter(user?: { enterprise_id?: string }): AnyObj {
     return user?.enterprise_id ? { enterprise_id: user.enterprise_id } : {};
   }
 
   /** Crea la autorización local y la registra en SICOV (mantenimiento tipoId=4 + autorización). */
-  async create(data: any, user?: { enterprise_id?: string; sub?: string }) {
+  async create(
+    data: any,
+    user?: {
+      enterprise_id?: string;
+      sub?: string;
+      vigiladoId: string;
+      vigiladoToken: string;
+    },
+  ) {
     // 0) validar y normalizar idDespacho ANTES de crear el doc
     const idDespacho = Number(data?.idDespacho);
     if (!Number.isFinite(idDespacho)) {
@@ -42,75 +135,107 @@ export class AuthorizationService {
       );
     }
 
+    // ✨ NUEVO: normalizar autorizacion[] y placa
+    const asSiNo = (v: any) =>
+      String(v).trim().toUpperCase() === 'SI' ? 'SI' : 'NO';
+
+    const toNum = (v: any) => {
+      const n = Number(v);
+      if (Number.isNaN(n))
+        throw new BadRequestException('Código numérico inválido');
+      return n;
+    };
+
+    const autorizacionArr = Array.isArray(data?.autorizacion)
+      ? data.autorizacion
+          .filter((x) => x && typeof x === 'object')
+          .map((x) => ({
+            ...x,
+            situacionDiscapacidad: asSiNo(x.situacionDiscapacidad),
+            perteneceComunidadEtnica: asSiNo(x.perteneceComunidadEtnica),
+            tipoDiscapacidad: toNum(x.tipoDiscapacidad),
+            tipoPoblacionEtnica: toNum(x.tipoPoblacionEtnica),
+          }))
+      : [];
+
     // 1) crear doc local con los campos requeridos por el schema
-    const doc = await this.model.create({
-      idDespacho, // 👈 requerido por el schema
-      enterprise_id: user?.enterprise_id,
-      createdBy: user?.sub,
-      // agrega acá otros campos que tu schema marque como required
-      // (por ej. estado: true) si corresponde
-    });
 
     // 2) preparar envío a SICOV
-    const item = Array.isArray(data?.autorizacion)
-      ? data.autorizacion[0]
-      : undefined;
-    const placa = item?.placa || data?.placa;
-    const ctx = { userId: user?.sub, enterpriseId: user?.enterprise_id };
 
-    // 3) si no hay datos mínimos para el externo, auditar local y salir
-    if (!placa || !item) {
-      await this.audit.log({
-        module: 'authorizations',
-        operation: 'create.local-only',
-        endpoint: 'internal',
-        requestPayload: {
-          id: String(doc._id),
-          idDespacho,
-          placa,
-          hasItem: !!item,
-        },
-        responseStatus: 200,
-        responseBody: {
-          reason: 'missing placa or autorizacion[0], external skipped',
-        },
-        success: true,
-        userId: ctx.userId,
-        enterpriseId: ctx.enterpriseId,
-      });
-      return doc.toJSON();
-    }
+    const item = autorizacionArr[0]; // tu flujo usa el primero
+    const placa =
+      (item?.placa || data?.placa || '').toString().trim().toUpperCase() ||
+      undefined;
+    const ctx = {
+      userId: user?.sub,
+      enterpriseId: user?.enterprise_id,
+      vigiladoId: user?.vigiladoId ? String(user.vigiladoId) : undefined,
+      vigiladoToken: user?.vigiladoToken,
+    };
+
+    const doc = await this.model.create({
+      idDespacho,
+      placa,
+      autorizacion: autorizacionArr, // ← ahora NO queda vacío
+      enterprise_id: user?.enterprise_id,
+      createdBy: user?.sub,
+      estado: true, // si tu schema lo tiene por defecto, igual no molesta
+    });
 
     // 4) llamadas a la API externa (auditan dentro del ExternalApiService)
     try {
-      const baseRes = await this.external.guardarMantenimientoBase(placa, ctx);
-      const b = baseRes?.data ?? {};
-      const mantenimientoId =
-        b?.mantenimientoId ??
-        b?.id ??
-        b?.data?.mantenimientoId ??
-        b?.data?.id ??
-        null;
+      // --- guardar mantenimiento base (tipo 4) ---
+      const baseRes = await this.external.guardarMantenimientoBase({
+        placa,
+        vigiladoId: ctx.vigiladoId,
+        vigiladoToken: ctx.vigiladoToken,
+      });
+
+      let mantenimientoId: number | null = null;
+      if (baseRes && 'data' in baseRes) {
+        // ← narrowing
+        const b: any = baseRes.data;
+        const mid =
+          b?.mantenimientoId ??
+          b?.id ??
+          b?.data?.mantenimientoId ??
+          b?.data?.id;
+        if (mid != null && !Number.isNaN(Number(mid))) {
+          mantenimientoId = Number(mid);
+        }
+      }
 
       if (mantenimientoId != null) {
-        const authRes = await this.external.guardarAutorizacion(
-          Number(mantenimientoId),
-          item,
-          ctx,
-        );
-        const ar = authRes?.data ?? {};
-        const externalId =
-          ar?.id ?? ar?.autorizacion?.id ?? ar?.data?.id ?? null;
+        // --- guardar autorización ---
+        const item = autorizacionArr[0];
 
-        if (externalId != null) {
-          await this.model.updateOne(
-            { _id: doc._id },
-            { $set: { mantenimientoId, externalId: Number(externalId) } },
-          );
+        // 👇 mapeamos EXACTO lo que espera la API externa
+        const payloadExterno = this.mapItemToExternal(item, mantenimientoId);
+        console.log('%capi-authorizations\src\authorizations\authorizations.service.ts:214 mantenimientoId', 'color: #007acc;', mantenimientoId);
+        // 👇 ctx viene de tu JWT (vigiladoId/vigiladoToken incluidos) — no toques eso
+        const authRes = await this.external.guardarAutorizacion({
+          mantenimientoId,
+          item: payloadExterno, // 🔴 ahora sí va el shape correcto
+          vigiladoId: ctx.vigiladoId,
+          vigiladoToken: ctx.vigiladoToken,
+        });
+
+        if (authRes && 'data' in authRes) {
+          // ← narrowing
+          const ar: any = authRes.data;
+          const externalId =
+            ar?.id ?? ar?.autorizacion?.id ?? ar?.data?.id ?? null;
+
+          if (externalId != null && !Number.isNaN(Number(externalId))) {
+            await this.model.updateOne(
+              { _id: doc._id },
+              { $set: { mantenimientoId, externalId: Number(externalId) } },
+            );
+          }
         }
       }
     } catch {
-      // no bloquear la operación local si falla el externo; la auditoría ya quedó escrita por el external
+      // ignora fallo externo; audita el ExternalApiService
     }
 
     return doc.toJSON();
@@ -134,7 +259,7 @@ export class AuthorizationService {
     if (item.mantenimientoId) {
       try {
         const res = await this.external.visualizarAutorizacion(
-          Number(item.mantenimientoId),
+          item.mantenimientoId,
         );
         if (res?.ok) item.externalData = res.data;
       } catch {

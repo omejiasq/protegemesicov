@@ -20,50 +20,70 @@ export const useAuthorizationStore = defineStore("authorization", {
 
   actions: {
     /* ===== Listado ===== */
-    async authorizationFetchList(params?: {
-      page?: number;
-      numero_items?: number;
+    async authorizationFetchAll(params?: {
+      filters?: Record<string, any>;
+      pageSize?: number; // tamaño por tirada contra el backend (default 1000)
+      hardCap?: number; // opcional, límite de seguridad
     }) {
       const list = this.authorizationList;
       list.loading = true;
       list.error = "";
 
-      // Actualizar pagina/limit si vienen por params
-      if (params) {
-        if (typeof params.page === "number") list.page = params.page;
-        if (typeof params.numero_items === "number")
-          list.limit = params.numero_items;
-      }
-
       try {
-        // SOLO enviamos page y numero_items (sin filtros)
-        const query = {
-          page: list.page,
-          numero_items: list.limit,
-        };
+        const limit = Math.max(1, Number(params?.pageSize) || 1000);
+        const f = { ...(list.filters || {}), ...(params?.filters || {}) };
 
-        const resp: any = await AuthorizationsserviceApi.authorizationList(
-          query
-        );
+        // armo filtro base (placa en mayúsculas)
+        const baseQ: any = {};
+        if (typeof f.placa === "string" && f.placa.trim()) {
+          baseQ.placa = f.placa.trim().toUpperCase();
+        } else if (typeof f.plate === "string" && f.plate.trim()) {
+          baseQ.placa = f.plate.trim().toUpperCase();
+        }
 
-        // Soporta axios (resp.data) o payload directo
-        const payload =
-          resp && typeof resp === "object" && "data" in resp ? resp.data : resp;
-        const arr = Array.isArray(payload)
-          ? payload
-          : Array.isArray(payload?.items)
-          ? payload.items
-          : Array.isArray(payload?.data)
-          ? payload.data
-          : [];
+        let page = 1;
+        let acc: AnyObj[] = [];
+        let total = 0;
 
-        list.items = Array.isArray(arr) ? arr : [];
-        list.total =
-          typeof payload?.total === "number"
-            ? payload.total
-            : list.items.length;
+        // loop hasta traer todo
+        while (true) {
+          const q = { ...baseQ, page, numero_items: limit, _ts: Date.now() };
+          const resp: any = await AuthorizationsserviceApi.authorizationList(q);
+          const payload =
+            resp && typeof resp === "object" && "data" in resp
+              ? resp.data
+              : resp;
 
-        return payload;
+          const chunk = Array.isArray(payload)
+            ? payload
+            : Array.isArray(payload?.items)
+            ? payload.items
+            : Array.isArray(payload?.data)
+            ? payload.data
+            : [];
+
+          total = Number(
+            payload?.total ?? payload?.count ?? acc.length + chunk.length
+          );
+          acc = acc.concat(chunk);
+
+          if (
+            chunk.length < limit ||
+            acc.length >= total ||
+            (params?.hardCap && acc.length >= params.hardCap)
+          )
+            break;
+
+          page++;
+        }
+
+        // dejo la lista completa para client-side paging
+        list.items = acc;
+        list.total = acc.length;
+        list.page = 1; // siempre arranca en 1
+        // no toco list.limit: lo decide la tabla (10/20/50/100)
+
+        return { items: acc, total: acc.length };
       } catch (e: any) {
         list.error =
           e?.response?.data?.message ||
@@ -136,7 +156,11 @@ export const useAuthorizationStore = defineStore("authorization", {
           resp && typeof resp === "object" && "data" in resp ? resp.data : resp;
 
         // actualizar detalle si coincide
-        console.log('%cprotegeme-app\src\stores\authorizationStore.ts:139 payload', 'color: #007acc;', payload);
+        console.log(
+          "%cprotegeme-appsrcstoresauthorizationStore.ts:139 payload",
+          "color: #007acc;",
+          payload
+        );
         if (
           this.authorization.detail &&
           (this.authorization.detail as AnyObj)._id === id

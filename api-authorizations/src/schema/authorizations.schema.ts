@@ -8,8 +8,10 @@ type SiNo = 'SI' | 'NO';
 @Schema({ _id: false })
 export class AuthorizationItem {
   @Prop({ required: true }) fechaViaje!: string;
-  @Prop({ required: true }) origen!: string;    
+  @Prop({ required: true }) origen!: string;
   @Prop({ required: true }) destino!: string;
+  @Prop({ required: true })
+  placa?: string;
 
   @Prop({ required: true, type: Number }) tipoIdentificacionNna!: number;
   @Prop({ required: true }) numeroIdentificacionNna!: string;
@@ -29,13 +31,15 @@ export class AuthorizationItem {
   @Prop({ required: true, type: Number }) generoOtorgante!: number;
   @Prop({ required: true, type: Number }) calidadActua!: number;
 
-  @Prop({ required: true, type: Number }) tipoIdentificacionAutorizadoViajar!: number;
+  @Prop({ required: true, type: Number })
+  tipoIdentificacionAutorizadoViajar!: number;
   @Prop({ required: true }) numeroIdentificacionAutorizadoViajar!: string;
   @Prop({ required: true }) nombresApellidosAutorizadoViajar!: string;
   @Prop({ required: true }) numeroTelefonicoAutorizadoViajar!: string;
   @Prop({ required: true }) direccionFisicaAutorizadoViajar!: string;
 
-  @Prop({ required: true, type: Number }) tipoIdentificacionAutorizadoRecoger!: number;
+  @Prop({ required: true, type: Number })
+  tipoIdentificacionAutorizadoRecoger!: number;
   @Prop({ required: true }) numeroIdentificacionAutorizadoRecoger!: string;
   @Prop({ required: true }) nombresApellidosAutorizadoRecoger!: string;
   @Prop({ required: true }) numeroTelefonicoAutorizadoRecoger!: string;
@@ -43,17 +47,18 @@ export class AuthorizationItem {
 
   @Prop({ required: true }) copiaAutorizacionViajeNombreOriginal!: string;
   @Prop({ required: true }) copiaDocumentoParentescoNombreOriginal!: string;
-  @Prop({ required: true }) copiaDocumentoIdentidadAutorizadoNombreOriginal!: string;
+  @Prop({ required: true })
+  copiaDocumentoIdentidadAutorizadoNombreOriginal!: string;
   @Prop({ required: true }) copiaConstanciaEntregaNombreOriginal!: string;
 }
 
-export const AuthorizationItemSchema = SchemaFactory.createForClass(AuthorizationItem);
+export const AuthorizationItemSchema =
+  SchemaFactory.createForClass(AuthorizationItem);
 AuthorizationItemSchema.index({ numeroIdentificacionNna: 1 });
 AuthorizationItemSchema.index({ numeroIdentificacionOtorgante: 1 });
 
 @Schema({ timestamps: true, collection: 'authorizations' })
 export class Authorization {
-
   @Prop({ required: true, type: Number })
   idDespacho!: number;
 

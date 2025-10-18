@@ -1,20 +1,15 @@
 import { Injectable, HttpException, Logger } from '@nestjs/common';
-import { AuditService } from '../libs/audit/audit.service'; // ajusta path si tu libs están en otra carpeta
+import { AuditService } from '../libs/audit/audit.service';
 
 type AnyObj = Record<string, any>;
-type Ctx = { userId?: string; enterpriseId?: string; operation?: string };
-
-function redact<T extends AnyObj | undefined>(obj: T): T {
-  if (!obj) return obj as T;
-  const SENSITIVE = ['password', 'contrasena', 'authorization', 'token', 'bearer'];
-  const clone: AnyObj = JSON.parse(JSON.stringify(obj));
-  for (const k of Object.keys(clone)) {
-    if (SENSITIVE.includes(k.toLowerCase())) clone[k] = '***redacted***';
-  }
-  return clone as T;
-}
-
-export type ApiResult<T> = { status: number; ok: boolean; data: T };
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+type Ctx = {
+  userId?: string;
+  enterpriseId?: string;
+  operation?: string;
+  vigiladoId?: string; // << nuevo
+  vigiladoToken?: string; // << nuevo
+};
 
 @Injectable()
 export class ExternalApiService {
@@ -23,151 +18,264 @@ export class ExternalApiService {
 
   constructor(private readonly audit: AuditService) {}
 
-  /* ========== Infra común (igual que incidents) ========== */
+  /* ---------- Infra COMÚN (idéntica a maintenance) ---------- */
+
+  private async safeJson(resp: Response) {
+    const txt = await resp.text();
+    try {
+      return txt ? JSON.parse(txt) : undefined;
+    } catch {
+      return txt;
+    }
+  }
+
+  private redact<T extends AnyObj | undefined>(obj: T): T {
+    if (!obj || typeof obj !== 'object') return obj as T;
+    const S = ['password', 'contrasena', 'authorization', 'token', 'bearer'];
+    const c: AnyObj = JSON.parse(JSON.stringify(obj));
+    for (const k of Object.keys(c))
+      if (S.includes(k.toLowerCase())) c[k] = '***redacted***';
+    return c as T;
+  }
 
   private mantBase(path: string) {
-    const base = process.env.SICOV_MANT_BASE; // ej: https://rutasback.supertransporte.gov.co
+    const base = process.env.SICOV_MANT_BASE;
     if (!base) throw new Error('Falta env SICOV_MANT_BASE');
     return `${base}${path}`;
   }
 
-  private buildHeaders(token: string) {
-    return {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      token: process.env.SICOV_TOKEN_VIGILADO as string,
-      vigiladoId: process.env.SICOV_VIGILADO_ID as string,
-    };
-  }
-
-  private async requestWithAudit<T>(
-    url: string,
-    init: RequestInit,
-    ctx: Ctx & { module?: string } = {},
-  ): Promise<ApiResult<T>> {
-    const started = Date.now();
-    let status = 0;
-    let ok = false;
-    let data: any = undefined;
-    let errorMessage: string | undefined;
-
-    try {
-      const resp = await fetch(url, init);
-      status = resp.status;
-      ok = resp.ok;
-      const txt = await resp.text();
-      try { data = txt ? JSON.parse(txt) : undefined; } catch { data = txt; }
-      return { status, ok, data };
-    } catch (err: any) {
-      errorMessage = err?.message ?? String(err);
-      throw err;
-    } finally {
-      // Body para auditar (si viene como string)
-      let reqPayload: any = undefined;
-      try {
-        const b = (init as any)?.body;
-        reqPayload = typeof b === 'string' ? JSON.parse(b) : b;
-      } catch { /* ignore */ }
-
-      try {
-        await this.audit.log({
-          module: ctx.module ?? 'authorizations',
-          operation: ctx.operation ?? (init.method ? `${init.method} ${url}` : url),
-          endpoint: url,
-          requestPayload: redact(reqPayload),
-          responseStatus: status || 0,
-          responseBody: data,
-          success: !!ok,
-          durationMs: Date.now() - started,
-          userId: ctx.userId,
-          enterpriseId: ctx.enterpriseId,
-          errorMessage,
-        });
-      } catch {
-        // nunca bloquear por auditoría
-      }
-    }
-  }
-
-  private async login(ctx?: Ctx): Promise<string> {
+  /** Login robusto (mismo criterio que maintenance) */
+  private async login(): Promise<string> {
     if (this.bearerToken) return this.bearerToken;
 
-    // ⚠️ Igual que incidents: usamos v1 (audita aunque falle)
-    const url = `${process.env.SICOV_AUTH_BASE}/api/v2/autenticacion/inicio-sesion`;
+    const base = process.env.SICOV_AUTH_BASE;
+    if (!base) throw new Error('Falta env SICOV_AUTH_BASE');
+
+    // usa v1 (más estable); si tu entorno exige v2, cambia aquí la ruta
+    const url = `${base}/api/v1/autenticacion/inicio-sesion`;
     const body = {
       usuario: process.env.SICOV_USERNAME,
       contrasena: process.env.SICOV_PASSWORD,
     };
 
-    const res = await this.requestWithAudit<any>(
-      url,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
-      { ...ctx, module: 'authorizations', operation: 'login' },
-    );
+    const started = Date.now();
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await this.safeJson(resp);
 
-    if (!res.ok) {
-      this.logger.error(`Error autenticando en SICOV: ${res.status}`);
-      throw new HttpException('No se pudo autenticar', res.status);
-    }
+    await this.audit.log({
+      module: 'authorizations',
+      operation: 'login',
+      endpoint: url,
+      requestPayload: {
+        usuario: process.env.SICOV_USERNAME,
+        contrasena: '***redacted***',
+      },
+      responseStatus: resp.status,
+      responseBody: data,
+      success: resp.ok,
+      durationMs: Date.now() - started,
+    });
 
-    const token = res.data?.token as string | undefined;
-    if (!token) {
-      this.logger.error(`Login sin token en respuesta`);
-      throw new HttpException('Token no recibido', 500);
-    }
+    if (!resp.ok)
+      throw new HttpException('No se pudo autenticar en SICOV', resp.status);
 
-    this.bearerToken = token;
+    const token =
+      data?.token ??
+      data?.access_token ??
+      data?.data?.token ??
+      data?.data?.access_token ??
+      data?.result?.token;
+
+    if (!token) throw new HttpException('Login OK pero sin token', 500);
+
+    this.bearerToken = String(token);
     return this.bearerToken!;
   }
 
-  /* ========== Endpoints AUTORIZACIONES ========== */
+  private buildHeaders(
+    token: string,
+    vigiladoId?: string,
+    vigiladoToken?: string,
+  ) {
+    const nit = (vigiladoId ?? process.env.SICOV_VIGILADO_ID ?? '')
+      .toString()
+      .replace(/\D+/g, '');
+    const vToken = vigiladoToken ?? process.env.SICOV_TOKEN_VIGILADO ?? '';
+    if (!nit) this.logger.warn('vigiladoId vacío (JWT/env)');
+    if (!vToken) this.logger.warn('vigiladoToken vacío (JWT/env)');
+    return {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      token: vToken,
+      vigiladoId: nit,
+    } as Record<string, string>;
+  }
 
-  // POST /api/v2/mantenimiento/guardar-mantenimieto (tipoId=4)
-  async guardarMantenimientoBase(
-    placa: string,
-    ctx?: Ctx,
-  ): Promise<ApiResult<any>> {
-    const token = await this.login(ctx);
-    const endpoint = this.mantBase('/api/v2/mantenimiento/guardar-mantenimieto'); // deja igual si tu back lo exige
+  private async requestWithAudit(
+    endpoint: string,
+    method: HttpMethod,
+    operation: string,
+    body?: AnyObj,
+    vigiladoId?: string,
+    vigiladoToken?: string,
+  ) {
+    const started = Date.now();
+    const token = await this.login();
+
+    const resp = await fetch(endpoint, {
+      method,
+      headers: this.buildHeaders(token, vigiladoId, vigiladoToken),
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await this.safeJson(resp);
+
+    await this.audit.log({
+      module: 'authorizations',
+      operation,
+      endpoint,
+      requestPayload: this.redact(body),
+      responseStatus: resp.status,
+      responseBody: data,
+      success: resp.ok,
+      durationMs: Date.now() - started,
+    });
+
+    // retry si 401/403 (igual que maintenance)
+    if (resp.status === 401 || resp.status === 403) {
+      this.bearerToken = null;
+      const retryToken = await this.login();
+      const retry = await fetch(endpoint, {
+        method,
+        headers: this.buildHeaders(retryToken, vigiladoId, vigiladoToken),
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const retryData = await this.safeJson(retry);
+
+      await this.audit.log({
+        module: 'authorizations',
+        operation: `${operation}:retry`,
+        endpoint,
+        requestPayload: this.redact(body),
+        responseStatus: retry.status,
+        responseBody: retryData,
+        success: retry.ok,
+        durationMs: 0,
+      });
+
+      if (!retry.ok) throw new HttpException('Error en SICOV', retry.status);
+      return { ok: true, status: retry.status, data: retryData };
+    }
+
+    if (!resp.ok) throw new HttpException('Error en SICOV', resp.status);
+    return { ok: true, status: resp.status, data };
+  }
+
+  private async requestWithAuditSafe(
+    endpoint: string,
+    method: HttpMethod,
+    operation: string,
+    body?: AnyObj,
+    vigiladoId?: string,
+    vigiladoToken?: string,
+  ) {
+    try {
+      return await this.requestWithAudit(
+        endpoint,
+        method,
+        operation,
+        body,
+        vigiladoId,
+        vigiladoToken,
+      );
+    } catch (e: any) {
+      await this.audit.log({
+        module: 'authorizations',
+        operation: `${operation}:safe-error`,
+        endpoint,
+        requestPayload: this.redact(body),
+        responseStatus: e?.status ?? 500,
+        responseBody: e?.response?.data ??
+          e?.data ?? { message: e?.message || 'safe error' },
+        success: false,
+        durationMs: 0,
+      });
+      return {
+        ok: false,
+        status: e?.status ?? 500,
+        error: e?.message ?? String(e),
+      };
+    }
+  }
+
+  /* ---------- SOLO cambian los endpoints/cuerpos ---------- */
+
+  // 1) Mantenimiento base tipo 4 (autorizaciones)
+  async guardarMantenimientoBase(params: {
+    placa: string;
+    vigiladoId?: string;
+    vigiladoToken?: string;
+  }) {
+    const endpoint = this.mantBase(
+      '/api/v2/mantenimiento/guardar-mantenimieto',
+    );
     const body = {
-      vigiladoId: process.env.SICOV_VIGILADO_ID,
-      placa,
-      tipoId: 4, // 4 = Autorizaciones
+      vigiladoId: params.vigiladoId,
+      placa: params.placa,
+      tipoId: 4,
     };
-
-    return this.requestWithAudit<any>(
+    return this.requestWithAuditSafe(
       endpoint,
-      { method: 'POST', headers: this.buildHeaders(token), body: JSON.stringify(body) },
-      { ...ctx, module: 'authorizations', operation: 'guardarMantenimientoBase' },
+      'POST',
+      'guardarMantenimientoBase',
+      body,
+      params.vigiladoId,
+      params.vigiladoToken,
     );
   }
 
-  // POST /api/v2/mantenimiento/guardar-autorizacion
-  async guardarAutorizacion(
-    mantenimientoId: number,
-    item: Record<string, any>,
-    ctx?: Ctx,
-  ): Promise<ApiResult<any>> {
-    const token = await this.login(ctx);
-    const endpoint = this.mantBase('/api/v2/mantenimiento/guardar-autorizacion');
-    const body = { mantenimientoId, ...item };
-
-    return this.requestWithAudit<any>(
+  // 2) Guardar autorización
+  async guardarAutorizacion(params: {
+    mantenimientoId: number | string;
+    item: Record<string, any>; // mapea tu DTO aquí (fechas, NNA, otorgante, autorizados, archivos…)
+    vigiladoId?: string;
+    vigiladoToken?: string;
+  }) {
+    const endpoint = this.mantBase(
+      '/api/v2/mantenimiento/guardar-autorizacion',
+    );
+    const body = {
+      mantenimientoId: Number(params.mantenimientoId),
+      ...params.item,
+    };
+    return this.requestWithAuditSafe(
       endpoint,
-      { method: 'POST', headers: this.buildHeaders(token), body: JSON.stringify(body) },
-      { ...ctx, module: 'authorizations', operation: 'guardarAutorizacion' },
+      'POST',
+      'guardarAutorizacion',
+      body,
+      params.vigiladoId,
+      params.vigiladoToken,
     );
   }
 
-  // POST /api/v2/mantenimiento/visualizar-autorizacion
-  async visualizarAutorizacion(mantenimientoId: number, ctx?: Ctx): Promise<ApiResult<any>> {
-    const token = await this.login(ctx);
-    const endpoint = this.mantBase('/api/v2/mantenimiento/visualizar-autorizacion');
-
-    return this.requestWithAudit<any>(
+  // 3) Visualizar autorización
+  async visualizarAutorizacion(params: {
+    mantenimientoId: number | string;
+    vigiladoId?: string;
+  }) {
+    const endpoint = this.mantBase(
+      '/api/v2/mantenimiento/visualizar-autorizacion',
+    );
+    const body = { mantenimientoId: Number(params.mantenimientoId) };
+    return this.requestWithAudit(
       endpoint,
-      { method: 'POST', headers: this.buildHeaders(token), body: JSON.stringify({ mantenimientoId }) },
-      { ...ctx, module: 'authorizations', operation: 'visualizarAutorizacion' },
+      'POST',
+      'visualizarAutorizacion',
+      body,
+      params.vigiladoId,
     );
   }
 }

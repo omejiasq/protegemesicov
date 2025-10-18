@@ -13,6 +13,8 @@ export class AuthorizationsController {
     return this.svc.create(dto, {
       enterprise_id: (user as any)?.enterprise_id,
       sub: (user as any)?.sub,
+      vigiladoId: user?.vigiladoId,
+      vigiladoToken: user?.vigiladoToken
     });
   }
 
