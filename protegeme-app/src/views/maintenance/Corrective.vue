@@ -112,6 +112,7 @@
       header="Nuevo correctivo"
       class="dialog-body"
       :style="{ width: '720px' }"
+      @hide="resetForm"
     >
       <div class="formgrid grid" :class="{ 'is-view-mode': viewMode }">
         <!--         <div class="field col-12">
@@ -211,6 +212,18 @@
             class="w-full"
           />
         </div>
+        <div class="field col-12 md:col-6">
+          <label class="block mb-2 text-900">Programa (adjuntar archivo)</label>
+          <input
+            type="file"
+            accept=".pdf,.xlsx,.png,.jpg,.jpeg"
+            @change="onFileChange"
+            :disabled="viewMode"
+          />
+          <small class="text-600"
+            >Máx 5MB. Se crea “programa” automáticamente.</small
+          >
+        </div>
       </div>
       <template #footer>
         <div class="flex justify-content-end gap-2">
@@ -255,6 +268,12 @@ import Button from "../../components/ui/Button.vue";
 
 const store = useMaintenanceStore();
 const toast = useToast();
+
+const selectedFile = ref<File | null>(null);
+function onFileChange(e: Event) {
+  const f = (e.target as HTMLInputElement).files?.[0] || null;
+  selectedFile.value = f;
+}
 
 const isEditingCorrective = ref(false);
 const editingCorrectiveId = ref<string | null>(null);
@@ -393,7 +412,7 @@ watch(
   () => dlg.visible,
   (v) => {
     if (v) ensureMaintenances();
-    if (!v) viewMode.value = false
+    if (!v) viewMode.value = false;
   }
 );
 const form = reactive({
@@ -410,6 +429,27 @@ const form = reactive({
   accionesRealizadas: "",
   detalleActividades: "",
 });
+
+const fileInputRef = ref<HTMLInputElement | null>(null);
+
+function resetForm() {
+  Object.assign(form, {
+    mantenimientoId: "",
+    nombreResponsable: "",
+    placa: "",
+    fecha: null as any,
+    hora: null as any,
+    nit: "",
+    razonSocial: "",
+    tipoIdentificacion: "",
+    numeroIdentificacion: "",
+    descripcionFalla: "",
+    accionesRealizadas: "",
+    detalleActividades: "",
+  });
+  selectedFile.value = null;
+  if (fileInputRef.value) fileInputRef.value.value = "";
+}
 
 const correctiveOptsLoading = ref(false);
 const hasCorrective = ref(new Set<string>());
@@ -572,7 +612,6 @@ async function save() {
     detalleActividades: form.detalleActividades?.trim(),
   };
 
-  // 2) Validación mínima (evita pelear con el back al pedo)
   const req = ["placa", "fecha", "hora"];
   const missing = req.filter((k) => !payload[k]);
   if (missing.length) {
@@ -588,6 +627,15 @@ async function save() {
   saving.value = true;
   try {
     // 3) Crear en API
+    if (selectedFile.value) {
+      await store.createCorrectiveWithProgram({
+        maintenancePayload: payload,
+        file: selectedFile.value,
+      });
+    } else {
+      await store.correctiveCreateDetail(payload);
+    }
+
     await store.correctiveCreateDetail(payload);
 
     // 4) Marcar localmente que este mantenimiento ya tiene correctivo

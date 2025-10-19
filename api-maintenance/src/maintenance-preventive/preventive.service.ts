@@ -35,7 +35,6 @@ export class PreventiveService {
       { placa: dto.placa, enterprise_id: user?.enterprise_id, estado: true },
       { $set: { estado: false } },
     );
-
     let mantenimientoIdLocal: string | null = dto.mantenimientoId || null;
     let mantenimientoIdExterno: number | null = null;
 

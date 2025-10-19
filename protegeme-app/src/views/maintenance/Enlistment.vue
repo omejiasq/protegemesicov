@@ -119,6 +119,7 @@
       class="dialog-body"
       :style="{ width: '720px' }"
       :contentStyle="{ overflowY: 'visible', maxHeight: 'none' }"
+      @hide="resetForm"
     >
       <!-- wrapper de grilla para 2 columnas -->
       <div class="formgrid grid" :class="{ 'is-view-mode': viewMode }">
@@ -155,7 +156,7 @@
             :options="documentTypeOptions"
             placeholder="Seleccione"
             class="w-full"
-            :disabled="viewMode" 
+            :disabled="viewMode"
           />
         </div>
 
@@ -167,7 +168,7 @@
             v-model="form.numeroIdentificacion"
             placeholder="12345678"
             class="w-full"
-            :disabled="viewMode" 
+            :disabled="viewMode"
           />
         </div>
 
@@ -177,7 +178,7 @@
             v-model="form.nombresResponsable"
             placeholder="Juan Pérez"
             class="w-full"
-            :disabled="viewMode" 
+            :disabled="viewMode"
           />
         </div>
         <div class="field col-12 md:col-6">
@@ -188,7 +189,7 @@
             v-model="form.tipoIdentificacionConductor"
             :options="documentTypeOptions"
             placeholder="Seleccioná tipo de documento"
-            :disabled="viewMode" 
+            :disabled="viewMode"
           />
         </div>
 
@@ -200,7 +201,7 @@
             v-model="form.numeroIdentificacionConductor"
             placeholder="12345678"
             class="w-full"
-            :disabled="viewMode" 
+            :disabled="viewMode"
           />
         </div>
 
@@ -210,7 +211,7 @@
             v-model="form.nombresConductor"
             placeholder="María Gómez"
             class="w-full"
-            :disabled="viewMode" 
+            :disabled="viewMode"
           />
         </div>
         <div class="field col-12 md:col-6">
@@ -219,10 +220,21 @@
             v-model="form.detalleActividades"
             placeholder="Indique detalle"
             class="w-full"
-            :disabled="viewMode" 
+            :disabled="viewMode"
           />
         </div>
-
+        <div class="field col-12 md:col-6">
+          <label class="block mb-2 text-900">Programa (adjuntar archivo)</label>
+          <input
+            type="file"
+            accept=".pdf,.xlsx,.png,.jpg,.jpeg"
+            @change="onFileChange"
+            :disabled="viewMode"
+          />
+          <small class="text-600"
+            >Máx 5MB. Se crea “programa” automáticamente.</small
+          >
+        </div>
         <label class="block mb-2 text-900">Actividades</label>
         <div class="grid">
           <div
@@ -230,7 +242,11 @@
             :key="act._id || act.id || act.value"
             class="col-12 md:col-6 flex align-items-center"
           >
-            <Checkbox v-model="form.actividades" :value="+act.id" :disabled="viewMode" />
+            <Checkbox
+              v-model="form.actividades"
+              :value="+act.id"
+              :disabled="viewMode"
+            />
             <label class="ml-2">
               {{ act.nombre ?? act.label ?? act.descripcion ?? act._id }}
             </label>
@@ -288,11 +304,12 @@ const toast = useToast();
 
 const store = useMaintenanceStore();
 
-console.log(
-  "%cprotegeme-app\src\views\maintenance\Enlistment.vue:261 store.",
-  "color: #007acc;",
-  store.enlistmentList
-);
+const selectedFile = ref<File | null>(null);
+function onFileChange(e: Event) {
+  const f = (e.target as HTMLInputElement).files?.[0] || null;
+  selectedFile.value = f;
+}
+
 const total = computed(() => store.enlistmentList.total);
 const page = ref(1);
 const limit = ref(10);
@@ -616,6 +633,32 @@ const form = reactive({
   actividades: [] as number[],
 });
 
+const fileInputRef = ref<HTMLInputElement | null>(null);
+
+function resetForm() {
+  Object.assign(form, {
+    mantenimientoId: "",
+    placa: "",
+    fecha: null as any,
+    hora: null as any,
+
+    // Responsable
+    tipoIdentificacion: "",
+    numeroIdentificacion: "",
+    nombresResponsable: "",
+
+    // Conductor
+    tipoIdentificacionConductor: "",
+    numeroIdentificacionConductor: "",
+    nombresConductor: "",
+
+    detalleActividades: "",
+    actividades: [] as number[],
+  });
+  selectedFile.value = null;
+  if (fileInputRef.value) fileInputRef.value.value = "";
+}
+
 const loading = computed(() => store.enlistmentList.loading);
 const rows = computed(() => (store.enlistmentList.items || []).map(normalize));
 
@@ -772,6 +815,15 @@ async function save() {
 
   saving.value = true;
   try {
+    if (selectedFile.value) {
+      await store.createEnlistmentWithProgram({
+        maintenancePayload: payload,
+        file: selectedFile.value,
+      });
+    } else {
+      await store.enlistmentCreate(payload);
+    }
+
     await store.enlistmentCreate(payload);
     dlg.visible = false;
     toast.add({

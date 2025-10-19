@@ -420,7 +420,11 @@ export const useMaintenanceStore = defineStore("maintenance", {
       this.corrective.error = "";
       try {
         const { data } = await MaintenanceserviceApi.createCorrective(payload);
-        console.log('%cprotegeme-app\src\stores\maintenanceStore.ts:423 data', 'color: #007acc;', data);
+        console.log(
+          "%cprotegeme-appsrcstoresmaintenanceStore.ts:423 data",
+          "color: #007acc;",
+          data
+        );
         this.corrective.detail = data;
         return data;
       } catch (e: any) {
@@ -774,6 +778,61 @@ export const useMaintenanceStore = defineStore("maintenance", {
       } finally {
         this.enlistment.loading = false;
       }
+    },
+    async createPreventiveWithProgram({ maintenancePayload, file }: { maintenancePayload: any; file: File }) {
+  // 1) subir archivo (el controller toma vigiladoId del JWT; mando 0 para pasar DTO si aún lo exige)
+  const fileRef = await this.uploadFile(file, "");
+  if (!fileRef || !fileRef.nombreAlmacenado) throw new Error('No se pudo subir el archivo');
+
+  // 2) crear programa tipo 1 (preventivo)
+  await this.programsCreate({
+    tipoId: 1,
+    documento: fileRef.nombreAlmacenado,
+    nombreOriginal: fileRef.nombreOriginalArchivo,
+    ruta: fileRef.ruta,
+    vigiladoId: 0,
+  });
+
+  // 3) crear el preventivo
+  return await this.preventiveCreateDetail(maintenancePayload);
+},
+
+
+
+    async createCorrectiveWithProgram({
+      maintenancePayload,
+      file,
+    }: {
+      maintenancePayload: any;
+      file: File;
+    }) {
+      const fileRef = await this.uploadFile(file, "");
+      await this.programsCreate({
+        tipoId: 2,
+        documento: fileRef?.nombreAlmacenado,
+        nombreOriginal: fileRef?.nombreOriginalArchivo,
+        ruta: fileRef?.ruta,
+        vigiladoId: 0,
+      });
+      return this.correctiveCreateDetail(maintenancePayload);
+    },
+
+    async createEnlistmentWithProgram({
+      maintenancePayload,
+      file,
+    }: {
+      maintenancePayload: any;
+      file: File;
+    }) {
+      const fileRef = await this.uploadFile(file, "");
+      await this.programsCreate({
+        tipoId: 3,
+        documento: fileRef?.nombreAlmacenado,
+        nombreOriginal: fileRef?.nombreOriginalArchivo,
+        ruta: fileRef?.ruta,
+        vigiladoId: 0,
+      });
+      return this.enlistmentCreate(maintenancePayload);
     },
   },
 });

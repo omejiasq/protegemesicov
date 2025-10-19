@@ -25,7 +25,9 @@ export class ProgramsController {
   @Post('/create')
   save(@Body() dto: SaveProgramDto, @Req() req: Request) {
     const user = (req as any).user;
-    const vigiladoId = Number(user?.vigiladoId);
+    const vigiladoId = Number(user?.vigiladId);
+    console.log('%capi-maintenance\src\maintenance-programs\program.controller.ts:29 user', 'color: #007acc;', user);
+    console.log('%capi-maintenance\src\maintenance-programs\program.controller.ts:29 vigiladoId', 'color: #007acc;', vigiladoId);
     if (!vigiladoId) throw new BadRequestException('El usuario no tiene vigiladoId asignado');
     return this.svc.save({ ...dto, vigiladoId }, user);
   }

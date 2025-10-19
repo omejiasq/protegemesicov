@@ -102,6 +102,7 @@
       :modal="true"
       header="Nuevo preventivo"
       class="w-11 md:w-7 lg:w-6"
+      @hide="resetForm"
     >
       <div
         class="formgrid grid dialog-body"
@@ -179,6 +180,17 @@
             :disabled="viewMode"
           />
         </div>
+        <div class="field col-12 md:col-6">
+          <label class="block mb-2 text-900">Programa (adjuntar archivo)</label>
+          <input
+            type="file"
+            accept=".pdf,.xlsx,.png,.jpg,.jpeg"
+            @change="onFileChange"
+          />
+          <small class="text-600"
+            >Máx 5MB. Se crea “programa” automáticamente.</small
+          >
+        </div>
       </div>
       <template #footer>
         <div class="flex justify-content-end gap-2">
@@ -224,6 +236,13 @@ import SearchBar from "../../components/ui/SearchBar.vue";
 const toast = useToast();
 
 const store = useMaintenanceStore();
+
+const selectedFile = ref<File | null>(null);
+
+function onFileChange(e: Event) {
+  const f = (e.target as HTMLInputElement).files?.[0] || null;
+  selectedFile.value = f;
+}
 
 const isEditing = ref(false); // true cuando abrís "Editar"
 const suppressDuplicateCheck = ref(false);
@@ -290,6 +309,7 @@ function normDate(v: any): string | undefined {
 }
 
 function normTime(v: any): string | undefined {
+  console.log('%cprotegeme-app\src\views\maintenance\Preventive.vue:311 v', 'color: #007acc;', v);
   if (!v) return undefined;
   try {
     if (v instanceof Date) {
@@ -297,7 +317,8 @@ function normTime(v: any): string | undefined {
       const mm = String(v.getMinutes()).padStart(2, "0");
       return `${hh}:${mm}`;
     }
-    const m = String(v).match(/^(\d{1,2}):(\d{2})$/);
+    // acepta HH:mm o HH:mm:ss
+    const m = String(v).match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
     if (m) {
       const hh = String(m[1]).padStart(2, "0");
       return `${hh}:${m[2]}`;
@@ -307,6 +328,7 @@ function normTime(v: any): string | undefined {
     return undefined;
   }
 }
+
 
 function toIntOrUndef(v: any): number | undefined {
   const n = Number(v);
@@ -474,6 +496,26 @@ const form = reactive({
   nombresResponsable: "",
   detalleActividades: "",
 });
+
+const fileInputRef = ref<HTMLInputElement | null>(null);
+
+function resetForm() {
+  Object.assign(form, {
+    placa: "",
+    fecha: null as any,
+    hora: null as any,
+    nit: "",
+    razonSocial: "",
+    tipoIdentificacion: "",
+    numeroIdentificacion: "",
+    nombresResponsable: "",
+    detalleActividades: "",
+  });
+  selectedFile.value = null;
+  if (fileInputRef.value) fileInputRef.value.value = "";
+}
+
+
 const saving = ref(false);
 
 function openCreate() {
@@ -542,6 +584,8 @@ async function openViewEnlistment(row: any) {
   dlg.visible = true;
 }
 
+console.log('%cprotegeme-app\src\views\maintenance\Preventive.vue:566 form.hora', 'color: #007acc;', form);
+
 async function save() {
   const payload = clean({
     placa: form.placa?.trim(),
@@ -554,6 +598,16 @@ async function save() {
     nombresResponsable: form.nombresResponsable?.trim(),
     detalleActividades: form.detalleActividades?.trim(),
   });
+  console.log('%cprotegeme-app\src\views\maintenance\Preventive.vue:575 payload', 'color: #007acc;', payload);
+
+  if (selectedFile.value) {
+    await store.createPreventiveWithProgram({
+      maintenancePayload: payload,
+      file: selectedFile.value,
+    });
+  } else {
+    await store.preventiveCreateDetail(payload);
+  }
 
   saving.value = true;
   try {
