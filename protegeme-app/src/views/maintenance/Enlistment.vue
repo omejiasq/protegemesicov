@@ -823,8 +823,6 @@ async function save() {
     } else {
       await store.enlistmentCreate(payload);
     }
-
-    await store.enlistmentCreate(payload);
     dlg.visible = false;
     toast.add({
       severity: "success",

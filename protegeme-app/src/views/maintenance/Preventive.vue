@@ -600,6 +600,10 @@ async function save() {
   });
   console.log('%cprotegeme-app\src\views\maintenance\Preventive.vue:575 payload', 'color: #007acc;', payload);
 
+
+
+  saving.value = true;
+  try {
   if (selectedFile.value) {
     await store.createPreventiveWithProgram({
       maintenancePayload: payload,
@@ -608,10 +612,6 @@ async function save() {
   } else {
     await store.preventiveCreateDetail(payload);
   }
-
-  saving.value = true;
-  try {
-    await store.preventiveCreateDetail(payload);
     await ensureMaintenances(); // 🔁 repuebla el dropdown
     await refresh();
     dlg.visible = false;

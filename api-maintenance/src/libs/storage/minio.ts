@@ -1,4 +1,10 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, HeadBucketCommand, CreateBucketCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  HeadBucketCommand,
+  CreateBucketCommand,
+} from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
 import { FileStorage, StoredObject } from './storage.types';
 
@@ -11,7 +17,9 @@ async function streamToBuffer(stream: any): Promise<Buffer> {
   if (Buffer.isBuffer(stream)) return stream;
   return await new Promise<Buffer>((resolve, reject) => {
     const chunks: Buffer[] = [];
-    stream.on('data', (c: Buffer) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+    stream.on('data', (c: Buffer) =>
+      chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)),
+    );
     stream.on('end', () => resolve(Buffer.concat(chunks)));
     stream.on('error', reject);
   });
@@ -58,21 +66,47 @@ export class MinioStorageAdapter implements FileStorage {
     }
   }
 
-  async saveBuffer(params: { buffer: Buffer; mimeType: string; originalName: string; size?: number }): Promise<StoredObject> {
+  async isReady(): Promise<boolean> {
+    try {
+      await this['ensureBucket'](); // reutiliza tu lógica interna
+      return true;
+    } catch (e) {
+      console.warn('[Storage][MinIO] No disponible:', (e as any)?.message || e);
+      return false;
+    }
+  }
+
+  async saveBuffer(params: {
+    buffer: Buffer;
+    mimeType: string;
+    originalName: string;
+    size?: number;
+  }): Promise<StoredObject> {
     await this.ensureBucket();
     const Key = this.keyFor(params.originalName);
-    await this.s3.send(new PutObjectCommand({
-      Bucket: this.bucket,
-      Key,
-      Body: params.buffer,
-      ContentType: params.mimeType || 'application/octet-stream',
-    }));
+    await this.s3.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key,
+        Body: params.buffer,
+        ContentType: params.mimeType || 'application/octet-stream',
+      }),
+    );
     const url = this.publicBase ? `${this.publicBase}/${Key}` : undefined;
-    return { key: Key, url, bucket: this.bucket, provider: 'minio', mimeType: params.mimeType, size: params.size };
+    return {
+      key: Key,
+      url,
+      bucket: this.bucket,
+      provider: 'minio',
+      mimeType: params.mimeType,
+      size: params.size,
+    };
   }
 
   async getBase64(key: string): Promise<{ base64: string; mimeType: string }> {
-    const res = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+    const res = await this.s3.send(
+      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+    );
     const buf = await streamToBuffer(res.Body as any);
     const mimeType = (res.ContentType as string) || 'application/octet-stream';
     return { base64: buf.toString('base64'), mimeType };

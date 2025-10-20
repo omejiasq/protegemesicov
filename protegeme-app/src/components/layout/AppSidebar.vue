@@ -62,7 +62,7 @@
               <li class="layout-menuitem-category">
                 <div class="layout-menuitem-root-text">MANTENIMIENTOS</div>
                 <ul>
- <!--                  <li>
+                  <li>
                     <router-link
                       to="/maintenance/program"
                       class="layout-menuitem-link"
@@ -75,7 +75,7 @@
                       <i class="pi pi-calendar layout-menuitem-icon"></i>
                       <span class="layout-menuitem-text">Programas</span>
                     </router-link>
-                  </li> -->
+                  </li>
                   <li>
                     <router-link
                       to="/maintenance/preventive"

@@ -8,10 +8,9 @@ export const MaintenanceserviceApi = {
     http.put(`${baseURL}/maintenance/updateById/${id}`, data),
   toggle: (id: string) =>
     http.patch(`${baseURL}/maintenance/toggleState/${id}`),
-  uploadFile: (file: File | Blob, vigiladold: string) => {
+  uploadFile: (file: File | Blob) => {
     const fd = new FormData();
     fd.append("archivo", file);
-    fd.append("vigiladoId", vigiladold); // <-- fix
     return http.post(`${baseURL}/files/upload`, fd, {
       headers: { "Content-Type": "multipart/form-data" },
     });

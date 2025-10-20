@@ -285,11 +285,77 @@ export const useMaintenanceStore = defineStore("maintenance", {
       }
     },
 
-    async programsCreate(body: AnyObj) {
+    async programsCreate(body: Record<string, any>) {
       this.programs.loading = true;
       this.programs.error = "";
       try {
-        const { data } = await MaintenanceserviceApi.createProgram(body);
+        // body puede venir de 2 formas:
+        // A) { file, tipoId }  -> subimos y mapeamos
+        // B) { documento, nombreOriginal, ruta, tipoId } -> directo
+        const t = Number(body?.tipoId);
+        if (![1, 2, 3].includes(t)) {
+          throw new Error("tipoId inválido o ausente (1|2|3)");
+        }
+
+        let documento: string | undefined;
+        let nombreOriginal: string | undefined;
+        let ruta: string | undefined;
+
+        if (body?.file instanceof File || body?.file instanceof Blob) {
+          // Opción A: usar tu wrapper del store (ya retorna el payload):
+          // const up = await this.uploadFile(body.file);
+
+          // Opción B: ir directo al service y normalizar respuesta Axios:
+          const resp = await MaintenanceserviceApi.uploadFile(body.file);
+          console.log('%cprotegeme-app\src\stores\maintenanceStore.ts:310 resp', 'color: #007acc;', resp);
+          const up =
+            resp && typeof resp === "object" && "data" in resp
+              ? resp.data
+              : resp;
+          console.log(
+            "%cprotegeme-appsrcstoresmaintenanceStore.ts:309 up",
+            "color: #007acc;"
+          );
+          // 2) mapear campos que exige /programs/create
+          //    (los nombres pueden variar según storage; contemplamos alias comunes)
+          documento =
+            up?.nombreAlmacenado ?? up?.documento ?? up?.key ?? up?.filename;
+
+          nombreOriginal =
+            up?.nombreOriginalArchivo ??
+            up?.originalName ??
+            up?.originalname ??
+            up?.nombreOriginal;
+
+          ruta = up?.ruta ?? up?.url ?? up?.publicUrl ?? up?.path;
+
+          if (!documento || !nombreOriginal || !ruta) {
+            console.error("[programsCreate] upload response:", up);
+            throw new Error(
+              "Upload sin campos suficientes (documento/nombreOriginal/ruta)"
+            );
+          }
+        } else {
+          // Ruta 'clásica': ya vienen los 3 campos listos
+          documento = body?.documento;
+          nombreOriginal = body?.nombreOriginal;
+          ruta = body?.ruta;
+          if (!documento || !nombreOriginal || !ruta) {
+            throw new Error(
+              "Faltan campos del archivo: documento/nombreOriginal/ruta"
+            );
+          }
+        }
+
+        const payload = {
+          tipoId: t as 1 | 2 | 3,
+          documento,
+          nombreOriginal,
+          ruta,
+          // OJO: no enviamos vigiladoId; el back lo resuelve
+        };
+
+        const { data } = await MaintenanceserviceApi.createProgram(payload);
         if (this.programs.items) this.programs.items.unshift(data);
         return data;
       } catch (e: any) {
@@ -564,14 +630,11 @@ export const useMaintenanceStore = defineStore("maintenance", {
     },
 
     // ========== Files ==========
-    async uploadFile(file: File | Blob, vigiladoId: string) {
+    async uploadFile(file: File | Blob) {
       this.files.uploading = true;
       this.files.error = "";
       try {
-        const { data } = await MaintenanceserviceApi.uploadFile(
-          file,
-          vigiladoId
-        );
+        const { data } = await MaintenanceserviceApi.uploadFile(file);
         this.files.lastRef = data;
         return data;
       } finally {
@@ -779,25 +842,30 @@ export const useMaintenanceStore = defineStore("maintenance", {
         this.enlistment.loading = false;
       }
     },
-    async createPreventiveWithProgram({ maintenancePayload, file }: { maintenancePayload: any; file: File }) {
-  // 1) subir archivo (el controller toma vigiladoId del JWT; mando 0 para pasar DTO si aún lo exige)
-  const fileRef = await this.uploadFile(file, "");
-  if (!fileRef || !fileRef.nombreAlmacenado) throw new Error('No se pudo subir el archivo');
+    async createPreventiveWithProgram({
+      maintenancePayload,
+      file,
+    }: {
+      maintenancePayload: any;
+      file: File;
+    }) {
+      // 1) subir archivo (el controller toma vigiladoId del JWT; mando 0 para pasar DTO si aún lo exige)
+      const fileRef = await this.uploadFile(file);
+      if (!fileRef || !fileRef.nombreAlmacenado)
+        throw new Error("No se pudo subir el archivo");
 
-  // 2) crear programa tipo 1 (preventivo)
-  await this.programsCreate({
-    tipoId: 1,
-    documento: fileRef.nombreAlmacenado,
-    nombreOriginal: fileRef.nombreOriginalArchivo,
-    ruta: fileRef.ruta,
-    vigiladoId: 0,
-  });
+      // 2) crear programa tipo 1 (preventivo)
+      await this.programsCreate({
+        tipoId: 1,
+        documento: fileRef.nombreAlmacenado,
+        nombreOriginal: fileRef.nombreOriginalArchivo,
+        ruta: fileRef.ruta,
+        vigiladoId: 0,
+      });
 
-  // 3) crear el preventivo
-  return await this.preventiveCreateDetail(maintenancePayload);
-},
-
-
+      // 3) crear el preventivo
+      return await this.preventiveCreateDetail(maintenancePayload);
+    },
 
     async createCorrectiveWithProgram({
       maintenancePayload,
@@ -806,7 +874,7 @@ export const useMaintenanceStore = defineStore("maintenance", {
       maintenancePayload: any;
       file: File;
     }) {
-      const fileRef = await this.uploadFile(file, "");
+      const fileRef = await this.uploadFile(file);
       await this.programsCreate({
         tipoId: 2,
         documento: fileRef?.nombreAlmacenado,
@@ -824,7 +892,7 @@ export const useMaintenanceStore = defineStore("maintenance", {
       maintenancePayload: any;
       file: File;
     }) {
-      const fileRef = await this.uploadFile(file, "");
+      const fileRef = await this.uploadFile(file);
       await this.programsCreate({
         tipoId: 3,
         documento: fileRef?.nombreAlmacenado,
