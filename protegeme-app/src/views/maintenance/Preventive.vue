@@ -180,17 +180,6 @@
             :disabled="viewMode"
           />
         </div>
-        <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900">Programa (adjuntar archivo)</label>
-          <input
-            type="file"
-            accept=".pdf,.xlsx,.png,.jpg,.jpeg"
-            @change="onFileChange"
-          />
-          <small class="text-600"
-            >Máx 5MB. Se crea “programa” automáticamente.</small
-          >
-        </div>
       </div>
       <template #footer>
         <div class="flex justify-content-end gap-2">
@@ -584,8 +573,6 @@ async function openViewEnlistment(row: any) {
   dlg.visible = true;
 }
 
-console.log('%cprotegeme-app\src\views\maintenance\Preventive.vue:566 form.hora', 'color: #007acc;', form);
-
 async function save() {
   const payload = clean({
     placa: form.placa?.trim(),
@@ -598,9 +585,6 @@ async function save() {
     nombresResponsable: form.nombresResponsable?.trim(),
     detalleActividades: form.detalleActividades?.trim(),
   });
-  console.log('%cprotegeme-app\src\views\maintenance\Preventive.vue:575 payload', 'color: #007acc;', payload);
-
-
 
   saving.value = true;
   try {
@@ -612,7 +596,7 @@ async function save() {
   } else {
     await store.preventiveCreateDetail(payload);
   }
-    await ensureMaintenances(); // 🔁 repuebla el dropdown
+    await ensureMaintenances();
     await refresh();
     dlg.visible = false;
     await refresh();

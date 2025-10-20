@@ -212,18 +212,6 @@
             class="w-full"
           />
         </div>
-        <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900">Programa (adjuntar archivo)</label>
-          <input
-            type="file"
-            accept=".pdf,.xlsx,.png,.jpg,.jpeg"
-            @change="onFileChange"
-            :disabled="viewMode"
-          />
-          <small class="text-600"
-            >Máx 5MB. Se crea “programa” automáticamente.</small
-          >
-        </div>
       </div>
       <template #footer>
         <div class="flex justify-content-end gap-2">
@@ -626,15 +614,6 @@ async function save() {
 
   saving.value = true;
   try {
-    // 3) Crear en API
-    if (selectedFile.value) {
-      await store.createCorrectiveWithProgram({
-        maintenancePayload: payload,
-        file: selectedFile.value,
-      });
-    } else {
-      await store.correctiveCreateDetail(payload);
-    }
 
     await store.correctiveCreateDetail(payload);
 
