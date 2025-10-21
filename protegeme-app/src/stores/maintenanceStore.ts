@@ -425,7 +425,7 @@ export const useMaintenanceStore = defineStore("maintenance", {
         }
 
         const { data } = await MaintenanceserviceApi.listPreventives(query);
-
+        console.log('%cprotegeme-app\src\stores\maintenanceStore.ts:428 data', 'color: #007acc;', data);
         // Soporta {items,total} o array plano (por si acaso)
         const items = Array.isArray(data) ? data : data?.items ?? [];
         this.preventiveList.items = items;
@@ -607,11 +607,6 @@ export const useMaintenanceStore = defineStore("maintenance", {
         }
 
         const { data } = await MaintenanceserviceApi.listEnlistments(query);
-        console.log(
-          "%cprotegeme-appsrcstoresmaintenanceStore.ts:522 data",
-          "color: #007acc;",
-          data
-        );
         const items = Array.isArray(data) ? data : data?.items ?? [];
         this.enlistmentList.items = items;
         this.enlistmentList.total =

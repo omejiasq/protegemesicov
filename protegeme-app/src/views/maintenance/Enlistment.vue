@@ -338,19 +338,30 @@ async function fetchEnlistmentById(id: string) {
 
 function fillFormFromRow(row: any) {
   form.placa = row?.placa ?? "";
-  form.fecha = row?.fecha ?? null;
+  form.fecha = row?.fecha ?? row?.createdAt ?? null;
   form.hora = row?.hora ?? null;
+
   form.tipoIdentificacion = row?.tipoIdentificacion ?? "";
   form.numeroIdentificacion = row?.numeroIdentificacion ?? "";
-  form.nombresResponsable = row?.nombresResponsable ?? "";
+  form.nombresResponsable = row?.nombresResponsable ?? row?.responsable ?? "";
+
   form.tipoIdentificacionConductor = row?.tipoIdentificacionConductor ?? "";
   form.numeroIdentificacionConductor = row?.numeroIdentificacionConductor ?? "";
-  form.nombresConductor = row?.nombresConductor ?? "";
+  form.nombresConductor = row?.nombresConductor ?? row?.conductor ?? "";
+
   form.detalleActividades = row?.detalleActividades ?? "";
-  form.actividades = Array.isArray(row?.actividades)
-    ? row.actividades.map((v: any) => (typeof v === "number" ? v : String(v)))
-    : [];
+
+  // Actividades guardadas -> IDs numéricos para que el Checkbox (value=+act.id) marque
+  const raw = Array.isArray(row?.actividades) ? row.actividades : [];
+  form.actividades = raw
+    .map((v: any) => {
+      const id = typeof v === "object" ? (v.id ?? v._id ?? v.value) : v;
+      const n = Number(id);
+      return Number.isFinite(n) ? n : null;
+    })
+    .filter((n: number | null) => n !== null) as number[];
 }
+
 
 async function openViewEnlistment(row: any) {
   viewMode.value = true;

@@ -55,7 +55,11 @@
         :loading="loading"
         dataKey="_id"
         responsive-layout="scroll"
-        :paginator="false"
+        :paginator="true"
+        :rows="limit"
+        :totalRecords="total"
+        :first="(page - 1) * limit"
+        @page="onPage"
         class="p-datatable-sm"
       >
         <Column header="Falla" style="min-width: 240px">
@@ -263,6 +267,10 @@ function onFileChange(e: Event) {
   selectedFile.value = f;
 }
 
+const page = ref(1);
+const limit = ref(10);
+const total = computed(() => store.correctiveList.total);
+
 const isEditingCorrective = ref(false);
 const editingCorrectiveId = ref<string | null>(null);
 
@@ -339,10 +347,23 @@ async function fetchEnlistmentById(id: string) {
 
 function fillFormFromRow(row: any) {
   form.placa = row?.placa ?? "";
-  form.fecha = row?.fecha ?? null;
+  form.fecha = row?.fecha ?? row?.createdAt ?? null;
   form.hora = row?.hora ?? null;
+
+  // Vista: NIT + Razón Social
+  form.nit = row?.nit ?? (row?.vigiladoId ? String(row.vigiladoId) : "");
+  form.razonSocial = row?.razonSocial ?? row?.razon ?? row?.empresa ?? "";
+
   form.tipoIdentificacion = row?.tipoIdentificacion ?? "";
   form.numeroIdentificacion = row?.numeroIdentificacion ?? "";
+
+  // Ojo: en Corrective el form usa "nombreResponsable" (singular)
+  form.nombreResponsable =
+    row?.nombreResponsable ?? row?.nombresResponsable ?? row?.responsable ?? "";
+
+  // Resto del detalle
+  form.descripcionFalla = row?.descripcionFalla ?? row?.descripcion ?? "";
+  form.accionesRealizadas = row?.accionesRealizadas ?? row?.acciones ?? "";
   form.detalleActividades = row?.detalleActividades ?? "";
 }
 
@@ -517,13 +538,13 @@ function fmtDate(s?: string) {
 }
 
 async function refresh() {
-  const params: any = {};
+  const params: any = { page: page.value, limit: limit.value };
   if (
     filters.placa &&
     typeof filters.placa === "string" &&
     filters.placa.trim()
   ) {
-    params.plate = filters.placa.trim(); // el store lo mapeará a 'placa'
+    params.plate = filters.placa.trim(); // el store lo mapea a 'placa'
   }
   await store.correctiveFetchList(params);
 }
@@ -547,6 +568,12 @@ function openCreate() {
   });
   dlg.visible = true;
   ensureMaintenances();
+}
+
+function onPage(e: any) {
+  page.value = Math.floor(e.first / e.rows) + 1;
+  limit.value = e.rows;
+  refresh();
 }
 
 function normDate(v: any): string | undefined {
@@ -614,7 +641,6 @@ async function save() {
 
   saving.value = true;
   try {
-
     await store.correctiveCreateDetail(payload);
 
     // 4) Marcar localmente que este mantenimiento ya tiene correctivo

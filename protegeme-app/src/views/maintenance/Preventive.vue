@@ -257,7 +257,6 @@ const documentTypeOptions = [
 
 /** Store computeds (preventivo) */
 const items = computed(() => store.preventiveList.items);
-
 const total = computed(() => store.preventiveList.total);
 const loading = computed(() => store.preventiveList.loading);
 
@@ -542,27 +541,32 @@ async function ensurePreventiveOpts() {
 }
 
 async function fetchEnlistmentById(id: string) {
-  if (typeof (store as any).enlistmentGetDetail === "function") {
-    return await (store as any).enlistmentGetDetail(id);
+  if (typeof (store as any).preventiveGetDetail === "function") {
+    return await (store as any).preventiveGetDetail(id);
   }
-  const local = (store.enlistmentList.items || []).find(
+  const local = (store.preventiveList.items || []).find(
     (x: any) => x?._id === id
   );
   if (local) return local;
-  await store.enlistmentFetchList({ id });
+  await store.preventiveFetchList({ id });
   return (
-    (store.enlistmentList.items || []).find((x: any) => x?._id === id) || null
+    (store.preventiveList.items || []).find((x: any) => x?._id === id) || null
   );
 }
 
 function fillFormFromRow(row: any) {
   form.placa = row?.placa ?? "";
-  form.fecha = row?.fecha ?? null;
+  form.fecha = row?.fecha ?? row?.createdAt ?? null;
   form.hora = row?.hora ?? null;
+
+  // NUEVOS: vista con NIT + Razón Social
+  form.nit = row?.nit ?? (row?.vigiladoId ? String(row.vigiladoId) : "");
+  form.razonSocial = row?.razonSocial ?? row?.razon ?? row?.empresa ?? "";
+
   form.tipoIdentificacion = row?.tipoIdentificacion ?? "";
   form.numeroIdentificacion = row?.numeroIdentificacion ?? "";
-  form.nombresResponsable = row?.nombresResponsable ?? "";
-  form.detalleActividades = row?.detalleActividades ?? "";
+  form.nombresResponsable = row?.nombresResponsable ?? row?.responsable ?? "";
+  form.detalleActividades = row?.detalleActividades ?? row?.descripcion ?? "";
 }
 
 async function openViewEnlistment(row: any) {
@@ -570,6 +574,7 @@ async function openViewEnlistment(row: any) {
   const id = row?._id;
   const full = id ? await fetchEnlistmentById(id) : row;
   fillFormFromRow(full || row);
+  console.log('%cprotegeme-app\src\views\maintenance\Preventive.vue:572 full', 'color: #007acc;', full);
   dlg.visible = true;
 }
 
