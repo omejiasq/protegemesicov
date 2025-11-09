@@ -1,10 +1,16 @@
-import { BadRequestException, Injectable, NotFoundException, Inject } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  Inject,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { basename, join } from 'path';
 import { FILE_STORAGE, FileStorage } from '../libs/storage/storage.types';
 import { FileAsset, FileAssetDocument } from '../schema/file-asset.schema';
-import * as storage_types from '../libs/storage/storage.types'
+import * as storage_types from '../libs/storage/storage.types';
+import { MaintenanceExternalApiService } from 'src/libs/external-api';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_MIME = new Set<string>([
@@ -15,13 +21,15 @@ const ALLOWED_MIME = new Set<string>([
   'image/jpg',
 ]);
 
-type UserCtx = { enterprise_id?: string; sub?: string, vigiladId: string };
+type UserCtx = { enterprise_id?: string; sub?: string; vigiladId: string };
 
 @Injectable()
 export class FileService {
   constructor(
-    @InjectModel(FileAsset.name) private readonly model: Model<FileAssetDocument>,
+    @InjectModel(FileAsset.name)
+    private readonly model: Model<FileAssetDocument>,
     @Inject(FILE_STORAGE) private readonly storage: storage_types.FileStorage,
+    private readonly external: MaintenanceExternalApiService,
   ) {}
 
   private uploadDir() {
@@ -33,11 +41,20 @@ export class FileService {
     return base.replace(/[^\w.\-]+/g, '_');
   }
 
-  async saveFile(params: { vigiladoId: number; file: Express.Multer.File; user?: UserCtx }) {
+  async saveFile(params: {
+    vigiladoId: number;
+    file: Express.Multer.File;
+    user?: UserCtx;
+  }) {
     const { file } = params;
-    if (!file?.buffer || typeof file.size !== 'number') throw new BadRequestException('Archivo inválido');
-    if (file.size > MAX_FILE_SIZE) throw new BadRequestException('El archivo supera los 5MB');
-    if (!ALLOWED_MIME.has(file.mimetype)) throw new BadRequestException('Tipo no permitido. Solo PDF, XLSX, PNG o JPG/JPEG');
+    if (!file?.buffer || typeof file.size !== 'number')
+      throw new BadRequestException('Archivo inválido');
+    if (file.size > MAX_FILE_SIZE)
+      throw new BadRequestException('El archivo supera los 5MB');
+    if (!ALLOWED_MIME.has(file.mimetype))
+      throw new BadRequestException(
+        'Tipo no permitido. Solo PDF, XLSX, PNG o JPG/JPEG',
+      );
 
     const stored = await this.storage.saveBuffer({
       buffer: file.buffer,
@@ -46,16 +63,20 @@ export class FileService {
       size: file.size,
     });
 
-    const publicBase = process.env.MINIO_PUBLIC_URL || process.env.PUBLIC_BASE_URL || '';
+    const publicBase =
+      process.env.MINIO_PUBLIC_URL || process.env.PUBLIC_BASE_URL || '';
     const rutaFinal =
       stored.url ??
       (stored.provider === 'local'
         ? join(this.uploadDir(), stored.key)
         : publicBase
-        ? `${publicBase.replace(/\/+$/, '')}/${stored.key}`
-        : undefined);
+          ? `${publicBase.replace(/\/+$/, '')}/${stored.key}`
+          : undefined);
 
-    if (!rutaFinal) throw new BadRequestException('Storage sin URL pública: configure MINIO_PUBLIC_URL');
+    if (!rutaFinal)
+      throw new BadRequestException(
+        'Storage sin URL pública: configure MINIO_PUBLIC_URL',
+      );
     const doc = await this.model.create({
       vigiladoId: params.user?.vigiladId,
       nombreOriginalArchivo: file.originalname,
@@ -66,6 +87,20 @@ export class FileService {
       enterprise_id: params.user?.enterprise_id,
       createdBy: params.user?.sub,
     });
+
+    try {
+      const vig = String(params.user?.vigiladId || params.vigiladoId || '');
+      if (vig) {
+        await this.external.guardarArchivo({
+          buffer: file.buffer,
+          filename: file.originalname,
+          mimetype: file.mimetype,
+          vigiladoId: vig,
+        });
+      }
+    } catch (e) {
+      // no romper flujo local; sólo log si querés
+    }
 
     return {
       vigiladoId: doc.vigiladoId,
@@ -83,7 +118,9 @@ export class FileService {
       enterprise_id: user?.enterprise_id,
     });
     if (!found) throw new NotFoundException('Archivo no encontrado');
-    const { base64, mimeType } = await this.storage.getBase64(found.nombreAlmacenado);
+    const { base64, mimeType } = await this.storage.getBase64(
+      found.nombreAlmacenado,
+    );
     return {
       base64,
       mimeType: found.mimeType || mimeType || 'application/octet-stream',

@@ -237,7 +237,8 @@ export class MaintenanceExternalApiService {
         endpoint,
         requestPayload: this.redact(body),
         responseStatus: e?.status ?? 500,
-        responseBody: e?.response?.data ?? e?.data ?? { message: e?.message || 'safe error' },
+        responseBody: e?.response?.data ??
+          e?.data ?? { message: e?.message || 'safe error' },
         success: false,
         durationMs: 0,
       });
@@ -247,6 +248,89 @@ export class MaintenanceExternalApiService {
         error: e?.message ?? String(e),
       };
     }
+  }
+
+  private bufToU8(buf: Buffer): Uint8Array {
+    return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+  }
+
+  private bufToArrayBuffer(buf: Buffer): ArrayBuffer {
+    const view = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+    const copy = new Uint8Array(view.byteLength);
+    copy.set(view); // copia para garantizar ArrayBuffer estándar
+    return copy.buffer; // <- ArrayBuffer válido para Blob/File
+  }
+
+  private async requestMultipartWithAuditFactorySafe(
+    endpoint: string,
+    operation: string,
+    makeForm: () => FormData,
+    vigiladoId?: string,
+    vigiladoToken?: string,
+  ) {
+    const started = Date.now();
+    const token = await this.login();
+
+    // headers base, sin Content-Type fijo (boundary lo pone fetch)
+    const base = this.buildHeaders(token, vigiladoId, vigiladoToken);
+    delete (base as any)['Content-Type'];
+
+    // 1) primer intento
+    let form = makeForm();
+    let resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: base as any,
+      body: form as any,
+    });
+    let data = await this.safeJson(resp);
+
+    await this.audit.log({
+      module: 'maintenance',
+      operation,
+      endpoint,
+      requestPayload: { multipart: true },
+      responseStatus: resp.status,
+      responseBody: data,
+      success: resp.ok,
+      durationMs: Date.now() - started,
+    });
+
+    // 2) retry auth
+    if (resp.status === 401 || resp.status === 403) {
+      this.bearerToken = null;
+      const retryStarted = Date.now();
+      const retryToken = await this.login();
+      const retryHeaders = this.buildHeaders(
+        retryToken,
+        vigiladoId,
+        vigiladoToken,
+      );
+      delete (retryHeaders as any)['Content-Type'];
+
+      // IMPORTANTE: reconstruir el FormData (no reusar el stream)
+      form = makeForm();
+      resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: retryHeaders as any,
+        body: form as any,
+      });
+      data = await this.safeJson(resp);
+
+      await this.audit.log({
+        module: 'maintenance',
+        operation: `${operation}:retry`,
+        endpoint,
+        requestPayload: { multipart: true },
+        responseStatus: resp.status,
+        responseBody: data,
+        success: resp.ok,
+        durationMs: Date.now() - retryStarted,
+      });
+    }
+
+    if (!resp.ok)
+      throw new HttpException(data ?? 'Error en SICOV', resp.status);
+    return { ok: true, status: resp.status, data };
   }
 
   /** -------------------------
@@ -481,6 +565,79 @@ export class MaintenanceExternalApiService {
       'listarActividades',
       undefined,
       vigiladoId,
+    );
+  }
+
+  async guardarArchivo(payload: {
+    buffer: Buffer; // Multer memoryStorage
+    filename: string; // file.originalname
+    mimetype: string; // file.mimetype
+    vigiladoId?: string | number; // headers/body
+    vigiladoToken?: string; // headers
+  }) {
+    if (payload.vigiladoId == null) {
+      throw new Error(
+        'vigiladoId es requerido para adjuntar idVigilado en el formulario.',
+      );
+    }
+    const endpoint = this.mantBase('/api/v2/archivos');
+    const id = String(payload.vigiladoId);
+
+    // Fábrica de FormData: se usa en el primer intento y en el retry.
+    const makeForm = () => {
+      const ab = this.bufToArrayBuffer(payload.buffer as Buffer);
+      const filePart = new File([ab], payload.filename, {
+        type: payload.mimetype,
+      });
+      const form = new FormData();
+      form.append('archivo', filePart); // filename se toma del File
+      form.append('idVigilado', id); // la externa lo espera así
+      return form;
+    };
+
+    // NO fijes Content-Type; fetch arma el boundary.
+    return this.requestMultipartWithAuditFactorySafe(
+      endpoint,
+      'guardarArchivo',
+      makeForm,
+      id, // headers: vigiladoId
+      payload.vigiladoToken, // headers: vigiladoToken si aplica
+    );
+  }
+
+  async crearArchivoPrograma(payload: {
+    tipoId: 1 | 2 | 3;
+    documento: string; // nombreAlmacenado
+    nombreOriginal: string; // nombreOriginalArchivo
+    ruta: string; // URL pública
+    placa?: string;
+    vigiladoId?: string | number; // headers/body
+    vigiladoToken?: string; // headers
+  }) {
+    const endpoint = this.mantBase('/api/v2/archivos_programas');
+    const id =
+      payload.vigiladoId != null ? String(payload.vigiladoId) : undefined;
+
+    // 👇 La externa espera `idVigilado` en el body
+    const body = {
+      tipoId: Number(payload.tipoId),
+      documento: this.asStr(payload.documento),
+      nombreOriginal: this.asStr(payload.nombreOriginal),
+      ruta: this.asStr(payload.ruta),
+      placa: payload.placa ? this.asStr(payload.placa) : undefined,
+      vigiladoId: id,
+    };
+
+    console.log('%capi-maintenance\src\libs\external-api.ts:631 body', 'color: #007acc;', body);
+
+    // Audita + reintenta con tu requestWithAuditSafe
+    return this.requestWithAuditSafe(
+      endpoint,
+      'POST',
+      'crearArchivoPrograma',
+      body,
+      id, // headers: vigiladoId
+      payload.vigiladoToken, // headers: vigiladoToken (si aplica)
     );
   }
 }

@@ -8,16 +8,20 @@ import { ProgramsController } from './program.controller';
 import { ProgramsService } from './program.service';
 import { StorageModule } from 'src/libs/storage/storage.module';
 
+import { MaintenanceExternalApiService } from 'src/libs/external-api';
+import { AuditModule } from 'src/libs/audit/audit.module'; 
+
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: FileAsset.name, schema: FileAssetSchema },
       { name: ProgramFile.name, schema: ProgramFileSchema },
     ]),
-    StorageModule
+    StorageModule,
+    AuditModule, // <-- necesario para external-api.ts
   ],
   controllers: [ProgramsController],
-  providers: [ProgramsService],
+  providers: [ProgramsService, MaintenanceExternalApiService],
   exports: [ProgramsService],
 })
 export class ProgramsModule {}
