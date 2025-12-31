@@ -7,6 +7,14 @@
         <p class="subtitle">Listado y alta de alistamientos</p>
       </div>
       <div class="right">
+      <Button
+        label="Exportar Excel"
+        icon="pi pi-file-excel"
+        class="btn-blue"
+        @click="exportExcel"
+      />
+
+
         <Button
           label="Nuevo Alistamiento"
           icon="pi pi-plus"
@@ -23,10 +31,33 @@
         <div class="bolt_search p-3">
           <SearchBar
             v-model="filters.placa"
-            :width="'700px'"
+            :width="'300px'"
             @search="refresh"
           />
         </div>
+
+<!-- Desde -->
+<div class="field col-12 md:col-3">
+  <label>Desde</label>
+  <Calendar
+    v-model="filters.fechaDesde"
+    dateFormat="yy-mm-dd"
+    showIcon
+    class="w-full"
+  />
+</div>
+
+<!-- Hasta -->
+<div class="field col-12 md:col-3">
+  <label>Hasta</label>
+  <Calendar
+    v-model="filters.fechaHasta"
+    dateFormat="yy-mm-dd"
+    showIcon
+    class="w-full"
+  />
+</div>
+
 
         <!-- Botones -->
         <div class="field col-12 md:col-2 flex align-items-end">
@@ -52,7 +83,7 @@
     <!-- Tabla (1 fila si hay resultado) -->
     <div class="bolt-card p-3">
       <DataTable
-        :value="rows"
+        :value="rowsFiltered"
         :loading="loading"
         dataKey="_id"
         responsive-layout="scroll"
@@ -62,19 +93,18 @@
         :first="(page - 1) * limit"
         class="p-datatable-sm"
       >
-        <Column header="Descripcion" style="min-width: 240px">
-          <template #body="{ data }"
-            ><span class="text-900">{{
-              data.detalleActividades
-            }}</span></template
-          >
-        </Column>
-        <Column header="Placa" style="min-width: 240px">
+
+        <Column header="Placa" >
           <template #body="{ data }"
             ><span class="text-900">{{ data.placa }}</span></template
           >
         </Column>
-        <Column header="Numero de identificacion">
+        <Column header="Conductor" >
+          <template #body="{ data }"
+            ><span class="text-900">{{ data.nombresConductor }}</span></template
+          >
+        </Column>
+        <Column header="Documento">
           <template #body="{ data }"
             ><span class="text-900">{{
               data.numeroIdentificacion || "—"
@@ -86,6 +116,11 @@
             ><span class="text-900">{{
               fmtDate(data.createdAt)
             }}</span></template
+          >
+        </Column>
+        <Column header="Responsable" >
+          <template #body="{ data }"
+            ><span class="text-900">{{ data.nombresResponsable }}</span></template
           >
         </Column>
         <Column header="Estado" style="width: 140px">
@@ -268,6 +303,7 @@
 </template>
 
 <script setup lang="ts">
+
 import { reactive, ref, computed, onMounted } from "vue";
 import { useMaintenanceStore } from "../../stores/maintenanceStore";
 import InputText from "primevue/inputtext";
@@ -287,6 +323,11 @@ import SearchBar from "../../components/ui/SearchBar.vue";
 import InputDate from "../../components/ui/InputDate.vue";
 import InputHour from "../../components/ui/InputHour.vue";
 import Button from "../../components/ui/Button.vue";
+
+/* 👇 SOLO AQUÍ */
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+
 
 const toast = useToast();
 
@@ -335,6 +376,38 @@ async function fetchEnlistmentById(id: string) {
     (store.enlistmentList.items || []).find((x: any) => x?._id === id) || null
   );
 }
+
+function exportExcel() {
+  if (!rowsFiltered.value.length) return;
+
+  const data = rowsFiltered.value.map((r: any) => ({
+    Placa: r.placa || "",
+    Conductor: r.nombresConductor || "",
+    Documento: r.numeroIdentificacion || "",
+    Responsable: r.nombresResponsable || "",
+    Fecha: r.createdAt
+      ? new Date(r.createdAt).toLocaleDateString()
+      : "",
+    Estado: r.estado ? "ACTIVO" : "INACTIVO",
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Alistamientos");
+
+  const excelBuffer = XLSX.write(workbook, {
+    bookType: "xlsx",
+    type: "array",
+  });
+
+  const blob = new Blob([excelBuffer], {
+    type:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+
+  saveAs(blob, `alistamientos_${Date.now()}.xlsx`);
+}
+
 
 function fillFormFromRow(row: any) {
   form.placa = row?.placa ?? "";
@@ -469,10 +542,12 @@ function onSearch() {
 }
 
 function onClear() {
-  searchPlate.value = "";
-  // sin plate => sin filtro
-  store.enlistmentFetchList({});
+  filters.placa = "";
+  filters.fechaDesde = null;
+  filters.fechaHasta = null;
+  refresh();
 }
+
 
 const isEditingCorrective = ref(false);
 const editingCorrectiveId = ref<string | null>(null);
@@ -604,8 +679,23 @@ async function toggleCorrective(id: string) {
   }
 }
 
-type EnlistmentFilters = { mantenimientoId: string; placa: string };
-const filters = reactive<EnlistmentFilters>({ mantenimientoId: "", placa: "" });
+//type EnlistmentFilters = { mantenimientoId: string; placa: string };
+//const filters = reactive<EnlistmentFilters>({ mantenimientoId: "", placa: "" });
+type EnlistmentFilters = {
+  mantenimientoId: string;
+  placa: string;
+  fechaDesde: Date | null;
+  fechaHasta: Date | null;
+};
+
+const filters = reactive<EnlistmentFilters>({
+  mantenimientoId: "",
+  placa: "",
+  fechaDesde: null,
+  fechaHasta: null,
+});
+
+
 const saving = ref(false);
 const dlg = reactive({ visible: false });
 watch(
@@ -661,6 +751,29 @@ function resetForm() {
 const loading = computed(() => store.enlistmentList.loading);
 const rows = computed(() => (store.enlistmentList.items || []).map(normalize));
 
+const rowsFiltered = computed(() => {
+  let data = rows.value;
+
+  if (filters.fechaDesde) {
+    const desde = new Date(filters.fechaDesde).setHours(0, 0, 0, 0);
+    data = data.filter((r: any) => {
+      if (!r.createdAt) return false;
+      return new Date(r.createdAt).getTime() >= desde;
+    });
+  }
+
+  if (filters.fechaHasta) {
+    const hasta = new Date(filters.fechaHasta).setHours(23, 59, 59, 999);
+    data = data.filter((r: any) => {
+      if (!r.createdAt) return false;
+      return new Date(r.createdAt).getTime() <= hasta;
+    });
+  }
+
+  return data;
+});
+
+
 const maintenanceOptsType3 = computed(() =>
   (store.maintenanceList.items || [])
     .filter((m: any) => Number(m?.tipoId) === 3) // 👈 SOLO tipo 3
@@ -696,15 +809,22 @@ function fmtDate(s?: string) {
 
 async function refresh() {
   const params: any = {};
-  if (
-    filters.placa &&
-    typeof filters.placa === "string" &&
-    filters.placa.trim()
-  ) {
-    params.plate = filters.placa.trim(); // el store lo mapea a 'placa'
+
+  if (filters.placa?.trim()) {
+    params.plate = filters.placa.trim();
   }
+
+  if (filters.fechaDesde) {
+    params.fechaDesde = normDate(filters.fechaDesde);
+  }
+
+  if (filters.fechaHasta) {
+    params.fechaHasta = normDate(filters.fechaHasta);
+  }
+
   await store.enlistmentFetchList(params);
 }
+
 
 function normDate(v: any): string | undefined {
   if (!v) return undefined;
@@ -917,8 +1037,8 @@ onMounted(async () => {
   await store.enlistmentFetchList();
 
   // logs útiles para debug — podés borrar después
-  console.log("store.enlistment.activities ->", store.enlistment.activities);
-  console.log("store.enlistmentList.items ->", store.enlistmentList.items);
+  console.log("store.enlistment.activities ->", (store.enlistment.activities));
+  console.log("store.enlistmentList.items ->",JSON.stringify(store.enlistmentList.items));
 });
 </script>
 

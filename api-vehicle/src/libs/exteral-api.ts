@@ -49,11 +49,12 @@ export class VehicleExternalApiService {
           endpoint: url,
           requestPayload: redact(reqPayload),
           responseStatus: status || 0,
-          responseBody: data,
+          //responseBody: data,
+          responsePayload: data,
           success: !!ok,
           durationMs: Date.now() - started,
           userId: ctx.userId,
-          enterpriseId: ctx.enterpriseId,
+          //enterpriseId: ctx.enterpriseId,
           errorMessage,
         });
       } catch { /* nunca bloquear por auditoría */ }

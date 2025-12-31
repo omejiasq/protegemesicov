@@ -1,0 +1,194 @@
+version: "3.9"
+
+services:
+  api-auth:
+    build:
+      context: ./api-auth
+      dockerfile: Dockerfile
+    # alternativa recomendada: usar imagen versionada en vez de build:
+    # image: repo/protegeme/api-auth:20251130
+    env_file:
+      - ./api-auth/.env
+    # No exponer públicamente las APIs: solo en localhost
+    ports:
+      - "127.0.0.1:4001:4001"
+    restart: unless-stopped
+    networks:
+      - protegeme-net
+    volumes:
+      - ./data/logs/api-auth:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4001/health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  api-incidents:
+    build:
+      context: ./api-incidents
+      dockerfile: Dockerfile
+    env_file:
+      - ./api-incidents/.env
+    ports:
+      - "127.0.0.1:4002:4002"
+    restart: unless-stopped
+    networks:
+      - protegeme-net
+    volumes:
+      - ./data/logs/api-incidents:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4002/health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  api-authorizations:
+    build:
+      context: ./api-authorizations
+      dockerfile: Dockerfile
+    env_file:
+      - ./api-authorizations/.env
+    ports:
+      - "127.0.0.1:4003:4003"
+    restart: unless-stopped
+    networks:
+      - protegeme-net
+    volumes:
+      - ./data/logs/api-authorizations:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4003/health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  api-maintenance:
+    build:
+      context: ./api-maintenance
+      dockerfile: Dockerfile
+    env_file:
+      - ./api-maintenance/.env
+    ports:
+      - "127.0.0.1:4004:4004"
+    restart: unless-stopped
+    networks:
+      - protegeme-net
+    volumes:
+      - ./data/uploads/maintenance:/app/uploads
+      - ./data/logs/api-maintenance:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4004/health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  api-vehicle:
+    build:
+      context: ./api-vehicle
+      dockerfile: Dockerfile
+    env_file:
+      - ./api-vehicle/.env
+    ports:
+      - "127.0.0.1:4005:4005"
+    restart: unless-stopped
+    networks:
+      - protegeme-net
+    volumes:
+      - ./data/uploads/vehicle:/app/uploads
+      - ./data/logs/api-vehicle:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4005/health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  api-drivers:
+    build:
+      context: ./api-driver
+      dockerfile: Dockerfile
+    env_file:
+      - ./api-driver/.env
+    ports:
+      - "127.0.0.1:4006:4006"
+    restart: unless-stopped
+    networks:
+      - protegeme-net
+    volumes:
+      - ./data/logs/api-drivers:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4006/health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  web:
+    build:
+      context: ./protegeme-app
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"  
+    #image: repo/protegeme/web:20251130
+    env_file:
+      - ./protegeme-app/.env
+    # Servir el frontend solo a través de reverse-proxy en host (recomendado).
+    # Aquí lo dejamos escuchando en localhost para que NGINX en host lo exponga.
+    restart: unless-stopped
+    networks:
+      - protegeme-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    env_file:
+      - ./.env_prod   # leer credenciales desde el env_prod raíz
+    volumes:
+      - ./data/minio:/data
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    restart: unless-stopped
+    networks:
+      - protegeme-net
+    healthcheck:
+      test: ["CMD", "sh", "-c", "mc alias set local http://127.0.0.1:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} >/dev/null 2>&1 || true; exit 0"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # init de bucket (one-shot)
+  minio-mc:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: ["/bin/sh","-c"]
+    command: >
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} &&
+      mc mb -p local/${MINIO_BUCKET} || true &&
+      mc anonymous set download local/${MINIO_BUCKET} || true
+    networks:
+      - protegeme-net
+    restart: "no"
+
+  redis:
+    image: redis:7-alpine
+    container_name: protegeme-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks: [protegeme-net]
+
+networks:
+  protegeme-net:
+    driver: bridge

@@ -113,6 +113,15 @@ services:
       mc anonymous set download local/${MINIO_BUCKET} || true
     networks: [protegeme-net]
     restart: "no"
+  
+  redis:
+    image: redis:7-alpine
+    container_name: protegeme-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks: [protegeme-net]
+
 networks:
   protegeme-net:
     driver: bridge

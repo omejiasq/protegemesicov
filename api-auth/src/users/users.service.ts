@@ -32,6 +32,13 @@ export class UsersService {
 
   async validateUser(usuario: string, password: string) {
     const user = await this.findByUsername(usuario);
+    //console.log('PASSWORD INPUT:', password);
+    //console.log('HASH DB:', user.password);
+    /*console.log(
+      'BCRYPT COMPARE:',
+      await bcrypt.compare(password, user.password),
+    );*/
+
     if (!user) return null;
 
     const isValid = await bcrypt.compare(password, user.password);

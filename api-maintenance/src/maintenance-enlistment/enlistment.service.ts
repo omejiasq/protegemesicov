@@ -91,7 +91,7 @@ export class AlistamientoService {
 
     try {
       if (mantenimientoIdExterno && vigiladoId && user?.vigiladoToken) {
-        await this.external.guardarAlistamiento({
+        const externalRes = await this.external.guardarAlistamiento({
           tipoIdentificacionResponsable: Number(dto.tipoIdentificacion),
           numeroIdentificacionResponsable: String(dto.numeroIdentificacion),
           nombreResponsable: String(dto.nombresResponsable),
@@ -107,6 +107,16 @@ export class AlistamientoService {
           vigiladoId: String(vigiladoId),
           vigiladoToken: user.vigiladoToken,
         });
+
+        if (externalRes && externalRes.ok === false) {
+          throw new ConflictException({
+            message: 'Error registrando alistamiento en SICOV',
+            placa: dto.placa,
+            externalStatus: externalRes.status,
+            externalError: 'error' in externalRes ? externalRes.error : null,
+          });
+        }
+
       }
     } catch {}
 
