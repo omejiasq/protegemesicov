@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { VehiclesModule } from './vehicles/vehicles.module';
+import { AuthModule } from './libs/auth/auth.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { VehiclesModule } from './vehicles/vehicles.module';
         uri: cfg.get<string>('MONGO_URI'),
       }),
     }),
+    AuthModule, // ✅ OBLIGATORIO
     VehiclesModule,
   ],
 })

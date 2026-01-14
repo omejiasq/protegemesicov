@@ -1,83 +1,102 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Schema as MongooseSchema } from 'mongoose';
+import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type VehicleDocument = HydratedDocument<Vehicle>;
 
 @Schema({ timestamps: true })
 export class Vehicle {
-  @Prop({ type: String, index: true, required: true })
-  enterprise_id!: string;
 
-  @Prop({ type: String, required: true })
-  placa!: string;
-
-  @Prop({ type: Number, required: true })
-  clase!: number;
+  // 🔥 CAMBIO CLAVE
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'Enterprise',
+    index: true,
+    required: true,
+  })
+  enterprise_id!: Types.ObjectId;
 
   @Prop({ type: Number, required: true })
   nivelServicio!: number;
 
-  @Prop({ type: String }) soat?: string;
-  @Prop({ type: Date })  fechaVencimientoSoat?: Date;
-
-  @Prop({ type: String }) revisionTecnicoMecanica?: string;
-  @Prop({ type: Date })  fechaRevisionTecnicoMecanica?: Date;
-
-  @Prop({ type: String }) idPolizas?: string;
-  @Prop({ type: String }) tipoPoliza?: string;
-  @Prop({ type: Date })  vigencia?: Date;
-
-  @Prop({ type: String }) tarjetaOperacion?: string;
-  @Prop({ type: Date })  fechaTarjetaOperacion?: Date;
-
   @Prop({ type: Boolean, default: true, index: true })
   estado!: boolean;
 
-  // 👉 Nuevo campo: referencia al conductor en la colección users
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'users', required: false })
-  driver_id?: string;
+  // 🔥 CAMBIO CLAVE
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'User',
+    required: false,
+  })
+  driver_id?: Types.ObjectId;
 
-  @Prop({ type: String }) createdBy?: string;
+  @Prop({ type: String })
+  createdBy?: string;
 
-  @Prop({ type: String, default: null })
-  marca?: string;
-  @Prop({ type: String, default: null })
-  Linea?: string;
-  @Prop({ type: String, default: null })
-  color?: string;
-  @Prop({ type: String, default: null })
-  cilindrale?: number | null;
-  @Prop({ type: String, default: null })
-  combustible?: string; 
-  @Prop({ type: String, default: null })
-  kilometraje?: number | null;
-  @Prop({ type: String, default: null })
-  noRtm?: number | null;
-  @Prop({ type: String, default: null })
-  fechaExpiraRtm?: Date;
-  @Prop({ type: String, default: null })
-  fechaVenRtm?: Date;
-  @Prop({ type: String, default: null })
-  noSoat?: number | null;
-  @Prop({ type: String, default: null })
-  fechaExpiraSoat?: Date;
-  @Prop({ type: String, default: null })
-  fechaVenSoat?: Date;
-  @Prop({ type: String, default: null })
-  aseguradora?: string; 
-  @Prop({ type: String, default: null })
-  propietario?: string;
-  @Prop({ type: String, default: null })
-  documento?: number | null;
-  @Prop({ type: String, default: null })
-  telefono?: number | null;
-  @Prop({ type: String, default: null })
-  direccion?: string;
-  active!: boolean;
+  // ===== campos vehiculo eestandar =====
+  @Prop({ type: String, index: true, required: true })
+  placa!: string;
+  @Prop({ type: String })
+  clase?: string;
+
+  @Prop({ type: String, default: null }) marca?: string;
+  @Prop({ type: String, default: null }) Linea?: string;
+  @Prop({ type: String, default: null }) servicio?: string;
+  @Prop({ type: Number, default: null }) kilometraje?: number | null;
+  @Prop({ type: String, default: null }) modelo?: string;
+  @Prop({ type: String, default: null }) combustible?: string;
+  @Prop({ type: String, default: null }) color?: string;
+  @Prop({ type: Number, default: null }) cilindraje?: number | null;
+
+  @Prop({ type: String, default: null }) no_rtm?: string;
+  @Prop({ type: Date, default: null })
+  expedition_rtm?: Date;
+  @Prop({ type: Date, default: null })
+  expiration_rtm?: Date;
+  @Prop({ type: String, default: null }) no_soat?: string;
+  @Prop({ type: Date, default: null })
+  expedition_soat?: Date;
+  @Prop({ type: Date, default: null })
+  expiration_soat?: Date;
+  @Prop({ type: String, default: null }) no_rcc?: string;
+  @Prop({ type: Date, default: null })
+  expiration_rcc?: Date; 
+  @Prop({ type: String, default: null }) no_rce?: string;
+  @Prop({ type: Date, default: null })
+  expiration_rce?: Date; 
+  @Prop({ type: String, default: null }) no_tecnomecanica?: string;
+  @Prop({ type: Date, default: null })
+  expiration_tecnomecanica?: Date; 
+  @Prop({ type: String, default: null }) no_tarjeta_opera?: string;
+  @Prop({ type: Date, default: null })
+  expiration_tarjeta_opera?: Date; 
+
+  @Prop({ type: String, default: null }) nombre_aseguradora?: string;
+  @Prop({ type: String, default: null }) tipo_vehiculo?: string;
+  @Prop({ type: String, default: null }) modalidad?: string;
+  @Prop({ type: String, default: null }) no_interno?: string;
+  @Prop({ type: String, default: null }) motor?: string;
+  @Prop({ type: String, default: null }) to?: string;
+  @Prop({ type: String, default: null }) vencim?: string;
+  @Prop({ type: String, default: null }) no_chasis?: string;
+  @Prop({ type: String, default: null }) tipo?: string;
+  @Prop({ type: String, default: null }) capacidad?: string
+  @Prop({ type: String, default: null }) nombre_propietario?: string;
+  @Prop({ type: String, default: null }) cedula_propietario?: string;
+  @Prop({ type: String, default: null }) telefono_propietario?: string;
+  @Prop({ type: String, default: null }) direccion_propietario?: string;
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'User',
+    required: false,
+  })
+  driver2_id?: Types.ObjectId;
+  @Prop({ type: Boolean, default: true }) active!: boolean;
+
+
 
 }
 
-const VehicleSchema = SchemaFactory.createForClass(Vehicle);
-VehicleSchema.index({ enterprise_id: 1, placa: 1 }, { unique: true });
+export const VehicleSchema = SchemaFactory.createForClass(Vehicle);
 
-export { VehicleSchema };
+// índice compuesto correcto
+VehicleSchema.index({ enterprise_id: 1, placa: 1 }, { unique: true });

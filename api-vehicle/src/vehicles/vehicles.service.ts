@@ -2,115 +2,127 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model, Types } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Vehicle, VehicleDocument } from '../schema/vehicle.schema';
-import { VehicleExternalApiService } from '../libs/exteral-api';
-import { AuditService } from '../libs/audit/audit.service';
 
 type UserCtx = {
-  enterprise_id?: string;
+  enterprise_id: string;
   sub?: string;
 };
 
 @Injectable()
 export class VehiclesService {
-  private readonly logger = new Logger(VehiclesService.name);
-
   constructor(
     @InjectModel(Vehicle.name)
-    private readonly model: Model<VehicleDocument>,
-    private readonly external: VehicleExternalApiService,
-    private readonly audit: AuditService,
+    private readonly vehicleModel: Model<VehicleDocument>,
   ) {}
 
   /* =====================================================
    * HELPERS
    * ===================================================== */
-
-  private tenant(user?: UserCtx): FilterQuery<VehicleDocument> {
-    if (!user?.enterprise_id) return {};
-    return { enterprise_id: user.enterprise_id };
-  }
-
-  private parseDate(value?: string | Date): Date | undefined {
-    if (!value) return undefined;
-    const d = value instanceof Date ? value : new Date(value);
-    return isNaN(d.getTime()) ? undefined : d;
+  private normalizeDate(value?: string | Date): Date | null {
+    if (!value) return null;
+    const d = new Date(value);
+    d.setHours(0, 0, 0, 0); // solo fecha
+    return isNaN(d.getTime()) ? null : d;
   }
 
   /* =====================================================
    * CREATE
    * ===================================================== */
-
-  async create(body: any, user?: UserCtx) {
+  async create(dto: any, user: UserCtx) {
     if (!user?.enterprise_id) {
       throw new ConflictException('Empresa no definida');
     }
 
-    const exists = await this.model.exists({
-      placa: body.placa,
-      enterprise_id: user.enterprise_id,
+    const enterpriseId = new Types.ObjectId(user.enterprise_id);
+
+    const exists = await this.vehicleModel.exists({
+      placa: dto.placa,
+      enterprise_id: enterpriseId,
     });
 
     if (exists) {
-      throw new ConflictException('La placa ya existe para esta empresa');
+      throw new ConflictException(
+        'La placa ya existe para esta empresa',
+      );
     }
 
-    const doc = await this.model.create({
-      enterprise_id: user.enterprise_id,
+    const vehicle = await this.vehicleModel.create({
+      enterprise_id: enterpriseId,
       createdBy: user.sub,
-      estado: true,
-      active: true,
 
-      placa: body.placa,
-      clase: Number(body.clase),
-      nivelServicio: Number(body.nivelServicio),
+      placa: dto.placa,
+      nivelServicio: Number(dto.nivelServicio),
+      clase: dto.clase ?? null,
 
-      soat: body.soat?.trim() || undefined,
-      fechaVencimientoSoat: this.parseDate(body.fechaVencimientoSoat),
+      estado: dto.estado ?? true,
+      active: dto.active ?? true,
 
-      revisionTecnicoMecanica: body.revisionTecnicoMecanica || undefined,
-      fechaRevisionTecnicoMecanica: this.parseDate(body.fechaRevisionTecnicoMecanica),
-
-      idPolizas: body.idPolizas || undefined,
-      tipoPoliza: body.tipoPoliza || undefined,
-      vigencia: this.parseDate(body.vigencia),
-
-      tarjetaOperacion: body.tarjetaOperacion || undefined,
-      fechaTarjetaOperacion: this.parseDate(body.fechaTarjetaOperacion),
-
-      driver_id: body.driver_id
-        ? new Types.ObjectId(body.driver_id)
+      driver_id: dto.driver_id
+        ? new Types.ObjectId(dto.driver_id)
         : undefined,
+      driver2_id: dto.driver2_id
+        ? new Types.ObjectId(dto.driver2_id)
+        : undefined,
+
+      marca: dto.marca ?? null,
+      Linea: dto.Linea ?? null,
+      servicio: dto.servicio ?? null,
+      kilometraje: dto.kilometraje ?? null,
+      modelo: dto.modelo ?? null,
+      combustible: dto.combustible ?? null,
+      color: dto.color ?? null,
+      cilindraje: dto.cilindraje ?? null,
+
+      no_rtm: dto.no_rtm ?? null,
+      expedition_rtm: this.normalizeDate(dto.expedition_rtm),
+      expiration_rtm: this.normalizeDate(dto.expiration_rtm),
+
+      no_soat: dto.no_soat ?? null,
+      expedition_soat: this.normalizeDate(dto.expedition_soat),
+      expiration_soat: this.normalizeDate(dto.expiration_soat),
+
+      no_rcc: dto.no_rcc ?? null,
+      expiration_rcc: this.normalizeDate(dto.expiration_rcc),
+
+      no_rce: dto.no_rce ?? null,
+      expiration_rce: this.normalizeDate(dto.expiration_rce),
+
+      no_tecnomecanica: dto.no_tecnomecanica ?? null,
+      expiration_tecnomecanica: this.normalizeDate(dto.expiration_tecnomecanica),
+
+      no_tarjeta_opera: dto.no_tarjeta_opera ?? null,
+      expiration_tarjeta_opera: this.normalizeDate(dto.expiration_tarjeta_opera),
+
+      nombre_aseguradora: dto.nombre_aseguradora ?? null,
+      tipo_vehiculo: dto.tipo_vehiculo ?? null,
+      modalidad: dto.modalidad ?? null,
+      no_interno: dto.no_interno ?? null,
+      motor: dto.motor ?? null,
+      to: dto.to ?? null,
+      vencim: dto.vencim ?? null,
+      no_chasis: dto.no_chasis ?? null,
+      tipo: dto.tipo ?? null,
+      capacidad: dto.capacidad ?? null,
+
+      nombre_propietario: dto.nombre_propietario ?? null,
+      cedula_propietario: dto.cedula_propietario ?? null,
+      telefono_propietario: dto.telefono_propietario ?? null,
+      direccion_propietario: dto.direccion_propietario ?? null,
     });
 
-    /* ---------- sync externo (best effort) ---------- */
-    try {
-      await this.external.crearVehiculo(doc.toJSON(), {
-        userId: user.sub,
-        enterpriseId: user.enterprise_id,
-      });
-    } catch (error) {
-      this.logger.warn('No se pudo sincronizar vehículo externo');
-    }
-
-    return doc.toJSON();
+    return vehicle.toObject();
   }
 
   /* =====================================================
-   * GET ALL (por empresa)
+   * GET ALL
    * ===================================================== */
-
-  async getAll(query: any, user?: UserCtx) {
-    const page = Math.max(1, Number(query.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(query.numero_items) || 10));
-    const skip = (page - 1) * limit;
-
-    const filter: FilterQuery<VehicleDocument> = {
-      ...this.tenant(user),
+  async getAll(query: any, user: UserCtx) {
+    const filter: any = {
+      enterprise_id: new Types.ObjectId(user.enterprise_id),
     };
 
     if (query.placa) {
@@ -121,39 +133,21 @@ export class VehiclesService {
       filter.estado = query.estado === 'true' || query.estado === true;
     }
 
-    const [items, total] = await Promise.all([
-      this.model
-        .find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      this.model.countDocuments(filter),
-    ]);
-
-    return {
-      page,
-      numero_items: limit,
-      total,
-      items,
-    };
+    return this.vehicleModel.find(filter).lean();
   }
 
   /* =====================================================
    * GET BY ID
    * ===================================================== */
-
-  async getById(id: string, user?: UserCtx) {
+  async getById(id: string, user: UserCtx) {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Vehículo no encontrado');
     }
 
-    const vehicle = await this.model
-      .findOne({
-        _id: new Types.ObjectId(id),
-        ...this.tenant(user),
-      })
-      .lean();
+    const vehicle = await this.vehicleModel.findOne({
+      _id: new Types.ObjectId(id),
+      enterprise_id: new Types.ObjectId(user.enterprise_id),
+    }).lean();
 
     if (!vehicle) {
       throw new NotFoundException('Vehículo no encontrado');
@@ -164,101 +158,50 @@ export class VehiclesService {
 
   /* =====================================================
    * UPDATE
+   * (sirve para TODOS los campos)
    * ===================================================== */
-
-  async updateById(id: string, body: any, user?: UserCtx) {
+  async updateById(id: string, dto: any, user: UserCtx) {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Vehículo no encontrado');
     }
 
-    if (body.placa) {
-      const dup = await this.model.exists({
-        _id: { $ne: new Types.ObjectId(id) },
-        placa: body.placa,
-        enterprise_id: user?.enterprise_id,
-      });
+    const update: any = {};
 
-      if (dup) {
-        throw new ConflictException(
-          'Ya existe un vehículo con esta placa en la empresa',
-        );
+    Object.keys(dto).forEach((key) => {
+      if (key.startsWith('expiration_') || key.startsWith('expedition_')) {
+        update[key] = this.normalizeDate(dto[key]);
+      } else if (key === 'driver_id' || key === 'driver2_id') {
+        update[key] = dto[key]
+          ? new Types.ObjectId(dto[key])
+          : null;
+      } else {
+        update[key] = dto[key];
       }
-    }
+    });
 
-    const update: any = {
-      ...(body.placa && { placa: body.placa }),
-      ...(body.clase != null && { clase: Number(body.clase) }),
-      ...(body.nivelServicio != null && {
-        nivelServicio: Number(body.nivelServicio),
-      }),
+    const vehicle = await this.vehicleModel.findOneAndUpdate(
+      {
+        _id: new Types.ObjectId(id),
+        enterprise_id: new Types.ObjectId(user.enterprise_id),
+      },
+      { $set: update },
+      { new: true },
+    );
 
-      ...(body.soat !== undefined && { soat: body.soat || undefined }),
-      ...(body.fechaVencimientoSoat && {
-        fechaVencimientoSoat: this.parseDate(body.fechaVencimientoSoat),
-      }),
-
-      ...(body.revisionTecnicoMecanica && {
-        revisionTecnicoMecanica: body.revisionTecnicoMecanica,
-      }),
-      ...(body.fechaRevisionTecnicoMecanica && {
-        fechaRevisionTecnicoMecanica: this.parseDate(
-          body.fechaRevisionTecnicoMecanica,
-        ),
-      }),
-
-      ...(body.idPolizas && { idPolizas: body.idPolizas }),
-      ...(body.tipoPoliza && { tipoPoliza: body.tipoPoliza }),
-      ...(body.vigencia && { vigencia: this.parseDate(body.vigencia) }),
-
-      ...(body.tarjetaOperacion && {
-        tarjetaOperacion: body.tarjetaOperacion,
-      }),
-      ...(body.fechaTarjetaOperacion && {
-        fechaTarjetaOperacion: this.parseDate(body.fechaTarjetaOperacion),
-      }),
-
-      ...(body.driver_id && {
-        driver_id: new Types.ObjectId(body.driver_id),
-      }),
-    };
-
-    const updated = await this.model
-      .findOneAndUpdate(
-        { _id: new Types.ObjectId(id), ...this.tenant(user) },
-        { $set: update },
-        { new: true },
-      )
-      .lean();
-
-    if (!updated) {
+    if (!vehicle) {
       throw new NotFoundException('Vehículo no encontrado');
     }
 
-    /* ---------- sync externo ---------- */
-    try {
-      await this.external.actualizarVehiculo(String(id), updated, {
-        userId: user?.sub,
-        enterpriseId: user?.enterprise_id,
-      });
-    } catch {
-      this.logger.warn('No se pudo actualizar vehículo externo');
-    }
-
-    return updated;
+    return vehicle.toObject();
   }
 
   /* =====================================================
-   * ACTIVATE / DEACTIVATE
+   * TOGGLE ESTADO
    * ===================================================== */
-
-  async toggleState(id: string, user?: UserCtx) {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException('Vehículo no encontrado');
-    }
-
-    const vehicle = await this.model.findOne({
+  async toggleState(id: string, user: UserCtx) {
+    const vehicle = await this.vehicleModel.findOne({
       _id: new Types.ObjectId(id),
-      ...this.tenant(user),
+      enterprise_id: new Types.ObjectId(user.enterprise_id),
     });
 
     if (!vehicle) {
