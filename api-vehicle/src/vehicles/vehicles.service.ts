@@ -112,6 +112,11 @@ export class VehiclesService {
       cedula_propietario: dto.cedula_propietario ?? null,
       telefono_propietario: dto.telefono_propietario ?? null,
       direccion_propietario: dto.direccion_propietario ?? null,
+
+      document_type_driver2: dto.document_type_driver2 ?? null,
+      documentNumber_driver2: dto.documentNumber_driver2 ?? null,
+      name_driver2: dto.name_driver2 ?? null,
+
     });
 
     return vehicle.toObject();
@@ -164,21 +169,46 @@ export class VehiclesService {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Vehículo no encontrado');
     }
-
+  
     const update: any = {};
-
+    const now = new Date();
+  
     Object.keys(dto).forEach((key) => {
+      // fechas de vencimiento / expedición
       if (key.startsWith('expiration_') || key.startsWith('expedition_')) {
         update[key] = this.normalizeDate(dto[key]);
-      } else if (key === 'driver_id' || key === 'driver2_id') {
-        update[key] = dto[key]
-          ? new Types.ObjectId(dto[key])
-          : null;
-      } else {
-        update[key] = dto[key];
+        return;
       }
+  
+      // ids de conductores
+      if (key === 'driver_id' || key === 'driver2_id') {
+        update[key] = dto[key] ? new Types.ObjectId(dto[key]) : null;
+        return;
+      }
+  
+      // cambio de estado activo/inactivo
+      if (key === 'active') {
+        const newActive = dto.active === true || dto.active === 'true';
+  
+        update.active = newActive;
+  
+        if (newActive) {
+          // reactivación
+          update.fecha_activacion = now;
+          update.nota_desactivacion = null;
+        } else {
+          // desactivación
+          update.fecha_ultima_desactivacion = now;
+          update.nota_desactivacion = dto.nota_desactivacion ?? null;
+        }
+  
+        return;
+      }
+  
+      // cualquier otro campo
+      update[key] = dto[key];
     });
-
+  
     const vehicle = await this.vehicleModel.findOneAndUpdate(
       {
         _id: new Types.ObjectId(id),
@@ -187,13 +217,14 @@ export class VehiclesService {
       { $set: update },
       { new: true },
     );
-
+  
     if (!vehicle) {
       throw new NotFoundException('Vehículo no encontrado');
     }
-
+  
     return vehicle.toObject();
   }
+  
 
   /* =====================================================
    * TOGGLE ESTADO

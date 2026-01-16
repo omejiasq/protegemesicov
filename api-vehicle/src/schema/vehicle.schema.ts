@@ -92,7 +92,31 @@ export class Vehicle {
   driver2_id?: Types.ObjectId;
   @Prop({ type: Boolean, default: true }) active!: boolean;
 
+  @Prop({
+    type: Number,
+    enum: [1,2,3,4,5,6,7,8,9],
+    default: 1,
+  })
+  document_type_driver2?: number;
+  
+  @Prop({ type: String, default: null })
+  documentNumber_driver2?: string;
+  
+  @Prop({ type: String, default: null })
+  name_driver2?: string;
 
+  @Prop({
+    type: Date,
+    default: Date.now, // ← se asigna automáticamente al crear
+  })
+  fecha_activacion?: Date;
+  
+  @Prop({ type: Date, default: null })
+  fecha_ultima_desactivacion?: Date;
+
+  @Prop({ type: String, default: null })
+  nota_desactivacion?: string;
+  
 
 }
 
