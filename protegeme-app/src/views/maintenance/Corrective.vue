@@ -1,5 +1,6 @@
 <template>
   <div class="bolt-wrap">
+
     <!-- Encabezado -->
     <div class="bolt-toolbar bolt-card">
       <div class="left">
@@ -18,33 +19,32 @@
 
     <!-- Filtros -->
     <div class="bolt-card p-3">
-      <div class="bolt-center formgrid grid align-items-end">
-        <!-- Input búsqueda -->
-        <div class="bolt_search p-3">
+      <div class="formgrid grid align-items-end">
+        <div class="field col-12 sm:col-10">
           <SearchBar
             v-model="filters.placa"
-            :width="'700px'"
+            :width="'100%'"
             @search="refresh"
           />
         </div>
-        <div class="field col-12 md:col-2 flex align-items-end">
-          <div class="filters-actions">
+
+        <div class="field col-12 sm:col-2">
+          <div class="flex gap-2">
             <Button
               label="Buscar"
               icon="pi pi-search"
-              class="btn-filter"
+              class="btn-filter w-full"
               :loading="loading"
               @click="refresh"
             />
             <Button
               label="Limpiar"
               icon="pi pi-times"
-              class="btn-clear"
+              class="btn-clear w-full"
               @click="clearFilters"
             />
           </div>
         </div>
-        <!-- Botones alineados a la misma altura -->
       </div>
     </div>
 
@@ -54,38 +54,42 @@
         :value="rows"
         :loading="loading"
         dataKey="_id"
-        responsive-layout="scroll"
-        :paginator="true"
+        responsiveLayout="scroll"
+        paginator
         :rows="limit"
         :totalRecords="total"
         :first="(page - 1) * limit"
         @page="onPage"
         class="p-datatable-sm"
       >
-        <Column header="Falla" style="min-width: 240px">
-          <template #body="{ data }"
-            ><span class="text-900">{{ data.descripcionFalla }}</span></template
-          >
-        </Column>
+
         <Column header="Placa">
-          <template #body="{ data }"
-            ><span class="text-900">{{ data.placa || "—" }}</span></template
-          >
+          <template #body="{ data }">
+            <span class="text-900">{{ data.placa || '—' }}</span>
+          </template>
         </Column>
+
         <Column header="Fecha">
-          <template #body="{ data }"
-            ><span class="text-900">{{
-              fmtDate(data.fecha || data.createdAt)
-            }}</span></template
-          >
+          <template #body="{ data }">
+            <span class="text-900">
+              {{ fmtDate(data.fecha || data.createdAt) }}
+            </span>
+          </template>
         </Column>
-        <Column header="Responsable">
-          <template #body="{ data }"
-            ><span class="text-900">{{
-              data.razonSocial || "—"
-            }}</span></template
-          >
+
+        <Column header="Taller">
+          <template #body="{ data }">
+            <span class="text-900">{{ data.razonSocial || '—' }}</span>
+          </template>
         </Column>
+        <Column field="nombresResponsable" header="Mecánico" />
+
+        <Column header="Notas" style="min-width: 240px">
+          <template #body="{ data }">
+            <span class="text-900">{{ data.detalleActividades }}</span>
+          </template>
+        </Column>
+
         <Column header="Estado" style="width: 140px">
           <template #body="{ data }">
             <Tag
@@ -94,16 +98,15 @@
             />
           </template>
         </Column>
-        <Column header="Acciones" style="width: 160px">
+
+        <Column header="Acciones" style="width: 120px">
           <template #body="{ data }">
-            <div class="flex gap-2">
-              <Button
-                icon="pi pi-eye"
-                class="btn-icon-white statebutton"
-                :disabled="saving || loading"
-                @click="openViewEnlistment(data)"
-              />
-            </div>
+            <Button
+              icon="pi pi-eye"
+              class="btn-icon-white"
+              :disabled="saving || loading"
+              @click="openViewEnlistment(data)"
+            />
           </template>
         </Column>
       </DataTable>
@@ -114,72 +117,53 @@
       v-model:visible="dlg.visible"
       modal
       header="Nuevo correctivo"
-      class="dialog-body"
-      :style="{ width: '720px' }"
+      class="w-11 md:w-8 lg:w-7"
       @hide="resetForm"
     >
       <div class="formgrid grid" :class="{ 'is-view-mode': viewMode }">
-        <!--         <div class="field col-12">
-          <label class="block mb-2 text-900">Selecciona un mantenimiento</label>
-          <UiDropdownBasic
-            v-model="form.mantenimientoId"
-            :options="maintenanceOptsType2"
-            :disabled="store.maintenanceList.loading"
-            placeholder="Seleccioná un mantenimiento"
-            @update:modelValue="onPickMaintenance"
-          />
-        </div> -->
 
-        <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900">Placa</label>
-          <InputText v-model="form.placa" class="w-full" :disabled="viewMode" />
+        <!-- FILA 1 -->
+        <div class="field col-12 sm:col-4">
+          <label>Placa</label>
+          <InputText
+            v-model="form.placa"
+            class="w-full"
+            maxlength="6"
+            placeholder="ABC123"
+            :disabled="viewMode"
+            @input="onPlacaInput"
+          />
         </div>
 
-        <div class="field col-12 md:col-6">
+        <div class="field col-12 sm:col-4">
           <InputDate
             v-model="form.fecha"
-            :width="'100%'"
             :disabled="viewMode"
           />
         </div>
 
-        <div class="field col-12 md:col-6">
-          <InputHour v-model="form.hora" :width="'100%'" :disabled="viewMode" />
+
+
+        <div class="field col-12 sm:col-4">
+          <InputHour
+            v-model="form.hora"
+            label="Hora"
+            :disabled="viewMode"
+          />
         </div>
 
-        <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900">NIT</label>
-          <InputText v-model="form.nit" class="w-full" :disabled="viewMode" />
-        </div>
-
-        <div class="field md:col-6">
-          <label class="block mb-2 text-900">Nombre Responsable</label>
+        <!-- FILA 2 -->
+        <div class="field col-12 sm:col-4">
+          <label>NIT - Centro especializado:T</label>
           <InputText
-            v-model="form.nombreResponsable"
+            v-model="form.nit"
             class="w-full"
             :disabled="viewMode"
           />
         </div>
 
-        <div class="field md:col-6">
-          <label class="block mb-2 text-900">Tipo identificacion</label>
-          <UiDropdownBasic
-            v-model="form.tipoIdentificacion"
-            :options="documentTypeOptions"
-            placeholder="Seleccioná tipo de documento"
-            :disabled="viewMode"
-          />
-        </div>
-        <div class="field md:col-6">
-          <label class="block mb-2 text-900">Numero de Identificacion</label>
-          <InputText
-            v-model="form.numeroIdentificacion"
-            class="w-full"
-            :disabled="viewMode"
-          />
-        </div>
-        <div class="field md:col-6">
-          <label class="block mb-2 text-900">Razón Social</label>
+        <div class="field col-12 sm:col-8">
+          <label>Razón Social - Centro especializado:</label>
           <InputText
             v-model="form.razonSocial"
             class="w-full"
@@ -187,36 +171,49 @@
           />
         </div>
 
-        <div class="field col-12">
-          <label class="block mb-2 text-900">Descripción de la falla</label>
-          <Textarea
-            v-model="form.descripcionFalla"
-            rows="3"
+        <!-- FILA 3 -->
+        <div class="field col-12 md:col-4">
+          <label>Tipo identificación – Ingeniero mecánico</label>
+          <UiDropdownBasic
+            v-model="form.tipoIdentificacion"
+            :options="documentTypeOptions"
             class="w-full"
             :disabled="viewMode"
           />
         </div>
 
-        <div class="field col-12">
-          <label class="block mb-2 text-900">Acciones realizadas</label>
-          <Textarea
-            v-model="form.accionesRealizadas"
-            rows="3"
+        <div class="field col-12 md:col-4">
+          <label>Número identificación – Ingeniero mecánico</label>
+          <InputText
+            v-model="form.numeroIdentificacion"
             class="w-full"
             :disabled="viewMode"
           />
         </div>
 
+        <div class="field col-12 md:col-4">
+          <label>Nombres y apellidos – Ingeniero mecánico</label>
+          <InputText
+            v-model="form.nombresResponsable"
+            class="w-full"
+            :disabled="viewMode"
+          />
+        </div>
+
+
+        <!-- FILA 6 -->
         <div class="field col-12">
-          <label class="block mb-2 text-900">Detalle de actividades</label>
+          <label>Detalle de actividades</label>
           <Textarea
             v-model="form.detalleActividades"
-            :disabled="viewMode"
             rows="4"
             class="w-full"
+            :disabled="viewMode"
           />
         </div>
+
       </div>
+
       <template #footer>
         <div class="flex justify-content-end gap-2">
           <Button
@@ -230,14 +227,15 @@
             icon="pi pi-save"
             class="btn-dark-green"
             :loading="saving"
-            type="button"
             @click="save"
           />
         </div>
       </template>
     </Dialog>
+
   </div>
 </template>
+
 
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted, watch } from "vue";
@@ -290,6 +288,26 @@ function openEditCorrective(row: any) {
 
   dlg.visible = true;
 }
+
+function toIntOrUndef(value: any): number | undefined {
+  if (value === null || value === undefined || value === '') return undefined;
+  const n = Number(value);
+  return Number.isNaN(n) ? undefined : n;
+}
+
+function onPlacaInput(e: Event) {
+  const input = e.target as HTMLInputElement;
+  let value = input.value.toUpperCase();
+
+  // solo letras A-Z y números
+  value = value.replace(/[^A-Z0-9]/g, '');
+
+  // máximo 6 caracteres
+  value = value.slice(0, 6);
+
+  form.placa = value;
+}
+
 
 // Guarda edición (reusa normDate / normTime / toInt existentes en tu archivo)
 async function saveEditCorrective() {
@@ -614,17 +632,19 @@ function toInt(v: any) {
 async function save() {
   // 1) Armar payload ANTES de limpiar el form
   const payload: any = {
-    nombresResponsable: form.nombreResponsable,
-    tipoIdentificacion: form.tipoIdentificacion,
-    numeroIdentificacion: form.numeroIdentificacion,
     placa: form.placa?.trim(),
     fecha: normDate(form.fecha),
     hora: normTime(form.hora),
     nit: toInt(form.nit),
     razonSocial: form.razonSocial?.trim(),
-    descripcionFalla: form.descripcionFalla?.trim(),
-    accionesRealizadas: form.accionesRealizadas?.trim(),
+    tipoIdentificacion: toIntOrUndef(form.tipoIdentificacion),
+    numeroIdentificacion: form.numeroIdentificacion?.trim(),
+    nombresResponsable: form.nombresResponsable?.trim(),
     detalleActividades: form.detalleActividades?.trim(),
+
+    //descripcionFalla: form.descripcionFalla?.trim(),
+    //accionesRealizadas: form.accionesRealizadas?.trim(),
+    //detalleActividades: form.detalleActividades?.trim(),
   };
 
   const req = ["placa", "fecha", "hora"];

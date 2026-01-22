@@ -443,9 +443,13 @@ export class MaintenanceExternalApiService {
     numeroIdentificacion: number | string;
     nombresResponsable: string;
     mantenimientoId: number | string;
-    descripcionFalla: string;
+    //descripcionFalla: string;
     detalleActividades: string;
-    accionesRealizadas: string;
+    //accionesRealizadas: string;
+    // ⬇️ AHORA OPCIONALES
+    descripcionFalla?: string;
+    accionesRealizadas?: string;
+
     vigiladoId?: string;
     vigiladoToken?: string;
   }) {

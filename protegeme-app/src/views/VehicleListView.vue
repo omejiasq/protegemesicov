@@ -155,37 +155,10 @@ onMounted(refresh);
       >
         <Column field="placa" header="Placa" sortable />
         <Column field="clase" header="Clase" />
-        <Column field="nivelServicio" header="Nivel de Servicio" />
-        <Column header="Vencimientos">
-          <template #body="{ data }">
-            <div class="flex gap-2 flex-wrap">
-              <Tag
-                :value="
-                  data?.soat?.fechaVencimiento
-                    ? `SOAT: ${data.soat.fechaVencimiento}`
-                    : 'SOAT — s/d'
-                "
-                severity="info"
-              />
-              <Tag
-                :value="
-                  data?.rtm?.fechaVencimiento
-                    ? `RTM: ${data.rtm.fechaVencimiento}`
-                    : 'RTM — s/d'
-                "
-                severity="help"
-              />
-              <Tag
-                :value="
-                  data?.to?.fechaVencimiento
-                    ? `TO: ${data.to.fechaVencimiento}`
-                    : 'TO — s/d'
-                "
-                severity="warning"
-              />
-            </div>
-          </template>
-        </Column>
+        <Column field="modelo" header="Modelo" />
+        <Column field="capacidad" header="Capacidad" />
+        <Column field="nombre_propietario" header="Propietario" />
+
         <Column header="Estado">
           <template #body="{ data }">
             <Tag

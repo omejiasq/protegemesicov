@@ -2,16 +2,16 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
-  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+
 import {
   CorrectiveDetail,
   CorrectiveDetailDocument,
 } from '../schema/corrective.schema';
-import { MaintenanceExternalApiService } from '../libs/external-api';
 
+import { MaintenanceExternalApiService } from '../libs/external-api';
 import { MaintenanceService } from 'src/maintenance/maintenance.service';
 
 @Injectable()
@@ -23,6 +23,9 @@ export class CorrectiveService {
     private readonly maintenanceService: MaintenanceService,
   ) {}
 
+  // ======================================================
+  // CREATE
+  // ======================================================
   async create(
     dto: any,
     user?: {
@@ -32,19 +35,21 @@ export class CorrectiveService {
       vigiladoToken: string;
     },
   ) {
+    // Desactivar correctivos activos previos para la misma placa
     await this.model.updateMany(
       { placa: dto.placa, enterprise_id: user?.enterprise_id, estado: true },
       { $set: { estado: false } },
     );
-    console.log('%capi-maintenance\src\maintenance-corrective\corrective.service.ts:39 dto', 'color: #007acc;', dto);
+
     let mantenimientoIdLocal: string | null = dto.mantenimientoId || null;
     let mantenimientoIdExterno: string | null = null;
     const vigiladoId = user?.vigiladoId;
 
+    // Crear mantenimiento base si no viene
     if (!mantenimientoIdLocal) {
       const maintPayload = {
         placa: dto.placa,
-        tipoId: 2 as const,
+        tipoId: 2 as const, // correctivo
         vigiladoId: vigiladoId as number,
         enterprise_id: user?.enterprise_id,
         createdBy: user?.sub,
@@ -57,93 +62,106 @@ export class CorrectiveService {
       );
 
       const newId =
-        createdMaintenance?.doc?._id ?? createdMaintenance?.doc?.id ?? null;
+        createdMaintenance?.doc?._id ?? createdMaintenance?.doc?.id;
+
       if (!newId) {
         throw new ConflictException('No se pudo generar el mantenimiento base');
       }
+
       mantenimientoIdLocal = String(newId);
       mantenimientoIdExterno = createdMaintenance?.externalId
         ? String(createdMaintenance.externalId)
         : null;
-    } else {
-      mantenimientoIdExterno = null;
     }
-    console.log('%capi-maintenance\src\maintenance-corrective\corrective.service.ts:71 dto.nombreResponsable', 'color: #007acc;', dto.nombreResponsable);
+
+    // Crear correctivo local
     const doc = await this.model.create({
       enterprise_id: user?.enterprise_id,
       createdBy: user?.sub,
-      placa: String(dto.placa ?? '').trim(),
-      mantenimientoId: mantenimientoIdExterno,
-      fecha: dto.fecha,
-      hora: dto.hora,
+
+      placa: String(dto.placa).trim(),
+      mantenimientoId: mantenimientoIdLocal,
+
+      fecha: String(dto.fecha),
+      hora: String(dto.hora),
+
       nit: dto.nit,
-      razonSocial: String(dto.razonSocial ?? '').trim(),
-      tipoIdentificacion: dto.tipoIdentificacion,
-      numeroIdentificacion: dto.numeroIdentificacion,
-      nombresResponsable: String(dto.nombresResponsable ?? '').trim(),
-      descripcionFalla: String(dto.descripcionFalla ?? '').trim(),
-      detalleActividades: String(dto.detalleActividades ?? '').trim(),
-      accionesRealizadas: String(dto.accionesRealizadas ?? '').trim(),
+      razonSocial: String(dto.razonSocial).trim(),
+      tipoIdentificacion: String(dto.tipoIdentificacion),
+      numeroIdentificacion: String(dto.numeroIdentificacion),
+      nombresResponsable: String(dto.nombresResponsable).trim(),
+      detalleActividades: String(dto.detalleActividades).trim(),
+
       estado: true,
     });
 
+    // Envío a SICOV (si aplica)
     try {
       if (mantenimientoIdExterno && vigiladoId && user?.vigiladoToken) {
         await this.external.guardarCorrectivo({
-          fecha: String(dto.fecha ?? ''),
-          hora: String(dto.hora ?? ''),
+          fecha: String(dto.fecha),
+          hora: String(dto.hora),
           nit: dto.nit,
-          razonSocial: String(dto.razonSocial ?? ''),
+          razonSocial: String(dto.razonSocial),
           tipoIdentificacion: dto.tipoIdentificacion,
           numeroIdentificacion: dto.numeroIdentificacion,
-          nombresResponsable: String(dto.nombresResponsable ?? ''),
+          nombresResponsable: String(dto.nombresResponsable),
           mantenimientoId: Number(mantenimientoIdExterno),
-          descripcionFalla: String(dto.descripcionFalla ?? ''),
-          detalleActividades: String(dto.detalleActividades ?? ''),
-          accionesRealizadas: String(dto.accionesRealizadas ?? ''),
+          detalleActividades: String(dto.detalleActividades),
           vigiladoId: String(vigiladoId),
           vigiladoToken: user.vigiladoToken,
         });
       }
-    } catch {}
+    } catch {
+      // errores externos no bloquean guardado local
+    }
 
-    return (await this.model.findById(doc._id).lean())!;
+    return this.model.findById(doc._id).lean();
   }
 
+  // ======================================================
+  // VIEW
+  // ======================================================
   async view(dto: { id: string }, user?: { enterprise_id?: string }) {
-    if (!Types.ObjectId.isValid(dto.id))
+    if (!Types.ObjectId.isValid(dto.id)) {
       throw new NotFoundException('No encontrado');
-    const item = await this.model
-      .findOne({
-        _id: new Types.ObjectId(dto.id),
-        enterprise_id: user?.enterprise_id,
-      })
-      .lean();
+    }
+
+    const item = await this.model.findOne({
+      _id: new Types.ObjectId(dto.id),
+      enterprise_id: user?.enterprise_id,
+    }).lean();
+
     if (!item) throw new NotFoundException('No encontrado');
 
-    // consulta opcional al sistema externo
+    // Consulta externa opcional
     if (item.mantenimientoId) {
       try {
         const res = await this.external.visualizarCorrectivo(
           item.mantenimientoId,
           process.env.SICOV_VIGILADO_ID,
         );
-        if (res.ok) (item as any).externalData = res.data;
-      } catch {
-        /* ignorar fallos externos */
-      }
+        if (res?.ok) {
+          (item as any).externalData = res.data;
+        }
+      } catch {}
     }
+
     return item;
   }
 
+  // ======================================================
+  // LIST
+  // ======================================================
   async list(q: any, user?: { enterprise_id?: string }) {
     const filter: any = { enterprise_id: user?.enterprise_id };
 
-    // placa: búsqueda parcial (prefijo, case-insensitive)
     const rawPlaca = (q?.placa ?? q?.plate ?? '').toString().trim();
     if (rawPlaca) {
-      const esc = rawPlaca.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      filter.placa = { $regex: '^' + esc, $options: 'i' };
+      filter.placa = {
+        $regex: '^' + rawPlaca.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+        $options: 'i',
+      };
     }
 
     const page = Math.max(1, Number(q?.page) || 1);
@@ -151,17 +169,16 @@ export class CorrectiveService {
     const skip = (page - 1) * limit;
 
     const [items, total] = await Promise.all([
-      this.model
-        .find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
+      this.model.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
       this.model.countDocuments(filter),
     ]);
+
     return { items, total, page, numero_items: limit };
   }
 
+  // ======================================================
+  // UPDATE
+  // ======================================================
   async update(
     id: string,
     dto: any,
@@ -171,8 +188,9 @@ export class CorrectiveService {
       vigiladoToken?: string;
     },
   ) {
-    if (!Types.ObjectId.isValid(id))
+    if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('No encontrado');
+    }
 
     const updatable: any = {};
     for (const k of [
@@ -183,25 +201,22 @@ export class CorrectiveService {
       'tipoIdentificacion',
       'numeroIdentificacion',
       'nombresResponsable',
-      'descripcionFalla',
       'detalleActividades',
-      'accionesRealizadas',
-    ])
+    ]) {
       if (dto[k] !== undefined) updatable[k] = dto[k];
+    }
 
     const res = await this.model.findOneAndUpdate(
       { _id: new Types.ObjectId(id), enterprise_id: user?.enterprise_id },
       { $set: updatable },
       { new: true, lean: true },
     );
+
     if (!res) throw new NotFoundException('No encontrado');
 
-    // 🔁 Sincronizar con SICOV
+    // Sync SICOV
     try {
-      if (
-        res.mantenimientoId &&
-        (user?.vigiladoToken || process.env.SICOV_TOKEN)
-      ) {
+      if (res.mantenimientoId && (user?.vigiladoToken || process.env.SICOV_TOKEN)) {
         await this.external.guardarCorrectivo({
           fecha: res.fecha,
           hora: res.hora,
@@ -211,31 +226,34 @@ export class CorrectiveService {
           numeroIdentificacion: res.numeroIdentificacion,
           nombresResponsable: res.nombresResponsable,
           mantenimientoId: res.mantenimientoId,
-          descripcionFalla: res.descripcionFalla,
           detalleActividades: res.detalleActividades,
-          accionesRealizadas: res.accionesRealizadas,
           vigiladoId: String(user?.vigiladoId ?? process.env.SICOV_VIGILADO_ID),
           vigiladoToken: user?.vigiladoToken ?? process.env.SICOV_TOKEN,
         });
       }
-    } catch {
-    }
+    } catch {}
 
     return res;
   }
 
+  // ======================================================
+  // TOGGLE
+  // ======================================================
   async toggle(id: string, user?: { enterprise_id?: string }) {
-    if (!Types.ObjectId.isValid(id))
+    if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('No encontrado');
+    }
 
     const item = await this.model.findOne({
       _id: new Types.ObjectId(id),
       enterprise_id: user?.enterprise_id,
     });
+
     if (!item) throw new NotFoundException('No encontrado');
 
     const nuevo = !item.estado;
     await this.model.updateOne({ _id: item._id }, { $set: { estado: nuevo } });
+
     return { _id: String(item._id), estado: nuevo };
   }
 }

@@ -52,6 +52,10 @@ export class Enterprise {
   // ───────────── Estado ─────────────
   @Prop({ default: true })
   active: boolean;
+
+  @Prop({ trim: true })
+  packageType?: string;  //basic, enterprise
+
 }
 
 export const EnterpriseSchema = SchemaFactory.createForClass(Enterprise);

@@ -19,8 +19,7 @@
     <!-- Filtros -->
     <div class="bolt-card p-3">
       <div class="formgrid grid align-items-end">
-        <!-- Input búsqueda -->
-        <div class="col-10 flex align-items-center gap-3">
+        <div class="col-12 md:col-10 flex align-items-center gap-3">
           <SearchBar
             v-model="filters.placa"
             :width="'700px'"
@@ -42,9 +41,6 @@
             />
           </div>
         </div>
-
-        <!-- Botones alineados a la misma altura -->
-        <div class="field col-12 md:col-2 flex align-items-end"></div>
       </div>
     </div>
 
@@ -62,78 +58,86 @@
         @page="onPage"
         class="p-datatable-sm"
       >
-        <Column
-          field="detalleActividades"
-          header="Descripcion"
-          style="min-width: 240px"
-        />
         <Column field="placa" header="Placa" />
         <Column header="Fecha">
-          <template #body="{ data }">{{
-            fmtDate(data.fecha || data.createdAt)
-          }}</template>
+          <template #body="{ data }">
+            {{ fmtDate(data.fecha || data.createdAt) }}
+          </template>
         </Column>
-        <Column field="nombresResponsable" header="Responsable" />
-        <Column header="Estado" style="width: 140px">
+        <Column field="razonSocial" header="Taller" />
+        <Column field="nombresResponsable" header="Mecánico" />
+       <Column field="detalleActividades" header="Notas" />
+        <Column header="Estado">
           <template #body="{ data }">
             <Tag
-              :value="data.estado === false ? 'INACTIVO' : 'ACTIVO'"
-              :severity="data.estado === false ? 'danger' : 'success'"
+              :value="data.estado ? 'ACTIVO' : 'INACTIVO'"
+              :severity="data.estado ? 'success' : 'danger'"
             />
           </template>
         </Column>
-        <Column header="Acciones" style="width: 160px">
+        <Column header="Acciones">
           <template #body="{ data }">
-            <div class="flex gap-2">
-              <Button
-                icon="pi pi-eye"
-                class="btn-icon-white statebutton"
-                :disabled="saving || loading"
-                @click="openViewEnlistment(data)"
-              />
-            </div>
+            <Button
+              icon="pi pi-eye"
+              class="btn-icon-white statebutton"
+              @click="openViewEnlistment(data)"
+            />
           </template>
         </Column>
       </DataTable>
     </div>
 
+    <!-- Dialog -->
     <Dialog
       v-model:visible="dlg.visible"
-      :modal="true"
+      modal
       header="Nuevo preventivo"
-      class="w-11 md:w-7 lg:w-6"
+      class="w-11 md:w-8 lg:w-7"
       @hide="resetForm"
     >
-      <div
-        class="formgrid grid dialog-body"
-        :class="{ 'is-view-mode': viewMode }"
-      >
-        <div class="field col-6 md:col-3">
-          <label class="block mb-2 text-900">Placa</label>
-          <InputText v-model="form.placa" class="w-full" :disabled="viewMode" />
-        </div>
-        <div class="field col-6 md:col-3">
-          <InputDate
-            v-model="form.fecha"
-            :width="'100%'"
-            :disabled="viewMode"
-          />
+      <div class="formgrid grid dialog-body" :class="{ 'is-view-mode': viewMode }">
+
+<!-- FILA 1 -->
+<div class="field col-12 sm:col-4">
+  <label>Placa</label>
+
+              <InputText
+              v-model="form.placa"
+              class="w-full"
+              maxlength="6"
+              placeholder="ABC123"
+              @input="onPlacaInput"
+            />
+
+</div>
+
+<div class="field col-12 sm:col-4">
+  <InputDate
+    v-model="form.fecha"
+    label="Fecha"
+    :disabled="viewMode"
+  />
+</div>
+
+<div class="field col-12 sm:col-4">
+  <InputHour
+    v-model="form.hora"
+    label="Hora"
+    :disabled="viewMode"
+  />
+</div>
+
+
+
+
+        <!-- FILA 2 -->
+        <div class="field col-12 md:col-4">
+          <label>NIT</label>
+          <InputText v-model="form.nit" class="w-full" :disabled="viewMode" />
         </div>
 
-        <div class="field col-6 md:col-3">
-          <InputHour v-model="form.hora" :width="'100%'" :disabled="viewMode" />
-        </div>
-        <div class="field col-6 md:col-3">
-          <label class="block mb-2 text-900" :disabled="viewMode">NIT</label>
-          <InputText
-            v-model="form.nit"
-            class="w-full"
-            placeholder="7007007007"
-            :disabled="viewMode"
-          />
-        </div>
-        <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900">Razón Social</label>
+        <div class="field col-12 md:col-8">
+          <label>Razón social – Centro especializado</label>
           <InputText
             v-model="form.razonSocial"
             class="w-full"
@@ -141,37 +145,38 @@
           />
         </div>
 
-        <div class="field col-6 md:col-3">
-          <label class="block mb-2 text-900">Tipo identificación</label>
+        <!-- FILA 3 -->
+        <div class="field col-12 md:col-4">
+          <label>Tipo identificación – Ingeniero mecánico</label>
           <UiDropdownBasic
             v-model="form.tipoIdentificacion"
             :options="documentTypeOptions"
-            placeholder="Seleccione"
             class="w-full"
-            :disabled="viewMode"
-          />
-        </div>
-        <div class="field col-6 md:col-3">
-          <label class="block mb-2 text-900">Número Identificación</label>
-          <InputText
-            v-model="form.numeroIdentificacion"
-            class="w-full"
-            placeholder="12345678"
-            :disabled="viewMode"
-          />
-        </div>
-        <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900">Nombres Responsable</label>
-          <InputText
-            v-model="form.nombresResponsable"
-            class="w-full"
-            placeholder="Juan Pérez"
             :disabled="viewMode"
           />
         </div>
 
+        <div class="field col-12 md:col-4">
+          <label>Número identificación – Ingeniero mecánico</label>
+          <InputText
+            v-model="form.numeroIdentificacion"
+            class="w-full"
+            :disabled="viewMode"
+          />
+        </div>
+
+        <div class="field col-12 md:col-4">
+          <label>Nombres y apellidos – Ingeniero mecánico</label>
+          <InputText
+            v-model="form.nombresResponsable"
+            class="w-full"
+            :disabled="viewMode"
+          />
+        </div>
+
+        <!-- ÚLTIMA FILA -->
         <div class="field col-12">
-          <label class="block mb-2 text-900">Detalle Actividades</label>
+          <label>Notas del mantenimiento preventivo</label>
           <Textarea
             v-model="form.detalleActividades"
             rows="3"
@@ -181,27 +186,26 @@
           />
         </div>
       </div>
+
       <template #footer>
         <div class="flex justify-content-end gap-2">
-          <Button
-            label="Cerrar"
-            class="p-button-text"
-            @click="dlg.visible = false"
-          />
+          <Button label="Cerrar" class="p-button-text" @click="dlg.visible = false" />
           <Button
             v-if="!viewMode"
             label="Crear"
             icon="pi pi-save"
             class="btn-dark-green"
             :loading="saving"
-            type="button"
             @click="save"
           />
         </div>
       </template>
+
+
     </Dialog>
   </div>
 </template>
+
 
 <script setup lang="ts">
 import { reactive, ref, computed, onMounted, watch } from "vue";
@@ -227,6 +231,21 @@ const toast = useToast();
 const store = useMaintenanceStore();
 
 const selectedFile = ref<File | null>(null);
+
+const props = defineProps<{
+  modelValue: Date | string | null;
+  label?: string;
+  disabled?: boolean;
+}>();
+
+const emit = defineEmits<{
+  (e: "update:modelValue", value: Date | string | null): void;
+}>();
+
+const innerValue = computed({
+  get: () => props.modelValue,
+  set: (val) => emit("update:modelValue", val),
+});
 
 function onFileChange(e: Event) {
   const f = (e.target as HTMLInputElement).files?.[0] || null;
@@ -869,4 +888,22 @@ function onSearch() {
   background: #9ca3af !important;
   border-color: #9ca3af !important;
 }
+
+/* Ajuste fino para móvil */
+:deep(.p-calendar) {
+  width: 100%;
+}
+
+:deep(.p-inputtext) {
+  text-align: left;  /* ← CAMBIAR 'center' por 'left' */
+  font-size: 1rem;
+}
+
+@media (max-width: 640px) {
+  .dialog-body .field {
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+  }
+}
+
 </style>

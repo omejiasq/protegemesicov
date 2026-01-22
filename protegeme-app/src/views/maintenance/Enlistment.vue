@@ -1,20 +1,21 @@
 <template>
   <div class="bolt-wrap">
-    <!-- Encabezado -->
+
+    <!-- ===================== -->
+    <!-- TOOLBAR -->
+    <!-- ===================== -->
     <div class="bolt-toolbar bolt-card">
-      <div class="left">
+      <div>
         <h2 class="title">Mantenimientos — Alistamientos</h2>
-        <p class="subtitle">Listado y alta de alistamientos</p>
+        <p class="subtitle">Listado y registro de alistamientos</p>
       </div>
-      <div class="right">
-      <Button
-        label="Exportar Excel"
-        icon="pi pi-file-excel"
-        class="btn-blue"
-        @click="exportExcel"
-      />
-
-
+      <div class="actions">
+        <Button
+          label="Exportar Excel"
+          icon="pi pi-file-excel"
+          class="btn-blue"
+          @click="exportExcel"
+        />
         <Button
           label="Nuevo Alistamiento"
           icon="pi pi-plus"
@@ -24,63 +25,68 @@
       </div>
     </div>
 
-    <!-- Filtros -->
-    <div class="bolt-card p-3">
-      <div class="bolt-center formgrid grid align-items-end">
-        <!-- Dropdown de búsqueda -->
-        <div class="bolt_search p-3">
-          <SearchBar
-            v-model="filters.placa"
-            :width="'300px'"
-            @search="refresh"
-          />
-        </div>
+<!-- ===================== -->
+<!-- FILTROS -->
+<!-- ===================== -->
+<div class="bolt-card p-3">
+  <div class="grid align-items-end">
 
-<!-- Desde -->
-<div class="field col-12 md:col-3">
-  <label>Desde</label>
-  <Calendar
-    v-model="filters.fechaDesde"
-    dateFormat="yy-mm-dd"
-    showIcon
-    class="w-full"
-  />
-</div>
-
-<!-- Hasta -->
-<div class="field col-12 md:col-3">
-  <label>Hasta</label>
-  <Calendar
-    v-model="filters.fechaHasta"
-    dateFormat="yy-mm-dd"
-    showIcon
-    class="w-full"
-  />
-</div>
-
-
-        <!-- Botones -->
-        <div class="field col-12 md:col-2 flex align-items-end">
-          <div class="filters-actions">
-            <Button
-              label="Buscar"
-              icon="pi pi-search"
-              class="btn-filter"
-              :loading="loading"
-              @click="refresh"
-            />
-            <Button
-              label="Limpiar"
-              icon="pi pi-times"
-              class="btn-clear"
-              @click="onClear"
-            />
-          </div>
-        </div>
-      </div>
+    <!-- PLACA -->
+    <div class="col-12 md:col-3">
+      <label>Placa</label>
+      <InputText
+        v-model="filters.placa"
+        placeholder="ABC123"
+        class="w-full"
+        @keyup.enter="refresh"
+      />
     </div>
 
-    <!-- Tabla (1 fila si hay resultado) -->
+    <!-- FECHA DESDE -->
+    <div class="col-12 md:col-3">
+      <label>Fecha desde</label>
+      <Calendar
+        v-model="filters.fechaDesde"
+        dateFormat="yy-mm-dd"
+        showIcon
+        class="w-full"
+      />
+    </div>
+
+    <!-- FECHA HASTA -->
+    <div class="col-12 md:col-3">
+      <label>Fecha hasta</label>
+      <Calendar
+        v-model="filters.fechaHasta"
+        dateFormat="yy-mm-dd"
+        showIcon
+        class="w-full"
+      />
+    </div>
+
+    <!-- BOTONES -->
+    <div class="col-12 md:col-3 flex gap-2">
+      <Button
+        label="Filtrar"
+        icon="pi pi-search"
+        class="btn-blue"
+        @click="refresh"
+      />
+      <Button
+        label="Limpiar"
+        icon="pi pi-times"
+        class="p-button-outlined"
+        @click="onClear"
+      />
+    </div>
+
+  </div>
+</div>
+
+
+    <!-- ===================== -->
+    <!-- TABLA -->
+    <!-- ===================== -->
     <div class="bolt-card p-3">
       <DataTable
         :value="rowsFiltered"
@@ -93,214 +99,165 @@
         :first="(page - 1) * limit"
         class="p-datatable-sm"
       >
-
-        <Column header="Placa" >
-          <template #body="{ data }"
-            ><span class="text-900">{{ data.placa }}</span></template
-          >
-        </Column>
-        <Column header="Conductor" >
-          <template #body="{ data }"
-            ><span class="text-900">{{ data.nombresConductor }}</span></template
-          >
-        </Column>
-        <Column header="Documento">
-          <template #body="{ data }"
-            ><span class="text-900">{{
-              data.numeroIdentificacion || "—"
-            }}</span></template
-          >
-        </Column>
+        <Column field="placa" header="Placa" />
+        <Column field="nombresConductor" header="Conductor" />
+        <Column field="numeroIdentificacion" header="Documento" />
         <Column header="Fecha">
-          <template #body="{ data }"
-            ><span class="text-900">{{
-              fmtDate(data.createdAt)
-            }}</span></template
-          >
+          <template #body="{ data }">{{ fmtDate(data.createdAt) }}</template>
         </Column>
-        <Column header="Responsable" >
-          <template #body="{ data }"
-            ><span class="text-900">{{ data.nombresResponsable }}</span></template
-          >
-        </Column>
-        <Column header="Estado" style="width: 140px">
+        <Column header="Estado">
           <template #body="{ data }">
             <Tag
-              :value="data.estado === false ? 'INACTIVO' : 'ACTIVO'"
-              :severity="data.estado === false ? 'danger' : 'success'"
+              :value="data.estado ? 'ACTIVO' : 'INACTIVO'"
+              :severity="data.estado ? 'success' : 'danger'"
             />
           </template>
         </Column>
-        <Column header="Acciones" style="width: 160px">
+        <Column header="Acciones">
           <template #body="{ data }">
-            <div class="flex gap-2">
-              <Button
-                icon="pi pi-eye"
-                class="btn-icon-white statebutton"
-                :disabled="saving || loading"
-                @click="openViewEnlistment(data)"
-              />
-            </div>
+            <Button
+              icon="pi pi-eye"
+              class="btn-icon-white"
+              @click="openViewEnlistment(data)"
+            />
           </template>
         </Column>
       </DataTable>
+
+    <Paginator
+      :rows="limit"
+      :totalRecords="total"
+      :first="(page - 1) * limit"
+      :rowsPerPageOptions="[10, 20, 50, 100]"
+      @page="onPage"
+    />
+
     </div>
 
-    <!-- Diálogo: Crear alistamiento -->
+    <!-- ===================== -->
+    <!-- MODAL -->
+    <!-- ===================== -->
     <Dialog
       v-model:visible="dlg.visible"
       modal
       header="Nuevo alistamiento"
-      class="dialog-body"
-      :style="{ width: '720px' }"
-      :contentStyle="{ overflowY: 'visible', maxHeight: 'none' }"
-      @hide="resetForm"
+      class="dialog-form"
+      :style="{ width: '95vw', maxWidth: '900px' }"
     >
-      <!-- wrapper de grilla para 2 columnas -->
-      <div class="formgrid grid" :class="{ 'is-view-mode': viewMode }">
-        <!--         <div class="field col-12">
-          <label class="block mb-2 text-900">Mantenimiento</label>
-          <UiDropdownBasic
-            v-model="form.mantenimientoId"
-            :options="maintenanceOptsType3"
-            :disabled="store.maintenanceList.loading"
-            placeholder="Seleccioná un mantenimiento (tipo 3)"
-            @update:modelValue="onPickMaintenance"
-          />
-        </div> -->
+      <div class="form-card">
 
-        <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900">Placa</label>
-          <InputText v-model="form.placa" class="w-full" :disabled="viewMode" />
-        </div>
-
-        <!--         <div class="field col-12 md:col-6">
-          <InputDate v-model="form.fecha" :width="'100%'" />
-        </div>
-
-        <div class="field col-12 md:col-6">
-          <InputHour v-model="form.hora" :width="'100%'" />
-        </div> -->
-
-        <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900"
-            >Tipo identificación (Responsable)</label
-          >
-          <UiDropdownBasic
-            v-model="form.tipoIdentificacion"
-            :options="documentTypeOptions"
-            placeholder="Seleccione"
-            class="w-full"
-            :disabled="viewMode"
-          />
-        </div>
-
-        <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900"
-            >Número identificación (Responsable)</label
-          >
-          <InputText
-            v-model="form.numeroIdentificacion"
-            placeholder="12345678"
-            class="w-full"
-            :disabled="viewMode"
-          />
-        </div>
-
-        <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900">Nombre (Responsable)</label>
-          <InputText
-            v-model="form.nombresResponsable"
-            placeholder="Juan Pérez"
-            class="w-full"
-            :disabled="viewMode"
-          />
-        </div>
-        <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900"
-            >Tipo identificación (Conductor)</label
-          >
-          <UiDropdownBasic
-            v-model="form.tipoIdentificacionConductor"
-            :options="documentTypeOptions"
-            placeholder="Seleccioná tipo de documento"
-            :disabled="viewMode"
-          />
-        </div>
-
-        <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900"
-            >Número identificación (Conductor)</label
-          >
-          <InputText
-            v-model="form.numeroIdentificacionConductor"
-            placeholder="12345678"
-            class="w-full"
-            :disabled="viewMode"
-          />
-        </div>
-
-        <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900">Nombres (Conductor)</label>
-          <InputText
-            v-model="form.nombresConductor"
-            placeholder="María Gómez"
-            class="w-full"
-            :disabled="viewMode"
-          />
-        </div>
-        <div class="field col-12 md:col-6">
-          <label class="block mb-2 text-900">Detalle actividades</label>
-          <InputText
-            v-model="form.detalleActividades"
-            placeholder="Indique detalle"
-            class="w-full"
-            :disabled="viewMode"
-          />
-        </div>
-        <label class="block mb-2 text-900">Actividades</label>
+        <!-- PLACA + RESPONSABLE -->
         <div class="grid">
-          <div
-            v-for="act in store.enlistment.activities"
-            :key="act._id || act.id || act.value"
-            class="col-12 md:col-6 flex align-items-center"
-          >
-            <Checkbox
-              v-model="form.actividades"
-              :value="+act.id"
-              :disabled="viewMode"
+          <div class="col-12 md:col-3">
+            <label>Placa</label>
+            
+            <InputText
+              v-model="form.placa"
+              class="w-full"
+              maxlength="6"
+              placeholder="ABC123"
+              @input="onPlacaInput"
             />
-            <label class="ml-2">
-              {{ act.nombre ?? act.label ?? act.descripcion ?? act._id }}
-            </label>
+          </div>
+
+          <div class="col-12 md:col-3">
+            <label>Tipo Doc. Responsable</label>
+            <UiDropdownBasic
+              v-model="form.tipoIdentificacion"
+              :options="documentTypeOptions"
+              class="w-full"
+            />
+          </div>
+
+          <div class="col-12 md:col-3">
+            <label>N° Documento</label>
+            <InputText v-model="form.numeroIdentificacion" class="w-full" />
+          </div>
+
+          <div class="col-12 md:col-3">
+            <label>Nombre Responsable</label>
+            <InputText v-model="form.nombresResponsable" class="w-full" />
           </div>
         </div>
-        <small class="text-sm text-500"
-          >Seleccioná una o más actividades.</small
-        >
+
+        <!-- CONDUCTOR -->
+        <div class="grid mt-3">
+          <div class="col-12 md:col-4">
+            <label>Tipo Doc. Conductor</label>
+            <UiDropdownBasic
+              v-model="form.tipoIdentificacionConductor"
+              :options="documentTypeOptions"
+              class="w-full"
+            />
+          </div>
+
+          <div class="col-12 md:col-4">
+            <label>N° Documento</label>
+            <InputText
+              v-model="form.numeroIdentificacionConductor"
+              class="w-full"
+            />
+          </div>
+
+          <div class="col-12 md:col-4">
+            <label>Nombre Conductor</label>
+            <InputText
+              v-model="form.nombresConductor"
+              class="w-full"
+            />
+          </div>
+        </div>
+
+        <!-- ACTIVIDADES -->
+        <div class="mt-4">
+          <h3 class="section-title">
+            Detalle de actividades a chequear del vehículo
+          </h3>
+
+            <DataTable
+              :value="activitiesWithCheck"
+              responsive-layout="scroll"
+
+              class="p-datatable-sm activities-table"
+            >
+            <Column style="width: 60px">
+              <template #body="{ data }">
+                <Checkbox
+                  v-model="form.actividades"
+                  :value="data.id"
+                />
+              </template>
+            </Column>
+            <Column field="nombre" header="Actividad" />
+          </DataTable>
+        </div>
+
+        <!-- NOTAS -->
+        <div class="mt-4">
+          <label>Notas del estado del vehículo</label>
+          <Textarea
+            v-model="form.detalleActividades"
+            rows="4"
+            class="w-full"
+            autoResize
+          />
+        </div>
       </div>
 
       <template #footer>
-        <div class="flex justify-content-end gap-2">
-          <Button
-            label="Cerrar"
-            class="p-button-text"
-            @click="dlg.visible = false"
-          />
-          <Button
-            v-if="!viewMode"
-            label="Crear"
-            icon="pi pi-save"
-            class="btn-dark-green"
-            :loading="saving"
-            type="button"
-            @click="save"
-          />
-        </div>
+        <Button label="Cancelar" class="p-button-text" @click="dlg.visible=false" />
+        <Button
+          label="Guardar"
+          icon="pi pi-save"
+          class="btn-dark-green"
+          :loading="saving"
+          @click="save"
+        />
       </template>
     </Dialog>
   </div>
 </template>
+
 
 <script setup lang="ts">
 
@@ -355,6 +312,26 @@ const documentTypeOptions = [
   { label: "Documento de Identificación Extranjero (DIE)", value: 8 },
 ];
 
+function onPage(e: any) {
+  page.value = Math.floor(e.first / e.rows) + 1;
+  limit.value = e.rows;
+  refresh();
+}
+
+
+// ===============================
+// ACTIVIDADES (CHECKLIST)
+// ===============================
+const activitiesWithCheck = computed(() => {
+  const acts = (store.enlistment?.activities || []);
+
+  return acts.map((a: any) => ({
+    id: Number(a.id ?? a._id),
+    nombre: a.nombre ?? a.name ?? "Actividad",
+  }));
+});
+
+
 const isEditingEnlistment = ref(false);
 const editingEnlistmentId = ref<string | null>(null);
 
@@ -408,6 +385,18 @@ function exportExcel() {
   saveAs(blob, `alistamientos_${Date.now()}.xlsx`);
 }
 
+function clearFormForNew() {
+  // Limpiar solo los campos de entrada, NO las actividades
+  form.placa = "";
+  form.tipoIdentificacion = "";
+  form.numeroIdentificacion = "";
+  form.nombresResponsable = "";
+  form.tipoIdentificacionConductor = "";
+  form.numeroIdentificacionConductor = "";
+  form.nombresConductor = "";
+  form.detalleActividades = "";
+  // NO limpiar: form.actividades = [] - mantener las actividades precargadas
+}
 
 function fillFormFromRow(row: any) {
   form.placa = row?.placa ?? "";
@@ -433,6 +422,18 @@ function fillFormFromRow(row: any) {
       return Number.isFinite(n) ? n : null;
     })
     .filter((n: number | null) => n !== null) as number[];
+}
+
+function onPlacaInput(e: Event) {
+  const input = e.target as HTMLInputElement;
+
+  // Solo letras y números
+  let value = input.value
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 6);
+
+  form.placa = value;
 }
 
 
@@ -533,13 +534,10 @@ async function toggleEnlistment(id: string) {
 }
 
 function onSearch() {
-  const plate = searchPlate.value
-    ?.trim()
-    .toUpperCase()
-    .replace(/[\s-]+/g, "");
-  // clave correcta: plate  -> el store la transforma a placa
-  store.enlistmentFetchList({ plate });
+  page.value = 1;
+  refresh();
 }
+
 
 function onClear() {
   filters.placa = "";
@@ -808,7 +806,10 @@ function fmtDate(s?: string) {
 }
 
 async function refresh() {
-  const params: any = {};
+  const params: any = {
+    page: page.value,
+    numero_items: limit.value,
+  };
 
   if (filters.placa?.trim()) {
     params.plate = filters.placa.trim();
@@ -824,6 +825,7 @@ async function refresh() {
 
   await store.enlistmentFetchList(params);
 }
+
 
 
 function normDate(v: any): string | undefined {
@@ -882,9 +884,25 @@ function clean<T extends Record<string, any>>(obj: T) {
 }
 
 function openCreate() {
-  Object.assign(form, { mantenimientoId: "" });
+  //clearFormForNew();
+  //Object.assign(form, { mantenimientoId: "" });
+  form.placa = "";
+  form.fecha = null;
+  form.hora = null;
+  form.tipoIdentificacion = "";
+  form.numeroIdentificacion = "";
+  form.nombresResponsable = "";
+  form.tipoIdentificacionConductor = "";
+  form.numeroIdentificacionConductor = "";
+  form.nombresConductor = "";
+  form.detalleActividades = "";
+  
+  // IMPORTANTE: Precaragar TODAS las actividades automáticamente
+  form.actividades = activitiesWithCheck.value.map(a => a.id);
+
   dlg.visible = true;
   ensureMaintenances();
+
 }
 
 async function save() {
@@ -933,6 +951,7 @@ async function save() {
   }
 
   saving.value = true;
+
   try {
     if (selectedFile.value) {
       await store.createEnlistmentWithProgram({
@@ -943,6 +962,10 @@ async function save() {
       await store.enlistmentCreate(payload);
     }
     dlg.visible = false;
+    
+    // ✅ Limpiar el formulario pero mantener actividades precargadas
+    clearFormForNew();
+
     toast.add({
       severity: "success",
       summary: "Alistamiento creado",
@@ -964,6 +987,7 @@ async function save() {
   } finally {
     saving.value = false;
   }
+
 }
 
 function formatMaintLabel(m: any) {
@@ -1031,7 +1055,9 @@ function onPickMaintenance(id: string | number | null) {
 
 onMounted(async () => {
   // traer actividades (sigue siendo útil)
+  //await store.enlistmentFetchActivities();
   await store.enlistmentFetchActivities();
+  form.actividades = activitiesWithCheck.value.map(a => a.id);
 
   // traer la lista de alistamientos **al montar** (sin filtros)
   await store.enlistmentFetchList();
@@ -1090,6 +1116,67 @@ onMounted(async () => {
   background: #fff !important;
   color: #111 !important;
 }
+
+/* =====================================
+   TABLA ACTIVIDADES – MODERNA SUAVE
+   ===================================== */
+.activities-table {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(13, 110, 253, 0.12);
+}
+
+/* Header */
+.activities-table :deep(.p-datatable-thead > tr > th) {
+  background: linear-gradient(
+    135deg,
+    #e7f1ff,
+    #dbeafe
+  );
+  color: #1e3a8a !important;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.75rem;
+  border: none;
+}
+
+/* Redondeo SOLO arriba */
+.activities-table :deep(.p-datatable-thead > tr > th:first-child) {
+  border-top-left-radius: 12px;
+}
+.activities-table :deep(.p-datatable-thead > tr > th:last-child) {
+  border-top-right-radius: 12px;
+}
+
+/* Texto header (forzado) */
+.activities-table :deep(.p-datatable-thead span),
+.activities-table :deep(.p-datatable-thead div) {
+  color: #1e3a8a !important;
+}
+
+/* Body */
+.activities-table :deep(.p-datatable-tbody > tr > td) {
+  background: #ffffff;
+  padding: 0.7rem;
+  font-size: 0.9rem;
+}
+
+/* Hover sutil */
+.activities-table :deep(.p-datatable-tbody > tr:hover) {
+  background: #f8fbff;
+}
+
+/* Checkbox centrado */
+.activities-table :deep(.p-datatable-tbody > tr > td:first-child) {
+  text-align: center;
+}
+
+/* Quitar líneas duras */
+.activities-table :deep(.p-datatable-tbody > tr > td) {
+  border-bottom: 1px solid #eef2ff;
+}
+
+
 
 /* DataTable en blanco: cabecera, filas y paginador */
 .bolt-card :deep(.p-datatable),

@@ -6,6 +6,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Vehicle, VehicleDocument } from '../schema/vehicle.schema';
+import { BadRequestException } from '@nestjs/common';
 
 type UserCtx = {
   enterprise_id: string;
@@ -125,21 +126,37 @@ export class VehiclesService {
   /* =====================================================
    * GET ALL
    * ===================================================== */
-  async getAll(query: any, user: UserCtx) {
-    const filter: any = {
-      enterprise_id: new Types.ObjectId(user.enterprise_id),
-    };
+  
+  async getAll(query: any, user: any) {
+    console.log('USER EN VEHICLES =>', user);
 
+    if (!user?.enterprise_id) {
+      throw new BadRequestException('enterprise_id no presente en el token');
+    }
+  
+    const enterpriseId = Types.ObjectId.isValid(user.enterprise_id)
+      ? new Types.ObjectId(user.enterprise_id)
+      : null;
+  
+    if (!enterpriseId) {
+      throw new BadRequestException('enterprise_id inválido');
+    }
+  
+    const filter: any = {
+      enterprise_id: enterpriseId,
+    };
+  
     if (query.placa) {
       filter.placa = { $regex: query.placa, $options: 'i' };
     }
-
+  
     if (query.estado !== undefined) {
       filter.estado = query.estado === 'true' || query.estado === true;
     }
-
+  
     return this.vehicleModel.find(filter).lean();
   }
+  
 
   /* =====================================================
    * GET BY ID

@@ -15,8 +15,8 @@ export class CorrectiveDetail {
 
   @Prop({ required: true }) nit!: number;
   @Prop({ required: true, trim: true }) razonSocial!: string;
-  @Prop({ required: true, trim: true }) descripcionFalla!: string;
-  @Prop({ required: true, trim: true }) accionesRealizadas!: string;
+  //@Prop({ required: true, trim: true }) descripcionFalla!: string;
+  //@Prop({ required: true, trim: true }) accionesRealizadas!: string;
 
   @Prop({ required: true, trim: true }) tipoIdentificacion!: string;
   @Prop({ required: true, trim: true }) numeroIdentificacion!: string;

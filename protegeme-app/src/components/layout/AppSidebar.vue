@@ -33,32 +33,10 @@
           </li>
 
           <li class="layout-menuitem-category">
-            <!-- <div class="layout-menuitem-root-text">GESTIÓN</div> -->
+            <div class="layout-menuitem-root-text">GESTIÓN</div> 
             <ul>
-              <!-- <li>
-                <router-link
-                  to="/vehicles"
-                  class="layout-menuitem-link"
-                  :class="{
-                    'active-menuitem': $route.path.includes('/vehicles'),
-                  }"
-                >
-                  <i class="pi pi-car layout-menuitem-icon"></i>
-                  <span class="layout-menuitem-text">Vehículos</span>
-                </router-link>
-              </li>
-              <li>
-                <router-link
-                  to="/drivers"
-                  class="layout-menuitem-link"
-                  :class="{
-                    'active-menuitem': $route.path.includes('/drivers'),
-                  }"
-                >
-                  <i class="pi pi-users layout-menuitem-icon"></i>
-                  <span class="layout-menuitem-text">Conductores</span>
-                </router-link>
-              </li> -->
+ 
+              
               <li class="layout-menuitem-category">
                 <div class="layout-menuitem-root-text">MANTENIMIENTOS</div>
                 <ul>
@@ -76,6 +54,7 @@
                       <span class="layout-menuitem-text">Programas</span>
                     </router-link>
                   </li>
+
                   <li>
                     <router-link
                       to="/maintenance/preventive"
@@ -90,6 +69,7 @@
                       <span class="layout-menuitem-text">Preventivo</span>
                     </router-link>
                   </li>
+
                   <li>
                     <router-link
                       to="/maintenance/corrective"
@@ -118,6 +98,24 @@
                       <span class="layout-menuitem-text">Alistamiento</span>
                     </router-link>
                   </li>
+
+
+                  <li>
+                    <router-link
+                      to="/maintenance/maintenancecalendar"
+                      class="layout-menuitem-link"
+                      :class="{
+                        'active-menuitem': $route.path.includes(
+                          '/maintenance/maintenancecalendar'
+                        ),
+                      }"
+                    >
+                      <i class="pi pi-list-check layout-menuitem-icon"></i>
+                      <span class="layout-menuitem-text">Calendario de mantenimientos</span>
+                    </router-link>
+                  </li>
+
+
                 </ul>
               </li>
               <li class="layout-menuitem-category">
@@ -158,6 +156,39 @@
                   </li>
                 </ul>
               </li>
+
+         <li class="layout-menuitem-category">
+            <div class="layout-menuitem-root-text">Config</div> 
+            <ul>
+               <li>
+                <router-link
+                  to="/vehicles"
+                  class="layout-menuitem-link"
+                  :class="{
+                    'active-menuitem': $route.path.includes('/vehicles'),
+                  }"
+                >
+                  <i class="pi pi-car layout-menuitem-icon"></i>
+                  <span class="layout-menuitem-text">Vehículos</span>
+                </router-link>
+              </li>
+
+              <li>
+                <router-link
+                  to="/drivers"
+                  class="layout-menuitem-link"
+                  :class="{
+                    'active-menuitem': $route.path.includes('/drivers'),
+                  }"
+                >
+                  <i class="pi pi-users layout-menuitem-icon"></i>
+                  <span class="layout-menuitem-text">Conductores</span>
+                </router-link>
+              </li> 
+            </ul>
+          </li>
+
+
             </ul>
           </li>
         </ul>

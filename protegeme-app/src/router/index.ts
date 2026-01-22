@@ -23,7 +23,8 @@ const routes: RouteRecordRaw[] = [
       {
         path: "",
         name: "dashboard",
-        component: () => import("../views/DashboardView.vue"),
+        //component: () => import("../views/DashboardView.vue"),
+        component: () => import("../views/maintenance/MaintenanceDashboard.vue"),
       },
       {
         path: "vehicles",
@@ -75,6 +76,19 @@ const routes: RouteRecordRaw[] = [
         name: "incidents",
         component: () => import("../views/IncidentsView.vue"),
       },
+
+      {
+        path: "/maintenance/maintenancedashboard",
+        name: "/maintenance/maintenancedashboard",
+        component: () => import("../views/maintenance/MaintenanceDashboard.vue"),
+      },
+      {
+        path: "/maintenance/maintenancecalendar",
+        name: "/maintenance/maintenancecalendar",
+        component: () => import("../views/maintenance/PreventiveMaintenanceCalendar.vue"),
+      },
+
+
     ],
   },
 
