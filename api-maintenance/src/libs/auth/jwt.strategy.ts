@@ -23,8 +23,11 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       username: payload.username,
       rol: payload.rol,
       enterprise_id: payload.enterprise_id,
-      vigiladId: payload.vigiladoId,
+      vigiladoId: payload.vigiladoId,   // ✅ CORRECTO
       vigiladoToken: payload.vigiladoToken
     };
   }
+  
+  
+  
 }

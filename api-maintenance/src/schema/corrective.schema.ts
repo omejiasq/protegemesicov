@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+//import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
 export type CorrectiveDetailDocument = HydratedDocument<CorrectiveDetail>;
 
@@ -26,6 +27,8 @@ export class CorrectiveDetail {
   @Prop({ index: true }) enterprise_id?: string;
   @Prop() createdBy?: string;
   @Prop({ default: true, index: true }) estado!: boolean;
+
+
 }
 export const CorrectiveDetailSchema =
   SchemaFactory.createForClass(CorrectiveDetail);

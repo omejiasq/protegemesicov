@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
 export type PreventiveDetailDocument = HydratedDocument<PreventiveDetail>;
 
@@ -25,6 +25,8 @@ externalData?: Record<string, unknown>;
   @Prop({ index: true }) enterprise_id?: string;
   @Prop() createdBy?: string;
   @Prop({ default: true, index: true }) estado!: boolean;
+
+
 }
 export const PreventiveDetailSchema = SchemaFactory.createForClass(PreventiveDetail);
 PreventiveDetailSchema.index({ enterprise_id: 1, mantenimientoId: 1 }, { unique: true });

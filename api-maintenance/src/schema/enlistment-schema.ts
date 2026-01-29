@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
 export type EnlistmentDetailDocument = HydratedDocument<EnlistmentDetail>;
 
@@ -30,6 +30,8 @@ export class EnlistmentDetail {
   @Prop({ default: true, index: true }) estado!: boolean;
   @Prop({ type: [String], default: [] })
   actividades?: string[];
+
+
 }
 export const EnlistmentDetailSchema =
   SchemaFactory.createForClass(EnlistmentDetail);

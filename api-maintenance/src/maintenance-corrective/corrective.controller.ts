@@ -10,15 +10,17 @@ export class CorrectiveController {
   constructor(private readonly svc: CorrectiveService) {}
 
   @Post('create')
-  create(@Body() dto: CreateCorrectiveDto, @Req() req: Request) {
-    const user = (req as any).user;
+  create(@Body() dto: any, @Req() req: any) {
+    const user = req.user;
+  
     return this.svc.create(dto, {
       enterprise_id: user.enterprise_id,
       sub: user.sub,
-      vigiladoId: user.vigiladId,
-      vigiladoToken: user.vigiladoToken
+      vigiladoId: user.vigiladoId,      // 🔥 ESTA LÍNEA FALTABA
+      vigiladoToken: user.vigiladoToken,
     });
   }
+  
 
   @Post('view')
   view(@Body() dto: ViewCorrectiveDto, @Req() req: Request) {
@@ -43,4 +45,12 @@ toggle(@Param('id') id: string, @Req() req: Request) {
   const user = (req as any).user;
   return this.svc.toggle(id, { enterprise_id: user.enterprise_id });
 }
+  // ======================================================
+  // LIST CORRECTIVOS DEL USUARIO EN SESIÓN
+  // ======================================================
+  @Get('my')
+  listMy(@Query() q: any, @Req() req: any) {
+    return this.svc.listByUser(q, req.user);
+  }
+
 }

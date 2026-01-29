@@ -1,173 +1,152 @@
 import {
   Injectable,
   NotFoundException,
-  ConflictException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+
 import { MaintenanceExternalApiService } from '../libs/external-api';
+import { MaintenanceService } from 'src/maintenance/maintenance.service';
+
 import {
   EnlistmentDetail,
   EnlistmentDetailDocument,
 } from '../schema/enlistment-schema';
 
-import { MaintenanceService } from 'src/maintenance/maintenance.service';
+import {
+  EnlistmentDailySnapshot,
+  EnlistmentDailySnapshotDocument,
+} from '../schema/enlistment_daily_snapshot.schema';
+
+import {
+  EnlistmentItemResult,
+  EnlistmentItemResultDocument,
+} from '../schema/enlistment_item_result.schema';
 
 @Injectable()
 export class AlistamientoService {
   constructor(
     @InjectModel(EnlistmentDetail.name)
     private readonly model: Model<EnlistmentDetailDocument>,
+
+    @InjectModel(EnlistmentDailySnapshot.name)
+    private readonly snapshotModel: Model<EnlistmentDailySnapshotDocument>,
+
+    @InjectModel(EnlistmentItemResult.name)
+    private readonly itemResultModel: Model<EnlistmentItemResultDocument>,
+
     private readonly external: MaintenanceExternalApiService,
     private readonly maintenanceService: MaintenanceService,
   ) {}
 
-  async create(
-    dto: any,
-    user?: {
-      enterprise_id?: string;
-      sub?: string;
-      vigiladoId?: number | string;
-      vigiladoToken: string;
-    },
-  ) {
+  // ================= CREATE =================
+  async create(dto: any, user: any) {
+    // 1️⃣ Desactivar alistamientos anteriores
     await this.model.updateMany(
-      { placa: dto.placa, enterprise_id: user?.enterprise_id, estado: true },
+      { placa: dto.placa, enterprise_id: user.enterprise_id, estado: true },
       { $set: { estado: false } },
     );
 
-    let mantenimientoIdLocal: string | null = dto.mantenimientoId || null;
-    let mantenimientoIdExterno: string | null = null;
+    // 2️⃣ Crear mantenimiento
+    const createdMaintenance = await this.maintenanceService.create(
+      { placa: dto.placa, tipoId: 3 },
+      user,
+      { awaitExternal: true },
+    );
 
-    const vigiladoId = user?.vigiladoId;
+    const mantenimientoIdLocal = String(createdMaintenance.doc._id);
 
-    if (!mantenimientoIdLocal) {
-      const maintPayload = {
-        placa: dto.placa,
-        tipoId: 3 as const,
-        vigiladoId: vigiladoId as number,
-        enterprise_id: user?.enterprise_id,
-        createdBy: user?.sub,
-      };
-
-      const createdMaintenance = await this.maintenanceService.create(
-        maintPayload,
-        user,
-        { awaitExternal: true },
-      );
-
-      const newId =
-        createdMaintenance?.doc?._id ?? createdMaintenance?.doc?.id ?? null;
-
-      if (!newId) {
-        throw new ConflictException('No se pudo generar el mantenimiento base');
-      }
-
-      mantenimientoIdLocal = String(newId);
-      mantenimientoIdExterno = createdMaintenance?.externalId
-        ? String(createdMaintenance.externalId)
-        : null;
-    } else {
-      mantenimientoIdExterno = null;
-    }
-
-    const doc = await this.model.create({
-      enterprise_id: user?.enterprise_id,
-      createdBy: user?.sub,
+    // 3️⃣ Crear enlistment principal
+    const enlistment = await this.model.create({
+      enterprise_id: user.enterprise_id,
+      createdBy: user.sub,
       placa: dto.placa,
-      mantenimientoId: mantenimientoIdExterno,
-      fecha: dto.fecha,
-      hora: dto.hora,
+      mantenimientoId: mantenimientoIdLocal,
+
       tipoIdentificacion: dto.tipoIdentificacion,
       numeroIdentificacion: dto.numeroIdentificacion,
       nombresResponsable: dto.nombresResponsable,
-      detalleActividades: dto.detalleActividades,
-      actividades: Array.isArray(dto.actividades) ? dto.actividades : [],
-      tipoIdentificacionConductor: dto.tipoIdentificacionConductor ?? 0,
+
+      tipoIdentificacionConductor: dto.tipoIdentificacionConductor ?? '',
       numeroIdentificacionConductor: dto.numeroIdentificacionConductor ?? '',
       nombresConductor: dto.nombresConductor ?? '',
+
+      detalleActividades: dto.detalleActividades,
+      actividades: Array.isArray(dto.actividades) ? dto.actividades : [],
+
       estado: true,
     });
 
-    try {
-      if (mantenimientoIdExterno && vigiladoId && user?.vigiladoToken) {
-        const externalRes = await this.external.guardarAlistamiento({
-          tipoIdentificacionResponsable: Number(dto.tipoIdentificacion),
-          numeroIdentificacionResponsable: String(dto.numeroIdentificacion),
-          nombreResponsable: String(dto.nombresResponsable),
-          tipoIdentificacionConductor: Number(dto.tipoIdentificacionConductor),
-          numeroIdentificacionConductor: dto.numeroIdentificacionConductor,
-          nombresConductor: String(dto.nombresConductor ?? ''),
-          mantenimientoId: Number(mantenimientoIdExterno),
-          detalleActividades: String(dto.detalleActividades ?? ''),
-          actividades: (Array.isArray(dto.actividades)
-            ? dto.actividades
-            : []
-          ).map((x: any) => Number(x)),
-          vigiladoId: String(vigiladoId),
-          vigiladoToken: user.vigiladoToken,
-        });
+    // ================= SNAPSHOT + ITEMS (APP MÓVIL) =================
+    if (dto.dailySnapshot) {
+      const s = dto.dailySnapshot;
 
-        if (externalRes && externalRes.ok === false) {
-          throw new ConflictException({
-            message: 'Error registrando alistamiento en SICOV',
-            placa: dto.placa,
-            externalStatus: externalRes.status,
-            externalError: 'error' in externalRes ? externalRes.error : null,
+      // 4️⃣ Snapshot diario
+      await this.snapshotModel.create({
+        mantenimientoId: mantenimientoIdLocal,
+
+        fecha: s.fecha,
+        ciudad: s.ciudad,
+        numeroInterno: s.numeroInterno,
+        modalidad: s.modalidad,
+        hora: s.hora,
+
+        nombreOperador1: s.nombreOperador1,
+        identificacionOperador1: s.identificacionOperador1,
+        presentacionOperador1: s.presentacionOperador1,
+
+        nombreOperador2: s.nombreOperador2,
+        identificacionOperador2: s.identificacionOperador2,
+        presentacionOperador2: s.presentacionOperador2,
+
+        documentos: s.documentos,
+        rutas: s.rutas,
+        varias: s.varias,
+
+        firmaConductorUrl: s.firmaConductorUrl,
+        firmaInspectorUrl: s.firmaInspectorUrl,
+      });
+
+      // 5️⃣ Resultados de ítems
+      if (Array.isArray(dto.items)) {
+        for (const item of dto.items) {
+          await this.itemResultModel.create({
+            mantenimientoId: mantenimientoIdLocal,
+            itemId: new Types.ObjectId(item.itemId),
+            estado: item.valor,
           });
         }
-
-      }
-    } catch {}
-
-    return (await this.model.findById(doc._id).lean())!;
-  }
-
-  async view(dto: { id: string }, user?: { enterprise_id?: string }) {
-    if (!Types.ObjectId.isValid(dto.id))
-      throw new NotFoundException('No encontrado');
-    const item = await this.model
-      .findOne({
-        _id: new Types.ObjectId(dto.id),
-        enterprise_id: user?.enterprise_id,
-      })
-      .lean();
-    if (!item) throw new NotFoundException('No encontrado');
-
-    let externalData: any = null;
-    if (item.mantenimientoId) {
-      try {
-        const res = await this.external.visualizarAlistamiento(
-          item.mantenimientoId,
-          process.env.SICOV_VIGILADO_ID,
-        );
-        if (res.ok) externalData = res.data;
-      } catch {
-        /* ignorar fallos externos */
       }
     }
 
-    // devolvemos el registro local junto con la data externa (sin modificar el esquema)
-    return { ...item, externalData };
+    return enlistment;
   }
 
-  async listActivities(user?: { enterprise_id?: string }) {
-    // Puedes ignorar user si no lo necesitas aquí
+  // ================= VIEW =================
+  async view(dto: { id: string }, user: any) {
+    if (!Types.ObjectId.isValid(dto.id)) {
+      throw new NotFoundException('No encontrado');
+    }
+
+    const item = await this.model
+      .findOne({ _id: dto.id, enterprise_id: user.enterprise_id })
+      .lean();
+
+    if (!item) throw new NotFoundException('No encontrado');
+    return item;
+  }
+
+  // ================= LIST ACTIVITIES =================
+  async listActivities() {
     return this.external.listarActividades(process.env.SICOV_VIGILADO_ID);
   }
 
-  async list(q: any, user?: { enterprise_id?: string }) {
-    const filter: any = { enterprise_id: user?.enterprise_id };
+  // ================= LIST =================
+  async list(q: any, user: any) {
+    const filter: any = { enterprise_id: user.enterprise_id };
 
-    // placa parcial (prefijo, case-insensitive)
-    const rawPlaca = (q?.placa ?? q?.plate ?? '').toString().trim();
-    if (rawPlaca) {
-      const esc = rawPlaca.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      filter.placa = { $regex: '^' + esc, $options: 'i' };
-    }
-
-    const page = Math.max(1, Number(q?.page) || 1);
-    const limit = Math.max(1, Math.min(200, Number(q?.numero_items) || 10));
+    const page = Math.max(1, Number(q.page) || 1);
+    const limit = Math.max(1, Math.min(200, Number(q.numero_items) || 10));
     const skip = (page - 1) * limit;
 
     const [items, total] = await Promise.all([
@@ -179,88 +158,81 @@ export class AlistamientoService {
         .lean(),
       this.model.countDocuments(filter),
     ]);
+
     return { items, total, page, numero_items: limit };
   }
 
-  async update(
-    id: string,
-    dto: any,
-    user?: {
-      enterprise_id?: string;
-      vigiladoId?: number | string;
-      vigiladoToken?: string;
-    },
-  ) {
-    if (!Types.ObjectId.isValid(id))
-      throw new NotFoundException('No encontrado');
-
-    const updatable: any = {};
-    for (const k of [
-      'fecha',
-      'hora',
-      'tipoIdentificacion',
-      'numeroIdentificacion',
-      'nombresResponsable',
-      'detalleActividades',
-      'actividades',
-      'tipoIdentificacionConductor',
-      'numeroIdentificacionConductor',
-      'nombresConductor',
-    ])
-      if (dto[k] !== undefined) updatable[k] = dto[k];
-
-    const res = await this.model.findOneAndUpdate(
-      { _id: new Types.ObjectId(id), enterprise_id: user?.enterprise_id },
-      { $set: updatable },
+  // ================= UPDATE =================
+  async update(id: string, dto: any, user: any) {
+    return this.model.findOneAndUpdate(
+      { _id: id, enterprise_id: user.enterprise_id },
+      { $set: dto },
       { new: true, lean: true },
     );
-    if (!res) throw new NotFoundException('No encontrado');
-
-    // 🔁 Sincronizar con SICOV
-    try {
-      if (
-        res.mantenimientoId &&
-        (user?.vigiladoToken || process.env.SICOV_TOKEN)
-      ) {
-        await this.external.guardarAlistamiento({
-          tipoIdentificacionResponsable: Number(res.tipoIdentificacion ?? 0),
-          numeroIdentificacionResponsable: String(
-            res.numeroIdentificacion ?? '',
-          ),
-          nombreResponsable: String(res.nombresResponsable ?? ''),
-          tipoIdentificacionConductor: Number(
-            res.tipoIdentificacionConductor ?? 0,
-          ),
-          numeroIdentificacionConductor: Number(
-            res.numeroIdentificacionConductor ?? '',
-          ),
-          nombresConductor: String(res.nombresConductor ?? ''),
-          mantenimientoId: res.mantenimientoId,
-          detalleActividades: String(res.detalleActividades ?? ''),
-          actividades: Array.isArray(res.actividades) ? res.actividades : [],
-          vigiladoId: String(user?.vigiladoId ?? process.env.SICOV_VIGILADO_ID),
-          vigiladoToken: user?.vigiladoToken ?? process.env.SICOV_TOKEN,
-        });
-      }
-    } catch {
-      /* ignorar falla externa */
-    }
-
-    return res;
   }
 
-  async toggle(id: string, user?: { enterprise_id?: string }) {
-    if (!Types.ObjectId.isValid(id))
-      throw new NotFoundException('No encontrado');
-
+  // ================= TOGGLE =================
+  async toggle(id: string, user: any) {
     const item = await this.model.findOne({
-      _id: new Types.ObjectId(id),
-      enterprise_id: user?.enterprise_id,
+      _id: id,
+      enterprise_id: user.enterprise_id,
     });
+
     if (!item) throw new NotFoundException('No encontrado');
 
-    const nuevo = !item.estado;
-    await this.model.updateOne({ _id: item._id }, { $set: { estado: nuevo } });
-    return { _id: String(item._id), estado: nuevo };
+    item.estado = !item.estado;
+    await item.save();
+
+    return item;
   }
+
+  // ================= LIST BY USER =================
+  async listByUser(
+    q: any,
+    user: {
+      enterprise_id?: string;
+      sub?: string;
+    },
+  ) {
+    if (!user?.sub) {
+      throw new NotFoundException('Usuario no válido');
+    }
+
+    const filter: any = {
+      enterprise_id: user.enterprise_id,
+      createdBy: user.sub,
+    };
+
+    // Filtros opcionales
+    if (q?.estado !== undefined) {
+      filter.estado = q.estado === 'true' || q.estado === true;
+    }
+
+    if (q?.placa) {
+      filter.placa = { $regex: '^' + q.placa, $options: 'i' };
+    }
+
+    const page = Math.max(1, Number(q.page) || 1);
+    const limit = Math.max(1, Math.min(200, Number(q.numero_items) || 10));
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      this.model
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      this.model.countDocuments(filter),
+    ]);
+
+    return {
+      items,
+      total,
+      page,
+      numero_items: limit,
+    };
+  }
+
+
 }

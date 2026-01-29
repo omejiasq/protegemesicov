@@ -10,10 +10,38 @@ import { MaintenanceExternalApiService } from 'src/libs/external-api';
 import { AuditModule } from 'src/libs/audit/audit.module';
 import { MaintenanceModule } from 'src/maintenance/maintenance.module';
 
+import {
+  PreventiveVehicleSnapshot,
+  PreventiveVehicleSnapshotSchema,
+} from '../schema/preventive_vehicle_snapshot.schema';
+
+import {
+  PreventivePeopleSnapshot,
+  PreventivePeopleSnapshotSchema,
+} from '../schema/preventive_people_snapshot.schema';
+
+import {
+  PreventiveItemResult,
+  PreventiveItemResultSchema,
+} from '../schema/preventive_item_result.schema';
+
+
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: PreventiveDetail.name, schema: PreventiveDetailSchema },
+      {
+        name: PreventiveVehicleSnapshot.name,
+        schema: PreventiveVehicleSnapshotSchema,
+      },
+      {
+        name: PreventivePeopleSnapshot.name,
+        schema: PreventivePeopleSnapshotSchema,
+      },
+      {
+        name: PreventiveItemResult.name,
+        schema: PreventiveItemResultSchema,
+      },
     ]),
     AuditModule,
     MaintenanceModule

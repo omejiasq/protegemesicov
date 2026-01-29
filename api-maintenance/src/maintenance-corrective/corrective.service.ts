@@ -14,11 +14,36 @@ import {
 import { MaintenanceExternalApiService } from '../libs/external-api';
 import { MaintenanceService } from 'src/maintenance/maintenance.service';
 
+import {
+  CorrectiveVehicleSnapshot,
+  CorrectiveVehicleSnapshotDocument,
+} from '../schema/corrective_vehicle_snapshot.schema';
+
+import {
+  CorrectivePeopleSnapshot,
+  CorrectivePeopleSnapshotDocument,
+} from '../schema/corrective_people_snapshot.schema';
+
+import {
+  CorrectiveItemResult,
+  CorrectiveItemResultDocument,
+} from '../schema/corrective_item_result.schema';
+
 @Injectable()
 export class CorrectiveService {
   constructor(
     @InjectModel(CorrectiveDetail.name)
     private readonly model: Model<CorrectiveDetailDocument>,
+
+    @InjectModel(CorrectiveVehicleSnapshot.name)
+    private readonly vehicleSnapshotModel: Model<CorrectiveVehicleSnapshotDocument>,
+
+    @InjectModel(CorrectivePeopleSnapshot.name)
+    private readonly peopleSnapshotModel: Model<CorrectivePeopleSnapshotDocument>,
+
+    @InjectModel(CorrectiveItemResult.name)
+    private readonly itemResultModel: Model<CorrectiveItemResultDocument>,
+
     private readonly external: MaintenanceExternalApiService,
     private readonly maintenanceService: MaintenanceService,
   ) {}
@@ -31,89 +56,162 @@ export class CorrectiveService {
     user?: {
       enterprise_id?: string;
       sub?: string;
-      vigiladoId: number;
-      vigiladoToken: string;
+      vigiladoId?: number;
+      vigiladoToken?: string;
     },
   ) {
-    // Desactivar correctivos activos previos para la misma placa
     await this.model.updateMany(
       { placa: dto.placa, enterprise_id: user?.enterprise_id, estado: true },
       { $set: { estado: false } },
     );
 
-    let mantenimientoIdLocal: string | null = dto.mantenimientoId || null;
-    let mantenimientoIdExterno: string | null = null;
-    const vigiladoId = user?.vigiladoId;
+    let mantenimientoIdLocal: string | null = dto.mantenimientoId ?? null;
+    let mantenimientoIdExterno: number | null = null;
 
-    // Crear mantenimiento base si no viene
+    const vigiladoId =
+      user?.vigiladoId ?? Number(process.env.SICOV_VIGILADO_ID);
+
+    // ======================================================
+    // CREAR MANTENIMIENTO BASE (LOCAL + SICOV)
+    // ======================================================
     if (!mantenimientoIdLocal) {
       const maintPayload = {
         placa: dto.placa,
-        tipoId: 2 as const, // correctivo
-        vigiladoId: vigiladoId as number,
-        enterprise_id: user?.enterprise_id,
-        createdBy: user?.sub,
+        tipoId: 2 as const,
+        vigiladoId: vigiladoId, // ← obligatorio aquí
+      };
+      
+
+      // 🔥 FIX DEFINITIVO
+      const userForMaintenance = {
+        ...user,
+        vigiladoId,
       };
 
-      const createdMaintenance = await this.maintenanceService.create(
+      const { doc, externalId } = await this.maintenanceService.create(
         maintPayload,
-        user,
+        userForMaintenance,
         { awaitExternal: true },
       );
 
-      const newId =
-        createdMaintenance?.doc?._id ?? createdMaintenance?.doc?.id;
+      const localId = (doc as any)?._id ?? (doc as any)?.id;
 
-      if (!newId) {
-        throw new ConflictException('No se pudo generar el mantenimiento base');
+      if (!localId) {
+        throw new ConflictException(
+          'No se pudo generar el mantenimiento base local',
+        );
       }
 
-      mantenimientoIdLocal = String(newId);
-      mantenimientoIdExterno = createdMaintenance?.externalId
-        ? String(createdMaintenance.externalId)
-        : null;
+      mantenimientoIdLocal = String(localId);
+
+      if (!externalId) {
+        throw new ConflictException(
+          'No se pudo obtener el mantenimiento externo',
+        );
+      }
+
+      mantenimientoIdExterno = Number(externalId);
+    } else if (/^\d+$/.test(String(mantenimientoIdLocal))) {
+      mantenimientoIdExterno = Number(mantenimientoIdLocal);
     }
 
-    // Crear correctivo local
+    // ======================================================
+    // GUARDAR CORRECTIVO LOCAL
+    // ======================================================
     const doc = await this.model.create({
       enterprise_id: user?.enterprise_id,
       createdBy: user?.sub,
-
       placa: String(dto.placa).trim(),
       mantenimientoId: mantenimientoIdLocal,
-
-      fecha: String(dto.fecha),
-      hora: String(dto.hora),
-
+      fecha: dto.fecha,
+      hora: dto.hora,
       nit: dto.nit,
-      razonSocial: String(dto.razonSocial).trim(),
-      tipoIdentificacion: String(dto.tipoIdentificacion),
-      numeroIdentificacion: String(dto.numeroIdentificacion),
-      nombresResponsable: String(dto.nombresResponsable).trim(),
-      detalleActividades: String(dto.detalleActividades).trim(),
-
+      razonSocial: dto.razonSocial,
+      tipoIdentificacion: dto.tipoIdentificacion,
+      numeroIdentificacion: dto.numeroIdentificacion,
+      nombresResponsable: dto.nombresResponsable,
+      detalleActividades: dto.detalleActividades,
       estado: true,
     });
 
-    // Envío a SICOV (si aplica)
-    try {
-      if (mantenimientoIdExterno && vigiladoId && user?.vigiladoToken) {
-        await this.external.guardarCorrectivo({
-          fecha: String(dto.fecha),
-          hora: String(dto.hora),
-          nit: dto.nit,
-          razonSocial: String(dto.razonSocial),
-          tipoIdentificacion: dto.tipoIdentificacion,
-          numeroIdentificacion: dto.numeroIdentificacion,
-          nombresResponsable: String(dto.nombresResponsable),
-          mantenimientoId: Number(mantenimientoIdExterno),
-          detalleActividades: String(dto.detalleActividades),
-          vigiladoId: String(vigiladoId),
-          vigiladoToken: user.vigiladoToken,
-        });
+    // ======================================================
+    // GUARDAR ESTRUCTURA CRMT (si viene desde móvil)
+    // ======================================================
+    if (dto.crmtData && mantenimientoIdLocal) {
+      try {
+        const mid = String(mantenimientoIdLocal);
+
+        if (dto.crmtData.vehicle) {
+          await this.vehicleSnapshotModel.create({
+            mantenimientoId: mid,
+            ...dto.crmtData.vehicle,
+          });
+        }
+
+        if (dto.crmtData.people) {
+          await this.peopleSnapshotModel.create({
+            mantenimientoId: mid,
+            ...dto.crmtData.people,
+          });
+        }
+
+        if (Array.isArray(dto.crmtData.items) && dto.crmtData.items.length) {
+          await this.itemResultModel.insertMany(
+            dto.crmtData.items.map((i: any) => ({
+              mantenimientoId: mid,
+              itemId: new Types.ObjectId(i.itemId),
+              tipoFalla: i.tipoFalla,
+              observacion: i.observacion,
+              planAccion: i.planAccion,
+              responsable: i.responsable,
+            })),
+          );
+        }
+      } catch (err) {
+        console.error('Error guardando estructura CRMT:', err);
       }
-    } catch {
-      // errores externos no bloquean guardado local
+    }
+
+    // ======================================================
+    // ENVÍO A SICOV
+    // ======================================================
+    try {
+      const sicovPayload = {
+        fecha: dto.fecha,
+        hora: dto.hora,
+        nit: dto.nit,
+        razonSocial: dto.razonSocial,
+        tipoIdentificacion: dto.tipoIdentificacion,
+        numeroIdentificacion: dto.numeroIdentificacion,
+        nombresResponsable: dto.nombresResponsable,
+        mantenimientoId: mantenimientoIdExterno as number,
+        detalleActividades: dto.detalleActividades,
+        vigiladoId: String(vigiladoId),
+        vigiladoToken: user?.vigiladoToken,
+      };
+
+      const REQUIRED = [
+        'fecha',
+        'hora',
+        'nit',
+        'razonSocial',
+        'tipoIdentificacion',
+        'numeroIdentificacion',
+        'nombresResponsable',
+        'detalleActividades',
+        'mantenimientoId',
+        'vigiladoId',
+      ];
+
+      const missing = REQUIRED.filter(
+        (k) => !sicovPayload[k as keyof typeof sicovPayload],
+      );
+
+      if (missing.length === 0 && user?.vigiladoToken) {
+        await this.external.guardarCorrectivo(sicovPayload);
+      }
+    } catch (err) {
+      console.error('Error enviando correctivo a SICOV:', err);
     }
 
     return this.model.findById(doc._id).lean();
@@ -123,57 +221,19 @@ export class CorrectiveService {
   // VIEW
   // ======================================================
   async view(dto: { id: string }, user?: { enterprise_id?: string }) {
-    if (!Types.ObjectId.isValid(dto.id)) {
+    if (!Types.ObjectId.isValid(dto.id))
       throw new NotFoundException('No encontrado');
-    }
 
-    const item = await this.model.findOne({
-      _id: new Types.ObjectId(dto.id),
-      enterprise_id: user?.enterprise_id,
-    }).lean();
+    const item = await this.model
+      .findOne({
+        _id: new Types.ObjectId(dto.id),
+        enterprise_id: user?.enterprise_id,
+      })
+      .lean();
 
     if (!item) throw new NotFoundException('No encontrado');
 
-    // Consulta externa opcional
-    if (item.mantenimientoId) {
-      try {
-        const res = await this.external.visualizarCorrectivo(
-          item.mantenimientoId,
-          process.env.SICOV_VIGILADO_ID,
-        );
-        if (res?.ok) {
-          (item as any).externalData = res.data;
-        }
-      } catch {}
-    }
-
     return item;
-  }
-
-  // ======================================================
-  // LIST
-  // ======================================================
-  async list(q: any, user?: { enterprise_id?: string }) {
-    const filter: any = { enterprise_id: user?.enterprise_id };
-
-    const rawPlaca = (q?.placa ?? q?.plate ?? '').toString().trim();
-    if (rawPlaca) {
-      filter.placa = {
-        $regex: '^' + rawPlaca.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
-        $options: 'i',
-      };
-    }
-
-    const page = Math.max(1, Number(q?.page) || 1);
-    const limit = Math.max(1, Math.min(200, Number(q?.numero_items) || 10));
-    const skip = (page - 1) * limit;
-
-    const [items, total] = await Promise.all([
-      this.model.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      this.model.countDocuments(filter),
-    ]);
-
-    return { items, total, page, numero_items: limit };
   }
 
   // ======================================================
@@ -182,15 +242,10 @@ export class CorrectiveService {
   async update(
     id: string,
     dto: any,
-    user?: {
-      enterprise_id?: string;
-      vigiladoId?: number | string;
-      vigiladoToken?: string;
-    },
+    user?: { enterprise_id?: string },
   ) {
-    if (!Types.ObjectId.isValid(id)) {
+    if (!Types.ObjectId.isValid(id))
       throw new NotFoundException('No encontrado');
-    }
 
     const updatable: any = {};
     for (const k of [
@@ -214,36 +269,36 @@ export class CorrectiveService {
 
     if (!res) throw new NotFoundException('No encontrado');
 
-    // Sync SICOV
-    try {
-      if (res.mantenimientoId && (user?.vigiladoToken || process.env.SICOV_TOKEN)) {
-        await this.external.guardarCorrectivo({
-          fecha: res.fecha,
-          hora: res.hora,
-          nit: res.nit,
-          razonSocial: res.razonSocial,
-          tipoIdentificacion: res.tipoIdentificacion,
-          numeroIdentificacion: res.numeroIdentificacion,
-          nombresResponsable: res.nombresResponsable,
-          mantenimientoId: res.mantenimientoId,
-          detalleActividades: res.detalleActividades,
-          vigiladoId: String(user?.vigiladoId ?? process.env.SICOV_VIGILADO_ID),
-          vigiladoToken: user?.vigiladoToken ?? process.env.SICOV_TOKEN,
-        });
-      }
-    } catch {}
-
     return res;
+  }
+
+
+  // ======================================================
+  // LIST
+  // ======================================================
+  async list(q: any, user?: { enterprise_id?: string }) {
+    const filter: any = { enterprise_id: user?.enterprise_id };
+
+    if (q?.placa) {
+      filter.placa = { $regex: '^' + q.placa, $options: 'i' };
+    }
+
+    const page = Math.max(1, Number(q?.page) || 1);
+    const limit = Math.max(1, Math.min(200, Number(q?.numero_items) || 10));
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      this.model.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      this.model.countDocuments(filter),
+    ]);
+
+    return { items, total, page, numero_items: limit };
   }
 
   // ======================================================
   // TOGGLE
   // ======================================================
   async toggle(id: string, user?: { enterprise_id?: string }) {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException('No encontrado');
-    }
-
     const item = await this.model.findOne({
       _id: new Types.ObjectId(id),
       enterprise_id: user?.enterprise_id,
@@ -251,9 +306,62 @@ export class CorrectiveService {
 
     if (!item) throw new NotFoundException('No encontrado');
 
-    const nuevo = !item.estado;
-    await this.model.updateOne({ _id: item._id }, { $set: { estado: nuevo } });
+    item.estado = !item.estado;
+    await item.save();
 
-    return { _id: String(item._id), estado: nuevo };
+    return { _id: String(item._id), estado: item.estado };
   }
+
+
+  // ======================================================
+  // LIST BY USER
+  // ======================================================
+  async listByUser(
+    q: any,
+    user?: {
+      enterprise_id?: string;
+      sub?: string;
+    },
+  ) {
+    if (!user?.sub) {
+      throw new NotFoundException('Usuario no válido');
+    }
+
+    const filter: any = {
+      enterprise_id: user.enterprise_id,
+      createdBy: user.sub,
+    };
+
+    // Filtros opcionales
+    if (q?.estado !== undefined) {
+      filter.estado = q.estado === 'true' || q.estado === true;
+    }
+
+    if (q?.placa) {
+      filter.placa = { $regex: '^' + q.placa, $options: 'i' };
+    }
+
+    const page = Math.max(1, Number(q?.page) || 1);
+    const limit = Math.max(1, Math.min(200, Number(q?.numero_items) || 10));
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      this.model
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      this.model.countDocuments(filter),
+    ]);
+
+    return {
+      items,
+      total,
+      page,
+      numero_items: limit,
+    };
+  }
+
+
 }

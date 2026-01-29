@@ -56,6 +56,23 @@ export class Enterprise {
   @Prop({ trim: true })
   packageType?: string;  //basic, enterprise
 
+  @Prop({ required: false, trim: true })
+  mechanic_document_type: { 
+    type: Number,
+    enum: [1,2,3,4,5,6,7,8,9],
+    default: 1,
+  };
+
+  @Prop({ trim: true })
+  mechanic_document_number?: string;
+
+  @Prop({ trim: true })
+  mechanic_name?: string;
+
+  // ───────────── Superadmin: administrador de empresas, superadmin ─────────────
+  @Prop({ default: false })
+  admin: boolean;
+
 }
 
 export const EnterpriseSchema = SchemaFactory.createForClass(Enterprise);

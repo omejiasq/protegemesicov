@@ -11,6 +11,9 @@ import { AuditModule } from './libs/audit/audit.module';
 import { FileModule } from './maintenance-files/files.module';
 import { StorageDebugModule } from './debug/storage-debug.module';
 
+import { InspectionTypesModule } from './maintenance-catalogs/inspection-types.module';
+import { MaintenanceTypesModule } from './maintenance-catalogs/maintenance-types.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -27,7 +30,10 @@ import { StorageDebugModule } from './debug/storage-debug.module';
     CorrectiveModule,
     EnlistmentModule, 
     FileModule,
-    StorageDebugModule
+    StorageDebugModule,
+
+    InspectionTypesModule,
+    MaintenanceTypesModule,
   ],
   providers: [JwtStrategy],
 })
