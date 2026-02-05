@@ -40,8 +40,14 @@ export class JwtAuthGuard implements CanActivate {
         throw new UnauthorizedException('Usuario no encontrado');
       }
 
-      request.user = user;
+      // 🔥 CLAVE: enterprise_id viene del TOKEN
+      request.user = {
+        ...user,
+        enterprise_id: payload.enterprise_id,
+      };
+
       return true;
+
     } catch (error) {
       throw new UnauthorizedException('Token inválido o expirado');
     }

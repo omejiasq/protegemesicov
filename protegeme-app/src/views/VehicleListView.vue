@@ -1,37 +1,49 @@
 <script setup lang="ts">
-import { onMounted, ref, reactive, watch } from "vue";
+import { ref, reactive, watch, onMounted, provide } from "vue";
 import { useToast } from "primevue/usetoast";
-import DataTable from "primevue/datatable";
-import Column from "primevue/column";
 import Button from "primevue/button";
 import Tag from "primevue/tag";
 import InputText from "primevue/inputtext";
 import Dropdown from "primevue/dropdown";
 import Dialog from "primevue/dialog";
+
+import {
+  GridComponent as EjsGrid,
+  Page,
+  Sort
+} from "@syncfusion/ej2-vue-grids";
+
 import { useVehiclesStore } from "../stores/vehiclesStore";
 import VehicleFormView from "../views/VehicleFormView.vue";
+
+provide("grid", [Page, Sort]);
 
 const toast = useToast();
 const store = useVehiclesStore();
 
-console.log(store.items);
-
+/* =========================
+   STATE
+========================= */
 const query = reactive({
   placa: "",
-  estado: null as null | boolean,
+  estado: null as null | boolean
 });
-const dtPage = ref(1);
-const dtRows = ref(10);
+
+const page = ref(1);
+const pageSize = ref(10);
 
 const showForm = ref(false);
 const editingId = ref<string | null>(null);
 
+/* =========================
+   METHODS
+========================= */
 function refresh() {
   store.fetch({
-    page: dtPage.value,
-    numero_items: dtRows.value,
+    page: page.value,
+    numero_items: pageSize.value,
     placa: query.placa || undefined,
-    estado: query.estado ?? undefined,
+    estado: query.estado ?? undefined
   });
 }
 
@@ -39,6 +51,7 @@ function openCreate() {
   editingId.value = null;
   showForm.value = true;
 }
+
 function openEdit(row: any) {
   editingId.value = row?._id || null;
   showForm.value = true;
@@ -51,37 +64,52 @@ async function toggle(id: string) {
       severity: "success",
       summary: "Actualizado",
       detail: "Estado actualizado",
-      life: 2500,
+      life: 2500
     });
+    refresh();
   } catch (e: any) {
     toast.add({
       severity: "error",
       summary: "Error",
       detail: e?.response?.data?.message || "No se pudo actualizar",
-      life: 3500,
+      life: 3500
     });
   }
 }
 
-// watchers
-watch([dtPage, dtRows], refresh);
+/* =========================
+   GRID EVENTS
+========================= */
+function onPageChange(args: any) {
+  page.value = args.currentPage;
+  pageSize.value = args.pageSize;
+  refresh();
+}
+
+/* =========================
+   LIFECYCLE
+========================= */
+watch([page, pageSize], refresh);
 onMounted(refresh);
 </script>
 
 <template>
   <div class="grid">
-    <div class="col-12 page-toolbar">
+    <!-- ================= TOOLBAR ================= -->
+    <div class="col-12 page-toolbar flex justify-between items-center">
       <h2 class="m-0">Gestión de Vehículos</h2>
+      <!--
       <Button
         label="Nuevo Vehículo"
         icon="pi pi-plus"
         class="p-button-success"
         @click="openCreate"
       />
+      -->
     </div>
 
+    <!-- ================= FILTROS ================= -->
     <div class="col-12 page-section table-card">
-      <!-- Barra de filtros clara -->
       <div class="filters-bar">
         <div class="grid formgrid">
           <div class="col-12 md:col-5">
@@ -89,19 +117,20 @@ onMounted(refresh);
               <i class="pi pi-search" />
               <InputText
                 v-model="query.placa"
-                placeholder="Buscar por documento o nombre…"
+                placeholder="Buscar por placa"
                 class="w-full"
                 @keydown.enter="refresh"
               />
             </span>
           </div>
+
           <div class="col-12 md:col-3">
             <Dropdown
               class="w-full"
               :options="[
                 { label: 'Todos los estados', value: null },
                 { label: 'Activos', value: true },
-                { label: 'Inactivos', value: false },
+                { label: 'Inactivos', value: false }
               ]"
               optionLabel="label"
               optionValue="value"
@@ -110,6 +139,7 @@ onMounted(refresh);
               @change="refresh"
             />
           </div>
+
           <div class="col-6 md:col-2">
             <Button
               label="Filtrar"
@@ -118,6 +148,7 @@ onMounted(refresh);
               @click="refresh"
             />
           </div>
+
           <div class="col-6 md:col-2">
             <Button
               label="Limpiar"
@@ -126,7 +157,7 @@ onMounted(refresh);
               @click="
                 query.placa = '';
                 query.estado = null;
-                dtPage = 1;
+                page = 1;
                 refresh();
               "
             />
@@ -134,62 +165,34 @@ onMounted(refresh);
         </div>
       </div>
 
-      <!-- Tabla limpia -->
-      <DataTable
-        :value="store.items"
-        :loading="store.loading"
-        dataKey="_id"
-        paginator
-        :rows="dtRows"
-        :first="(dtPage - 1) * dtRows"
-        :totalRecords="store.total"
-        @page="
-          (e) => {
-            dtPage = Math.floor(e.first / e.rows) + 1;
-            dtRows = e.rows;
-          }
-        "
-        class="dt-clean"
-        responsiveLayout="scroll"
-        removableSort
+      <!-- ================= GRID SYNCFUSION ================= -->
+      <EjsGrid
+        :dataSource="store.items"
+        :allowPaging="true"
+        :allowSorting="true"
+        :pageSettings="{
+          currentPage: page,
+          pageSize: pageSize,
+          totalRecordsCount: store.total
+        }"
+        height="550"
+        @actionComplete="(e:any) => e.requestType === 'paging' && onPageChange(e)"
       >
-        <Column field="placa" header="Placa" sortable />
-        <Column field="clase" header="Clase" />
-        <Column field="modelo" header="Modelo" />
-        <Column field="capacidad" header="Capacidad" />
-        <Column field="nombre_propietario" header="Propietario" />
+        <e-columns>
+          <e-column field="placa" headerText="Placa" width="120" />
+          <e-column field="clase" headerText="Clase" width="120" />
+          <e-column field="modelo" headerText="Modelo" width="100" />
+          <e-column field="capacidad" headerText="Capacidad" width="120" />
+          <e-column field="nombre_propietario" headerText="Propietario" width="180" />
 
-        <Column header="Estado">
-          <template #body="{ data }">
-            <Tag
-              :value="data?.estado ? 'ACTIVO' : 'INACTIVO'"
-              :severity="data?.estado ? 'success' : 'danger'"
-            />
-          </template>
-        </Column>
-        <Column header="Acciones" style="width: 160px">
-          <template #body="{ data }">
-            <div class="flex gap-2">
-              <Button
-                icon="pi pi-pencil"
-                severity="secondary"
-                text
-                @click="openEdit(data)"
-              />
-              <Button
-                :icon="data?.estado ? 'pi pi-ban' : 'pi pi-check'"
-                :severity="data?.estado ? 'danger' : 'success'"
-                text
-                @click="toggle(data._id)"
-              />
-            </div>
-          </template>
-        </Column>
-      </DataTable>
+          <e-column field="driver.usuario.nombre" headerText="Conductor" width="180" />
+
+        </e-columns>
+      </EjsGrid>
     </div>
   </div>
 
-  <!-- Dialog de alta/edición -->
+  <!-- ================= DIALOG ================= -->
   <Dialog
     v-model:visible="showForm"
     modal
@@ -206,17 +209,18 @@ onMounted(refresh);
     />
   </Dialog>
 </template>
+
 <style scoped>
 .search-field:deep(.p-inputtext) {
   width: 100%;
-  padding-left: 2.25rem; /* espacio para la lupa a la izquierda */
+  padding-left: 2.25rem;
 }
 .search-field {
-  position: relative;      /* asegura posicionamiento del icono */
-  display: block;          /* que respete width:100% */
+  position: relative;
+  display: block;
 }
 .search-field > i {
-  position: absolute;      /* coloca la lupa DENTRO del input */
+  position: absolute;
   left: 0.75rem;
   top: 50%;
   transform: translateY(-50%);

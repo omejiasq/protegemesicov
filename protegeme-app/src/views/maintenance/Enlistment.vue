@@ -115,13 +115,28 @@
         </Column>
         <Column header="Acciones">
           <template #body="{ data }">
-            <Button
-              icon="pi pi-eye"
-              class="btn-icon-white"
-              @click="openViewEnlistment(data)"
-            />
+            <div class="flex gap-2">
+              <!-- Ver -->
+              <Button
+                icon="pi pi-eye"
+                class="btn-icon-white"
+                v-tooltip="'Ver detalle'"
+                @click="openViewEnlistment(data)"
+              />
+
+              <!-- Descargar PDF -->
+              <Button
+                icon="pi pi-print"
+                class="btn-icon-white"
+                v-tooltip="'Descargar PDF'"
+                @click="downloadPdf(data)"
+              />
+            </div>
           </template>
         </Column>
+
+
+
       </DataTable>
 
     <Paginator
@@ -150,13 +165,13 @@
         <div class="grid">
           <div class="col-12 md:col-3">
             <label>Placa</label>
-            
             <InputText
               v-model="form.placa"
               class="w-full"
+              placeholder="Digite la placa"
               maxlength="6"
-              placeholder="ABC123"
               @input="onPlacaInput"
+              @keyup.enter="buscarVehiculoPorPlaca"
             />
           </div>
 
@@ -167,6 +182,7 @@
               :options="documentTypeOptions"
               class="w-full"
             />
+
           </div>
 
           <div class="col-12 md:col-3">
@@ -255,6 +271,7 @@
         />
       </template>
     </Dialog>
+
   </div>
 </template>
 
@@ -310,13 +327,210 @@ const documentTypeOptions = [
   { label: "Pasaporte", value: 6 },
   { label: "Permiso Especial de Permanencia (PEP)", value: 7 },
   { label: "Documento de Identificación Extranjero (DIE)", value: 8 },
+  { label: "Permiso por Protección Temporal (PPT)", value: 9 },
 ];
+// Agrega un mapeo inverso también
+const documentTypeMap: Record<string, number> = {
+  CC: 1,
+  CE: 5,
+  TI: 3,
+  RC: 4,
+  PASAPORTE: 6,
+  PPT: 9,
+  PEP: 7,
+  DIE: 8,
+  // Agrega más variantes posibles
+  "CEDULA DE CIUDADANIA": 1,
+  "CEDULA DE CIUDADANIA DIGITAL": 2,
+  "TARJETA DE IDENTIDAD": 3,
+  "REGISTRO CIVIL": 4,
+  "CEDULA DE EXTRANJERIA": 5,
+  PASAPORTE: 6,
+  "PERMISO ESPECIAL DE PERMANENCIA": 7,
+  "DOCUMENTO DE IDENTIFICACION EXTRANJERO": 8,
+  "PERMISO POR PROTECCION TEMPORAL": 9,
+  // Variantes abreviadas
+  CEDULA: 1,
+  EXTRANJERIA: 5,
+  TARJETA: 3,
+  REGISTRO: 4,
+  PEP: 7,
+  DIE: 8,
+};
+
+// Función mejorada para mapear tipos de documento
+function mapDocumentType(type: any): number | null {
+  if (!type) return null;
+  
+  const str = String(type).toUpperCase().trim();
+  
+  // Si ya es un número, úsalo directamente
+  if (!isNaN(Number(str))) {
+    const num = Number(str);
+    return num >= 1 && num <= 9 ? num : null;
+  }
+  
+  // Mapeo por palabras clave
+  if (str.includes('CC') || str.includes('CEDULA') && !str.includes('EXTRANJERIA')) {
+    return 1;
+  }
+  if (str.includes('CE') || str.includes('EXTRANJERIA')) {
+    return 5;
+  }
+  if (str.includes('TI') || str.includes('TARJETA')) {
+    return 3;
+  }
+  if (str.includes('RC') || str.includes('REGISTRO')) {
+    return 4;
+  }
+  if (str.includes('PASAPORTE') || str.includes('PASSPORT')) {
+    return 6;
+  }
+  if (str.includes('PEP')) {
+    return 7;
+  }
+  if (str.includes('DIE')) {
+    return 8;
+  }
+  if (str.includes('PPT')) {
+    return 9;
+  }
+  
+  return null;
+}
+
 
 function onPage(e: any) {
   page.value = Math.floor(e.first / e.rows) + 1;
   limit.value = e.rows;
   refresh();
 }
+async function buscarVehiculoPorPlaca() {
+  if (!form.placa) return;
+
+  const placa = form.placa.trim().toUpperCase();
+  form.placa = placa;
+
+  try {
+    //const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token2");
+    //console.log('Placa a consultar:'+placa);
+    //console.log('Token:'+token);
+    const response = await fetch(
+      `https://sicov.protegeme.com.co/api/vehicles/vehicles/plate/${placa}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    //console.log('Response:'+JSON.stringify(response));
+
+    if (!response.ok) {
+      throw new Error("Vehículo no encontrado");
+    }
+
+    const vehiculo = await response.json();
+
+    console.log("🔍 Datos del vehículo recibidos:", vehiculo);
+    console.log("📝 Tipo documento responsable:", vehiculo?.enterprise?.mechanic_document_type);
+    console.log("📝 Tipo documento conductor:", vehiculo?.driver?.usuario?.document_type);
+    
+    // ✅ ASIGNACIÓN CLAVE
+    //responsable 
+    const tipoDocResponsable = vehiculo?.enterprise?.mechanic_document_type;
+    form.tipoIdentificacion = mapDocumentType(tipoDocResponsable);
+
+    form.numeroIdentificacion =
+      vehiculo?.enterprise?.mechanic_document_number || "";
+
+    form.nombresResponsable =
+       vehiculo?.enterprise?.mechanic_name || "";  
+
+    //conductor 
+    const tipoDocConductor = vehiculo?.driver?.usuario?.document_type;
+    form.tipoIdentificacionConductor = mapDocumentType(tipoDocConductor);
+
+    form.numeroIdentificacionConductor =
+      vehiculo?.driver?.usuario?.documentNumber || "";
+
+    form.nombresConductor =
+      vehiculo?.driver?.usuario?.nombre || "";  
+
+    // Mostrar en consola para debug
+    console.log("✅ Tipo documento responsable mapeado:", form.tipoIdentificacion);
+    console.log("✅ Tipo documento conductor mapeado:", form.tipoIdentificacionConductor); 
+
+    if (!form.nombresConductor) {
+      toast.add({
+        severity: "warn",
+        summary: "Sin conductor",
+        detail: "El vehículo no tiene conductor asignado",
+        life: 3000,
+      });
+    }
+  } catch (error) {
+    console.error(error);
+
+    form.tipoIdentificacion = null;
+    form.tipoIdentificacionConductor = null;
+
+    form.numeroIdentificacion = "";
+    form.nombresResponsable = "";
+
+    form.numeroIdentificacionConductor = "";
+    form.nombresConductor = "";
+
+
+    toast.add({
+      severity: "error",
+      summary: "Placa no encontrada",
+      detail: "No existe un vehículo con esa placa",
+      life: 3500,
+    });
+  }
+}
+
+
+async function downloadPdf(row: any) {
+  try {
+    const id = row?._id;
+    if (!id) return;
+
+    const response = await MaintenanceserviceApi.printEnlistmentPdf(id);
+
+    // 🔥 VALIDACIÓN CRÍTICA
+    const contentType = response.headers['content-type'];
+
+    if (!contentType || !contentType.includes('application/pdf')) {
+      const text = await response.data.text();
+      console.error('❌ NO ES PDF:', text);
+      throw new Error('Respuesta no es un PDF');
+    }
+
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `alistamiento-${row.placa || id}.pdf`;
+    a.click();
+
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error(error);
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'No se pudo generar el PDF',
+      life: 3000,
+    });
+  }
+}
+
+
 
 
 // ===============================
@@ -710,10 +924,10 @@ const form = reactive({
   placa: "",
   fecha: null as any,
   hora: null as any,
-  tipoIdentificacion: "",
+  tipoIdentificacion: null as number | null,
   numeroIdentificacion: "",
   nombresResponsable: "",
-  tipoIdentificacionConductor: "",
+  tipoIdentificacionConductor: null as number | null,
   numeroIdentificacionConductor: "",
   nombresConductor: "",
   detalleActividades: "",
@@ -749,27 +963,7 @@ function resetForm() {
 const loading = computed(() => store.enlistmentList.loading);
 const rows = computed(() => (store.enlistmentList.items || []).map(normalize));
 
-const rowsFiltered = computed(() => {
-  let data = rows.value;
-
-  if (filters.fechaDesde) {
-    const desde = new Date(filters.fechaDesde).setHours(0, 0, 0, 0);
-    data = data.filter((r: any) => {
-      if (!r.createdAt) return false;
-      return new Date(r.createdAt).getTime() >= desde;
-    });
-  }
-
-  if (filters.fechaHasta) {
-    const hasta = new Date(filters.fechaHasta).setHours(23, 59, 59, 999);
-    data = data.filter((r: any) => {
-      if (!r.createdAt) return false;
-      return new Date(r.createdAt).getTime() <= hasta;
-    });
-  }
-
-  return data;
-});
+const rowsFiltered = computed(() => rows.value);
 
 
 const maintenanceOptsType3 = computed(() =>
@@ -812,7 +1006,7 @@ async function refresh() {
   };
 
   if (filters.placa?.trim()) {
-    params.plate = filters.placa.trim();
+    params.placa = filters.placa.trim().toUpperCase();
   }
 
   if (filters.fechaDesde) {

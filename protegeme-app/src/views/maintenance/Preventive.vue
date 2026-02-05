@@ -1,682 +1,314 @@
 <template>
   <div class="bolt-wrap">
-    <!-- Encabezado -->
+
+    <!-- ===================== -->
+    <!-- TOOLBAR -->
+    <!-- ===================== -->
     <div class="bolt-toolbar bolt-card">
-      <div class="left">
-        <h2 class="title">Mantenimientos — Preventivos</h2>
-        <p class="subtitle">Listado y alta de preventivos</p>
+      <div>
+        <h2 class="title">Listado de Mantenimientos Preventivos</h2>
       </div>
-      <div class="right">
+
+      <div class="actions">
         <Button
-          label="Nuevo Preventivo"
+          label="Exportar Excel"
+          icon="pi pi-file-excel"
+          class="btn-blue"
+          @click="exportExcel"
+        />
+        <Button
+          label="Nuevo Correctivo"
           icon="pi pi-plus"
           class="btn-dark-green"
-          @click="openCreate"
+          @click="showCreate = true"
         />
       </div>
     </div>
 
-    <!-- Filtros -->
-    <div class="bolt-card p-3">
-      <div class="formgrid grid align-items-end">
-        <div class="col-12 md:col-10 flex align-items-center gap-3">
-          <SearchBar
+    <!-- ================= FILTROS ================= -->
+    <div class="p-4 bg-white mb-3 rounded">
+      <div class="grid gap-3 md:grid-cols-4">
+        <div>
+          <label>Placa</label>
+          <input
             v-model="filters.placa"
-            :width="'700px'"
-            @search="refresh"
+            class="p-inputtext w-full"
+            placeholder="ABC123"
           />
-          <div class="filters-actions">
-            <Button
-              label="Buscar"
-              icon="pi pi-search"
-              class="btn-filter"
-              :loading="loading"
-              @click="refresh"
-            />
-            <Button
-              label="Limpiar"
-              icon="pi pi-times"
-              class="btn-clear"
-              @click="clearFilters"
-            />
-          </div>
+        </div>
+
+        <div>
+          <label>Fecha desde</label>
+          <input
+            type="date"
+            v-model="filters.fechaDesde"
+            class="p-inputtext w-full"
+          />
+        </div>
+
+        <div>
+          <label>Fecha hasta</label>
+          <input
+            type="date"
+            v-model="filters.fechaHasta"
+            class="p-inputtext w-full"
+          />
+        </div>
+
+        <div class="flex gap-2 items-end">
+          <button class="p-button p-button-primary" @click="fetchData">
+            Filtrar
+          </button>
+          <button class="p-button p-button-secondary" @click="onClear">
+            Limpiar
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- Tabla -->
-    <div class="bolt-card p-3">
-      <DataTable
-        :value="tableRows"
-        :loading="loading"
-        dataKey="_id"
-        responsive-layout="scroll"
-        :paginator="true"
-        :rows="limit"
-        :totalRecords="total"
-        :first="(page - 1) * limit"
-        @page="onPage"
-        class="p-datatable-sm"
-      >
-        <Column field="placa" header="Placa" />
-        <Column header="Fecha">
-          <template #body="{ data }">
-            {{ fmtDate(data.fecha || data.createdAt) }}
-          </template>
-        </Column>
-        <Column field="razonSocial" header="Taller" />
-        <Column field="nombresResponsable" header="Mecánico" />
-       <Column field="detalleActividades" header="Notas" />
-        <Column header="Estado">
-          <template #body="{ data }">
-            <Tag
-              :value="data.estado ? 'ACTIVO' : 'INACTIVO'"
-              :severity="data.estado ? 'success' : 'danger'"
-            />
-          </template>
-        </Column>
-        <Column header="Acciones">
-          <template #body="{ data }">
-            <Button
-              icon="pi pi-eye"
-              class="btn-icon-white statebutton"
-              @click="openViewEnlistment(data)"
-            />
-          </template>
-        </Column>
-      </DataTable>
-    </div>
-
-    <!-- Dialog -->
-    <Dialog
-      v-model:visible="dlg.visible"
-      modal
-      header="Nuevo preventivo"
-      class="w-11 md:w-8 lg:w-7"
-      @hide="resetForm"
+    <!-- ================= GRID ================= -->
+    <EjsGrid
+      ref="gridRef"
+      :dataSource="tableData"
+      height="600"
+      :allowPaging="true"
+      :pageSettings="{ pageSize: 15 }"
+      :allowSorting="true"
+      :allowExcelExport="true"
+      :allowPdfExport="true"
+      :toolbar="toolbar"
+      :toolbarClick="toolbarClick"
     >
-      <div class="formgrid grid dialog-body" :class="{ 'is-view-mode': viewMode }">
-
-<!-- FILA 1 -->
-<div class="field col-12 sm:col-4">
-  <label>Placa</label>
-
-              <InputText
-              v-model="form.placa"
-              class="w-full"
-              maxlength="6"
-              placeholder="ABC123"
-              @input="onPlacaInput"
-            />
-
-</div>
-
-<div class="field col-12 sm:col-4">
-  <InputDate
-    v-model="form.fecha"
-    label="Fecha"
-    :disabled="viewMode"
-  />
-</div>
-
-<div class="field col-12 sm:col-4">
-  <InputHour
-    v-model="form.hora"
-    label="Hora"
-    :disabled="viewMode"
-  />
-</div>
+      <e-columns>
 
 
+        <e-column field="Taller" headerText="Taller" width="20" />
+        <e-column field="Mecanico" headerText="Mecánico" width="20" />
+        <e-column field="Estado" headerText="Estado" width="20" />
 
+      </e-columns>
+    </EjsGrid>
 
-        <!-- FILA 2 -->
-        <div class="field col-12 md:col-4">
-          <label>NIT</label>
-          <InputText v-model="form.nit" class="w-full" :disabled="viewMode" />
-        </div>
-
-        <div class="field col-12 md:col-8">
-          <label>Razón social – Centro especializado</label>
-          <InputText
-            v-model="form.razonSocial"
-            class="w-full"
-            :disabled="viewMode"
-          />
-        </div>
-
-        <!-- FILA 3 -->
-        <div class="field col-12 md:col-4">
-          <label>Tipo identificación – Ingeniero mecánico</label>
-          <UiDropdownBasic
-            v-model="form.tipoIdentificacion"
-            :options="documentTypeOptions"
-            class="w-full"
-            :disabled="viewMode"
-          />
-        </div>
-
-        <div class="field col-12 md:col-4">
-          <label>Número identificación – Ingeniero mecánico</label>
-          <InputText
-            v-model="form.numeroIdentificacion"
-            class="w-full"
-            :disabled="viewMode"
-          />
-        </div>
-
-        <div class="field col-12 md:col-4">
-          <label>Nombres y apellidos – Ingeniero mecánico</label>
-          <InputText
-            v-model="form.nombresResponsable"
-            class="w-full"
-            :disabled="viewMode"
-          />
-        </div>
-
-        <!-- ÚLTIMA FILA -->
-        <div class="field col-12">
-          <label>Notas del mantenimiento preventivo</label>
-          <Textarea
-            v-model="form.detalleActividades"
-            rows="3"
-            autoResize
-            class="w-full"
-            :disabled="viewMode"
-          />
-        </div>
+    <!-- ================= MODAL DETALLE ================= -->
+    <p-dialog
+      v-model:visible="showDetail"
+      modal
+      header="Detalle del mantenimiento"
+      style="width: 60vw"
+    >
+      <div v-if="selected">
+        <p><b>Placa:</b> {{ selected.Placa }}</p>
+        <p><b>Fecha:</b> {{ formatDate(selected.Fecha) }}</p>
+        <p><b>Taller:</b> {{ selected.Taller }}</p>
+        <p><b>Mecánico:</b> {{ selected.Mecanico }}</p>
+        <p><b>Estado:</b> {{ selected.Estado }}</p>
       </div>
+    </p-dialog>
 
-      <template #footer>
-        <div class="flex justify-content-end gap-2">
-          <Button label="Cerrar" class="p-button-text" @click="dlg.visible = false" />
-          <Button
-            v-if="!viewMode"
-            label="Crear"
-            icon="pi pi-save"
-            class="btn-dark-green"
-            :loading="saving"
-            @click="save"
-          />
-        </div>
-      </template>
-
-
-    </Dialog>
+    <!-- ================= MODAL NUEVO ================= -->
+    <CorrectiveCreateDialog
+      v-model:visible="showCreate"
+      @save="saveFromDialog"
+    />
   </div>
 </template>
 
+<script lang="ts">
+import { ref, provide, onMounted } from "vue";
+import Button from "primevue/button";
 
-<script setup lang="ts">
-import { reactive, ref, computed, onMounted, watch } from "vue";
+/* ===== Syncfusion ===== */
+import {
+  GridComponent,
+  Page,
+  Sort,
+  Toolbar,
+  ExcelExport,
+  PdfExport
+} from "@syncfusion/ej2-vue-grids";
+
+/* ===== Store ===== */
 import { useMaintenanceStore } from "../../stores/maintenanceStore";
+import CorrectiveCreateDialog from "../../components/preventives/PreventiveCreateDialog.vue";
 
-import InputText from "primevue/inputtext";
-import Calendar from "primevue/calendar";
-import Textarea from "primevue/textarea";
-import DataTable from "primevue/datatable";
-import Column from "primevue/column";
-import Tag from "primevue/tag";
-import Dialog from "primevue/dialog";
-import { useToast } from "primevue/usetoast";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
-import UiDropdownBasic from "../../components/ui/Dropdown.vue";
-import InputDate from "../../components/ui/InputDate.vue";
-import InputHour from "../../components/ui/InputHour.vue";
-import Button from "../../components/ui/Button.vue";
-import SearchBar from "../../components/ui/SearchBar.vue";
+export default {
+  name: "CorrectiveMaintenance",
 
-const toast = useToast();
+  components: {
+    EjsGrid: GridComponent,
+    Button,
+    CorrectiveCreateDialog,
+    "e-columns": { template: "<slot />" },
+    "e-column": { template: "<slot />" }
+  },
 
-const store = useMaintenanceStore();
+  setup() {
+    provide("grid", [Page, Sort, Toolbar, ExcelExport, PdfExport]);
 
-const selectedFile = ref<File | null>(null);
+    const gridRef = ref<any>(null);
+    const tableData = ref<any[]>([]);
 
-const props = defineProps<{
-  modelValue: Date | string | null;
-  label?: string;
-  disabled?: boolean;
-}>();
+    const showDetail = ref(false);
+    const showCreate = ref(false);
+    const selected = ref<any>(null);
 
-const emit = defineEmits<{
-  (e: "update:modelValue", value: Date | string | null): void;
-}>();
+    const filters = ref({
+      placa: "",
+      fechaDesde: "",
+      fechaHasta: ""
+    });
 
-const innerValue = computed({
-  get: () => props.modelValue,
-  set: (val) => emit("update:modelValue", val),
-});
+    const toolbar = ref([]);
+    const store = useMaintenanceStore();
 
-function onFileChange(e: Event) {
-  const f = (e.target as HTMLInputElement).files?.[0] || null;
-  selectedFile.value = f;
-}
-
-const isEditing = ref(false); // true cuando abrís "Editar"
-const suppressDuplicateCheck = ref(false);
-const editingId = ref<string | null>(null);
-/** Estado */
-const page = ref(1);
-const limit = ref(10);
-const filters = reactive({
-  mantenimientoId: "",
-  placa: "",
-});
-
-const documentTypeOptions = [
-  { label: "Cédula de ciudadanía", value: 1 },
-  { label: "Cédula de ciudadanía digital", value: 2 },
-  { label: "Tarjeta de identidad", value: 3 },
-  { label: "Registro civil", value: 4 },
-  { label: "Cédula de extranjería", value: 5 },
-  { label: "Pasaporte", value: 6 },
-  { label: "Permiso Especial de Permanencia (PEP)", value: 7 },
-  { label: "Documento de Identificación Extranjero (DIE)", value: 8 },
-];
-
-/** Store computeds (preventivo) */
-const items = computed(() => store.preventiveList.items);
-const total = computed(() => store.preventiveList.total);
-const loading = computed(() => store.preventiveList.loading);
-
-const tableRows = computed(() => {
-  const src = items.value || [];
-  console.log(src);
-  return src.map((r: any) => {
-    const m = r.mantenimiento || r.maintenance || {};
-    const estadoBool =
-      typeof r.estado === "boolean"
-        ? r.estado
-        : r.estado === "ACTIVO" || r.estado === 1 || r.estado === "1";
-    return {
-      _id: r._id,
-      placa: r.placa ?? m.placa ?? "",
-      fecha: r.fecha ?? r.createdAt ?? null,
-      createdAt: r.createdAt ?? null,
-      nombresResponsable: r.nombresResponsable ?? r.responsable ?? "",
-      estado: estadoBool,
-      ...r, // mantengo el resto por si lo necesitás en Acciones/Detalle
+    const showDetailModal = (rowData: any) => {
+      selected.value = rowData;
+      showDetail.value = true;
     };
-  });
-});
 
-/** Utils */
-function normDate(v: any): string | undefined {
-  if (!v) return undefined;
-  if (typeof v === "string") return v.slice(0, 10);
-  try {
-    const d = new Date(v);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-  } catch {
-    return undefined;
-  }
-}
+    const onClear = () => {
+      filters.value = {
+        placa: "",
+        fechaDesde: "",
+        fechaHasta: ""
+      };
+      fetchData();
+    };
 
-function normTime(v: any): string | undefined {
-  console.log('%cprotegeme-app\src\views\maintenance\Preventive.vue:311 v', 'color: #007acc;', v);
-  if (!v) return undefined;
-  try {
-    if (v instanceof Date) {
-      const hh = String(v.getHours()).padStart(2, "0");
-      const mm = String(v.getMinutes()).padStart(2, "0");
-      return `${hh}:${mm}`;
-    }
-    // acepta HH:mm o HH:mm:ss
-    const m = String(v).match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
-    if (m) {
-      const hh = String(m[1]).padStart(2, "0");
-      return `${hh}:${m[2]}`;
-    }
-    return undefined;
-  } catch {
-    return undefined;
-  }
-}
+    const toolbarClick = (args: any) => {
+      if (args.item.id === "Grid_pdfexport") {
+        gridRef.value?.pdfExport();
+      } else if (args.item.id === "Grid_excelexport") {
+        gridRef.value?.excelExport();
+      }
+    };
+
+    const formatDate = (d: Date | null) => {
+      if (!d) return "";
+      return d.toISOString().slice(0, 10);
+    };
+
+    const dateAccessor = (_field: string, data: any) => {
+      if (!data.Fecha) return "";
+      const d = new Date(data.Fecha);
+      return d.toISOString().slice(0, 10); // yyyy-MM-dd
+    };
 
 
-function toIntOrUndef(v: any): number | undefined {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : undefined;
-}
-function clean<T extends Record<string, any>>(obj: T) {
-  const out: any = {};
-  Object.entries(obj).forEach(([k, v]) => {
-    if (v === "" || v === null || v === undefined) return;
-    out[k] = v;
-  });
-  return out;
-}
-function fmtDate(s?: string) {
-  if (!s) return "—";
-  try {
-    return new Date(s).toLocaleDateString();
-  } catch {
-    return s;
-  }
-}
+    function exportExcel() {
+      if (!tableData.value.length) return;
 
-/** Fetch */
-async function refresh() {
-  const params: any = { page: page.value, limit: limit.value };
-  if (
-    filters.placa &&
-    typeof filters.placa === "string" &&
-    filters.placa.trim()
-  ) {
-    params.plate = filters.placa.trim(); // el store lo mapea a 'placa'
-  }
-  await store.preventiveFetchList(params);
-}
+      const data = tableData.value.map((r: any) => ({
+        Placa: r.Placa,
+        Fecha: formatDate(r.Fecha),
+        Taller: r.Taller,
+        Mecánico: r.Mecanico,
+        Estado: r.Estado
+      }));
 
-const viewMode = ref(false);
-const dialogTitle = computed(() =>
-  viewMode.value ? "Detalle de alistamiento" : "Nuevo alistamiento"
-);
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Mantenimientos");
 
-function clearFilters() {
-  filters.mantenimientoId = "";
-  page.value = 1;
-  refresh();
-}
-function onPage(e: any) {
-  page.value = Math.floor(e.first / e.rows) + 1;
-  limit.value = e.rows;
-  refresh();
-}
-async function onFilterPick(val: any) {
-  filters.mantenimientoId =
-    typeof val === "object"
-      ? val?._id || val?.value || val?.id || ""
-      : val || "";
-  console.log("onFilterPick", val, filters.mantenimientoId);
-  await onSearch();
-}
-
-function formatMaintLabel(m: any) {
-  const placa = (m?.placa || "").toString().toUpperCase();
-  const tipo = m?.tipoId ?? "-";
-  // podés enriquecer el label si querés (ej. empresa, estado, etc.)
-  return `${placa || "(sin placa)"} — Tipo ${tipo}`;
-}
-
-const maintenanceOpts = computed(() =>
-  (store.maintenanceList.items || [])
-    .filter((m: any) => Number(m?.tipoId) === 1) // ← SOLO preventivos
-    .map((m: any) => ({
-      label: formatMaintLabel(m),
-      value: m?._id, // importante: enviar el _id como mantenimientoId
-    }))
-);
-
-async function ensureMaintenances() {
-  await store.maintenanceFetchList({ page: 1, limit: 100, tipoId: 1 });
-}
-
-function onPickMaintenance(id: string | number | null) {
-  if (!id) return;
-  const m = store.maintenanceList.items.find((x: any) => x._id === id);
-  if (m) {
-    // autocompletá lo que te sirva para el preventivo
-    form.placa = m.placa || "";
-    // si tu esquema lo permite:
-    form.nit = m.vigiladoId ? String(m.vigiladoId) : "";
-    // podés setear otros campos si aplica…
-  }
-}
-
-function openEdit(row: any) {
-  isEditing.value = true;
-  editingId.value = row?._id || null;
-  form.placa = row?.placa ?? form.placa;
-  form.fecha = row?.fecha ? new Date(row.fecha) : form.fecha; // si ya usás Date
-  form.hora = row?.hora ?? form.hora;
-  form.nit = row?.nit ?? form.nit;
-  form.razonSocial = row?.razonSocial ?? form.razonSocial;
-  form.tipoIdentificacion = row?.tipoIdentificacion ?? form.tipoIdentificacion;
-  form.numeroIdentificacion =
-    row?.numeroIdentificacion ?? form.numeroIdentificacion;
-  form.nombresResponsable = row?.nombresResponsable ?? form.nombresResponsable;
-  form.detalleActividades = row?.detalleActividades ?? form.detalleActividades;
-
-  dlg.visible = true; // reutilizo TU mismo Dialog
-}
-
-// Guardar cambios en modo edición (NO reemplaza tu save() de crear)
-async function saveEdit() {
-  if (!editingId.value) return;
-  const payload = clean({
-    placa: form.placa?.trim(),
-    fecha: normDate(form.fecha),
-    hora: normTime(form.hora),
-    nit: toIntOrUndef(form.nit),
-    razonSocial: form.razonSocial?.trim(),
-    tipoIdentificacion: toIntOrUndef(form.tipoIdentificacion),
-    numeroIdentificacion: form.numeroIdentificacion?.trim(),
-    nombresResponsable: form.nombresResponsable?.trim(),
-    detalleActividades: form.detalleActividades?.trim(),
-  });
-
-  saving.value = true;
-  suppressDuplicateCheck.value = true;
-  try {
-    // (opcional) limpia error viejo por las dudas
-    store.preventive.error = "";
-    await store.preventiveUpdateDetail(editingId.value, payload);
-    // ...tu lógica actual (toast/refresh/cerrar)
-  } finally {
-    suppressDuplicateCheck.value = false;
-  }
-}
-
-// Activar/Desactivar
-async function toggle(id: string) {
-  suppressDuplicateCheck.value = true;
-  try {
-    store.preventive.error = "";
-    await store.preventiveToggle(id);
-    // ...tu lógica actual (toast/refresh)
-  } finally {
-    suppressDuplicateCheck.value = false;
-  }
-}
-
-/** Crear */
-const dlg = reactive({ visible: false });
-watch(
-  () => dlg.visible,
-  (v) => {
-    if (v) ensureMaintenances();
-    if (!v) viewMode.value = false;
-  }
-);
-const form = reactive({
-  placa: "",
-  fecha: null as any,
-  hora: null as any, // ← antes era ""
-  nit: "",
-  razonSocial: "",
-  tipoIdentificacion: "",
-  numeroIdentificacion: "",
-  nombresResponsable: "",
-  detalleActividades: "",
-});
-
-const fileInputRef = ref<HTMLInputElement | null>(null);
-
-function resetForm() {
-  Object.assign(form, {
-    placa: "",
-    fecha: null as any,
-    hora: null as any,
-    nit: "",
-    razonSocial: "",
-    tipoIdentificacion: "",
-    numeroIdentificacion: "",
-    nombresResponsable: "",
-    detalleActividades: "",
-  });
-  selectedFile.value = null;
-  if (fileInputRef.value) fileInputRef.value.value = "";
-}
-
-
-const saving = ref(false);
-
-function openCreate() {
-  Object.assign(form, {
-    placa: "",
-    fecha: null,
-    hora: "",
-    nit: "",
-    razonSocial: "",
-    tipoIdentificacion: "",
-    numeroIdentificacion: "",
-    nombresResponsable: "",
-    detalleActividades: "",
-  });
-  dlg.visible = true;
-  ensureMaintenances();
-}
-
-const preventiveOptsLoading = ref(false);
-// Add this computed property for the dropdown options
-const preventiveFilterOpts = computed(() => {
-  // Use all maintenance options for filtering
-  return maintenanceOpts.value;
-});
-
-async function ensurePreventiveOpts() {
-  if (!store.preventiveList?.items?.length) {
-    preventiveOptsLoading.value = true;
-    try {
-      await store.preventiveFetchList({ page: 1, limit: 500 });
-    } finally {
-      preventiveOptsLoading.value = false;
-    }
-  }
-}
-
-async function fetchEnlistmentById(id: string) {
-  if (typeof (store as any).preventiveGetDetail === "function") {
-    return await (store as any).preventiveGetDetail(id);
-  }
-  const local = (store.preventiveList.items || []).find(
-    (x: any) => x?._id === id
-  );
-  if (local) return local;
-  await store.preventiveFetchList({ id });
-  return (
-    (store.preventiveList.items || []).find((x: any) => x?._id === id) || null
-  );
-}
-
-function fillFormFromRow(row: any) {
-  form.placa = row?.placa ?? "";
-  form.fecha = row?.fecha ?? row?.createdAt ?? null;
-  form.hora = row?.hora ?? null;
-
-  // NUEVOS: vista con NIT + Razón Social
-  form.nit = row?.nit ?? (row?.vigiladoId ? String(row.vigiladoId) : "");
-  form.razonSocial = row?.razonSocial ?? row?.razon ?? row?.empresa ?? "";
-
-  form.tipoIdentificacion = row?.tipoIdentificacion ?? "";
-  form.numeroIdentificacion = row?.numeroIdentificacion ?? "";
-  form.nombresResponsable = row?.nombresResponsable ?? row?.responsable ?? "";
-  form.detalleActividades = row?.detalleActividades ?? row?.descripcion ?? "";
-}
-
-async function openViewEnlistment(row: any) {
-  viewMode.value = true;
-  const id = row?._id;
-  const full = id ? await fetchEnlistmentById(id) : row;
-  fillFormFromRow(full || row);
-  console.log('%cprotegeme-app\src\views\maintenance\Preventive.vue:572 full', 'color: #007acc;', full);
-  dlg.visible = true;
-}
-
-async function save() {
-  const payload = clean({
-    placa: form.placa?.trim(),
-    fecha: normDate(form.fecha),
-    hora: normTime(form.hora), // <- si ya aplicaste el time picker
-    nit: toIntOrUndef(form.nit),
-    razonSocial: form.razonSocial?.trim(),
-    tipoIdentificacion: toIntOrUndef(form.tipoIdentificacion),
-    numeroIdentificacion: form.numeroIdentificacion?.trim(),
-    nombresResponsable: form.nombresResponsable?.trim(),
-    detalleActividades: form.detalleActividades?.trim(),
-  });
-
-  saving.value = true;
-  try {
-  if (selectedFile.value) {
-    await store.createPreventiveWithProgram({
-      maintenancePayload: payload,
-      file: selectedFile.value,
-    });
-  } else {
-    await store.preventiveCreateDetail(payload);
-  }
-    await ensureMaintenances();
-    await refresh();
-    dlg.visible = false;
-    await refresh();
-
-    // Feedback OK
-    toast?.add?.({
-      severity: "success",
-      summary: "Preventivo creado",
-      detail: "Se guardó correctamente.",
-      life: 2500,
-    });
-  } catch (e: any) {
-    const status = e?.response?.status;
-    const msg =
-      e?.response?.data?.message ||
-      e?.message ||
-      "No se pudo crear el preventivo";
-
-    // Caso duplicado / ya existe
-    if (status === 409 || /existe/i.test(msg) || /duplic/i.test(msg)) {
-      toast?.add?.({
-        severity: "warn",
-        summary: "Preventivo ya existente",
-        detail: "Ya existe un preventivo para esta transacción.",
-        life: 4000,
+      const excelBuffer = XLSX.write(workbook, {
+        bookType: "xlsx",
+        type: "array"
       });
-    } else {
-      // Otros errores
-      toast?.add?.({
-        severity: "error",
-        summary: "Error al crear",
-        detail: msg,
-        life: 4000,
-      });
+
+      saveAs(
+        new Blob([excelBuffer], {
+          type:
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        }),
+        `mantenimientos_${Date.now()}.xlsx`
+      );
     }
 
-    // No cierres el modal en error
-    return;
-  } finally {
-    saving.value = false;
-  }
-}
+    async function saveFromDialog(data: any) {
+      await store.preventiveCreateDetail(data);
+      showCreate.value = false;
+      await fetchData();
+    }
 
-/** Init */
-onMounted(() => {
-  ensurePreventiveOpts();
-  refresh();
-  ensureMaintenances();
-});
-function onSearch() {
-  page.value = 1;
-  refresh();
-}
+    const toYMD = (value: any): string => {
+      if (!value) return "";
+
+      const d = value instanceof Date ? value : new Date(value);
+
+      if (isNaN(d.getTime())) return "";
+
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+      const day = String(d.getUTCDate()).padStart(2, "0");
+
+      return `${y}-${m}-${day}`;
+    };
+
+
+ const fetchData = async () => {
+  try {
+    const params = {
+      numero_items: 15,
+      page: 1,
+      placa: filters.value.placa || undefined,
+      fechaDesde: filters.value.fechaDesde || undefined,
+      fechaHasta: filters.value.fechaHasta || undefined
+    };
+
+    await store.preventiveFetchList(params);
+
+    tableData.value = store.preventiveList.items.map((item: any) => {
+      return {
+        Placa: item.placa,
+        Fecha: toYMD(item.fecha), // 👈 YA FORMATEADA
+        Taller: item.taller || item.razonSocial || "",
+        Mecanico: item.mecanico || item.nombresResponsable || "",
+        Estado: item.estado ? "Activo" : "Inactivo"
+      };
+    });
+
+  } catch (error) {
+    console.error("Error cargando datos", error);
+    tableData.value = [];
+  }
+};
+
+
+    onMounted(fetchData);
+
+    return {
+      gridRef,
+      tableData,
+      filters,
+      toolbar,
+      showDetail,
+      showCreate,
+      selected,
+      showDetailModal,
+      onClear,
+      toolbarClick,
+      fetchData,
+      exportExcel,
+      saveFromDialog,
+      formatDate
+    };
+  }
+};
 </script>
 
+
+
 <style scoped>
+
+
+.control-section {
+  background: #f9fafb;
+  padding: 1.5rem;
+}
+
 .bolt-wrap {
   display: grid;
   gap: 1rem;
@@ -724,6 +356,67 @@ function onSearch() {
   background: #fff !important;
   color: #111 !important;
 }
+
+/* =====================================
+   TABLA ACTIVIDADES – MODERNA SUAVE
+   ===================================== */
+.activities-table {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(13, 110, 253, 0.12);
+}
+
+/* Header */
+.activities-table :deep(.p-datatable-thead > tr > th) {
+  background: linear-gradient(
+    135deg,
+    #e7f1ff,
+    #dbeafe
+  );
+  color: #1e3a8a !important;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.75rem;
+  border: none;
+}
+
+/* Redondeo SOLO arriba */
+.activities-table :deep(.p-datatable-thead > tr > th:first-child) {
+  border-top-left-radius: 12px;
+}
+.activities-table :deep(.p-datatable-thead > tr > th:last-child) {
+  border-top-right-radius: 12px;
+}
+
+/* Texto header (forzado) */
+.activities-table :deep(.p-datatable-thead span),
+.activities-table :deep(.p-datatable-thead div) {
+  color: #1e3a8a !important;
+}
+
+/* Body */
+.activities-table :deep(.p-datatable-tbody > tr > td) {
+  background: #ffffff;
+  padding: 0.7rem;
+  font-size: 0.9rem;
+}
+
+/* Hover sutil */
+.activities-table :deep(.p-datatable-tbody > tr:hover) {
+  background: #f8fbff;
+}
+
+/* Checkbox centrado */
+.activities-table :deep(.p-datatable-tbody > tr > td:first-child) {
+  text-align: center;
+}
+
+/* Quitar líneas duras */
+.activities-table :deep(.p-datatable-tbody > tr > td) {
+  border-bottom: 1px solid #eef2ff;
+}
+
+
 
 /* DataTable en blanco: cabecera, filas y paginador */
 .bolt-card :deep(.p-datatable),
@@ -838,7 +531,16 @@ function onSearch() {
   overflow-y: visible;
 }
 
-/* botones icon-only blanco con icono negro */
+:deep(.p-checkbox-box.p-highlight),
+:deep(.p-checkbox.p-checkbox-checked .p-checkbox-box),
+:deep(.p-checkbox.p-highlight .p-checkbox-box) {
+  background: #16a34a !important;
+  border-color: #16a34a !important;
+}
+:deep(.p-checkbox .p-checkbox-icon) {
+  color: #fff !important;
+}
+
 .btn-icon-white {
   background: #ffffff !important; /* fondo blanco */
   border: 1px solid transparent !important;
@@ -889,21 +591,10 @@ function onSearch() {
   border-color: #9ca3af !important;
 }
 
-/* Ajuste fino para móvil */
-:deep(.p-calendar) {
-  width: 100%;
-}
-
-:deep(.p-inputtext) {
-  text-align: left;  /* ← CAMBIAR 'center' por 'left' */
-  font-size: 1rem;
-}
-
-@media (max-width: 640px) {
-  .dialog-body .field {
-    padding-left: 0.25rem;
-    padding-right: 0.25rem;
-  }
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
 }
 
 </style>

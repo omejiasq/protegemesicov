@@ -1,760 +1,314 @@
 <template>
   <div class="bolt-wrap">
 
-    <!-- Encabezado -->
+    <!-- ===================== -->
+    <!-- TOOLBAR -->
+    <!-- ===================== -->
     <div class="bolt-toolbar bolt-card">
-      <div class="left">
-        <h2 class="title">Mantenimientos — Correctivos</h2>
-        <p class="subtitle">Listado y alta de correctivos</p>
+      <div>
+        <h2 class="title">Listado de Mantenimientos Correctivos</h2>
       </div>
-      <div class="right">
+
+      <div class="actions">
+        <Button
+          label="Exportar Excel"
+          icon="pi pi-file-excel"
+          class="btn-blue"
+          @click="exportExcel"
+        />
         <Button
           label="Nuevo Correctivo"
           icon="pi pi-plus"
           class="btn-dark-green"
-          @click="openCreate"
+          @click="showCreate = true"
         />
       </div>
     </div>
 
-    <!-- Filtros -->
-    <div class="bolt-card p-3">
-      <div class="formgrid grid align-items-end">
-        <div class="field col-12 sm:col-10">
-          <SearchBar
-            v-model="filters.placa"
-            :width="'100%'"
-            @search="refresh"
-          />
-        </div>
-
-        <div class="field col-12 sm:col-2">
-          <div class="flex gap-2">
-            <Button
-              label="Buscar"
-              icon="pi pi-search"
-              class="btn-filter w-full"
-              :loading="loading"
-              @click="refresh"
-            />
-            <Button
-              label="Limpiar"
-              icon="pi pi-times"
-              class="btn-clear w-full"
-              @click="clearFilters"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tabla -->
-    <div class="bolt-card p-3">
-      <DataTable
-        :value="rows"
-        :loading="loading"
-        dataKey="_id"
-        responsiveLayout="scroll"
-        paginator
-        :rows="limit"
-        :totalRecords="total"
-        :first="(page - 1) * limit"
-        @page="onPage"
-        class="p-datatable-sm"
-      >
-
-        <Column header="Placa">
-          <template #body="{ data }">
-            <span class="text-900">{{ data.placa || '—' }}</span>
-          </template>
-        </Column>
-
-        <Column header="Fecha">
-          <template #body="{ data }">
-            <span class="text-900">
-              {{ fmtDate(data.fecha || data.createdAt) }}
-            </span>
-          </template>
-        </Column>
-
-        <Column header="Taller">
-          <template #body="{ data }">
-            <span class="text-900">{{ data.razonSocial || '—' }}</span>
-          </template>
-        </Column>
-        <Column field="nombresResponsable" header="Mecánico" />
-
-        <Column header="Notas" style="min-width: 240px">
-          <template #body="{ data }">
-            <span class="text-900">{{ data.detalleActividades }}</span>
-          </template>
-        </Column>
-
-        <Column header="Estado" style="width: 140px">
-          <template #body="{ data }">
-            <Tag
-              :value="data.estado === false ? 'INACTIVO' : 'ACTIVO'"
-              :severity="data.estado === false ? 'danger' : 'success'"
-            />
-          </template>
-        </Column>
-
-        <Column header="Acciones" style="width: 120px">
-          <template #body="{ data }">
-            <Button
-              icon="pi pi-eye"
-              class="btn-icon-white"
-              :disabled="saving || loading"
-              @click="openViewEnlistment(data)"
-            />
-          </template>
-        </Column>
-      </DataTable>
-    </div>
-
-    <!-- Diálogo: Crear correctivo -->
-    <Dialog
-      v-model:visible="dlg.visible"
-      modal
-      header="Nuevo correctivo"
-      class="w-11 md:w-8 lg:w-7"
-      @hide="resetForm"
-    >
-      <div class="formgrid grid" :class="{ 'is-view-mode': viewMode }">
-
-        <!-- FILA 1 -->
-        <div class="field col-12 sm:col-4">
+    <!-- ================= FILTROS ================= -->
+    <div class="p-4 bg-white mb-3 rounded">
+      <div class="grid gap-3 md:grid-cols-4">
+        <div>
           <label>Placa</label>
-          <InputText
-            v-model="form.placa"
-            class="w-full"
-            maxlength="6"
+          <input
+            v-model="filters.placa"
+            class="p-inputtext w-full"
             placeholder="ABC123"
-            :disabled="viewMode"
-            @input="onPlacaInput"
           />
         </div>
 
-        <div class="field col-12 sm:col-4">
-          <InputDate
-            v-model="form.fecha"
-            :disabled="viewMode"
+        <div>
+          <label>Fecha desde</label>
+          <input
+            type="date"
+            v-model="filters.fechaDesde"
+            class="p-inputtext w-full"
           />
         </div>
 
-
-
-        <div class="field col-12 sm:col-4">
-          <InputHour
-            v-model="form.hora"
-            label="Hora"
-            :disabled="viewMode"
+        <div>
+          <label>Fecha hasta</label>
+          <input
+            type="date"
+            v-model="filters.fechaHasta"
+            class="p-inputtext w-full"
           />
         </div>
 
-        <!-- FILA 2 -->
-        <div class="field col-12 sm:col-4">
-          <label>NIT - Centro especializado:T</label>
-          <InputText
-            v-model="form.nit"
-            class="w-full"
-            :disabled="viewMode"
-          />
+        <div class="flex gap-2 items-end">
+          <button class="p-button p-button-primary" @click="fetchData">
+            Filtrar
+          </button>
+          <button class="p-button p-button-secondary" @click="onClear">
+            Limpiar
+          </button>
         </div>
-
-        <div class="field col-12 sm:col-8">
-          <label>Razón Social - Centro especializado:</label>
-          <InputText
-            v-model="form.razonSocial"
-            class="w-full"
-            :disabled="viewMode"
-          />
-        </div>
-
-        <!-- FILA 3 -->
-        <div class="field col-12 md:col-4">
-          <label>Tipo identificación – Ingeniero mecánico</label>
-          <UiDropdownBasic
-            v-model="form.tipoIdentificacion"
-            :options="documentTypeOptions"
-            class="w-full"
-            :disabled="viewMode"
-          />
-        </div>
-
-        <div class="field col-12 md:col-4">
-          <label>Número identificación – Ingeniero mecánico</label>
-          <InputText
-            v-model="form.numeroIdentificacion"
-            class="w-full"
-            :disabled="viewMode"
-          />
-        </div>
-
-        <div class="field col-12 md:col-4">
-          <label>Nombres y apellidos – Ingeniero mecánico</label>
-          <InputText
-            v-model="form.nombresResponsable"
-            class="w-full"
-            :disabled="viewMode"
-          />
-        </div>
-
-
-        <!-- FILA 6 -->
-        <div class="field col-12">
-          <label>Detalle de actividades</label>
-          <Textarea
-            v-model="form.detalleActividades"
-            rows="4"
-            class="w-full"
-            :disabled="viewMode"
-          />
-        </div>
-
       </div>
+    </div>
 
-      <template #footer>
-        <div class="flex justify-content-end gap-2">
-          <Button
-            label="Cerrar"
-            class="p-button-text"
-            @click="dlg.visible = false"
-          />
-          <Button
-            v-if="!viewMode"
-            label="Crear"
-            icon="pi pi-save"
-            class="btn-dark-green"
-            :loading="saving"
-            @click="save"
-          />
-        </div>
-      </template>
-    </Dialog>
+    <!-- ================= GRID ================= -->
+    <EjsGrid
+      ref="gridRef"
+      :dataSource="tableData"
+      height="600"
+      :allowPaging="true"
+      :pageSettings="{ pageSize: 15 }"
+      :allowSorting="true"
+      :allowExcelExport="true"
+      :allowPdfExport="true"
+      :toolbar="toolbar"
+      :toolbarClick="toolbarClick"
+    >
+      <e-columns>
 
+
+        <e-column field="Taller" headerText="Taller" width="20" />
+        <e-column field="Mecanico" headerText="Mecánico" width="20" />
+        <e-column field="Estado" headerText="Estado" width="20" />
+
+      </e-columns>
+    </EjsGrid>
+
+    <!-- ================= MODAL DETALLE ================= -->
+    <p-dialog
+      v-model:visible="showDetail"
+      modal
+      header="Detalle del mantenimiento"
+      style="width: 60vw"
+    >
+      <div v-if="selected">
+        <p><b>Placa:</b> {{ selected.Placa }}</p>
+        <p><b>Fecha:</b> {{ formatDate(selected.Fecha) }}</p>
+        <p><b>Taller:</b> {{ selected.Taller }}</p>
+        <p><b>Mecánico:</b> {{ selected.Mecanico }}</p>
+        <p><b>Estado:</b> {{ selected.Estado }}</p>
+      </div>
+    </p-dialog>
+
+    <!-- ================= MODAL NUEVO ================= -->
+    <CorrectiveCreateDialog
+      v-model:visible="showCreate"
+      @save="saveFromDialog"
+    />
   </div>
 </template>
 
+<script lang="ts">
+import { ref, provide, onMounted } from "vue";
+import Button from "primevue/button";
 
-<script setup lang="ts">
-import { reactive, ref, computed, onMounted, watch } from "vue";
+/* ===== Syncfusion ===== */
+import {
+  GridComponent,
+  Page,
+  Sort,
+  Toolbar,
+  ExcelExport,
+  PdfExport
+} from "@syncfusion/ej2-vue-grids";
+
+/* ===== Store ===== */
 import { useMaintenanceStore } from "../../stores/maintenanceStore";
-import InputText from "primevue/inputtext";
-import Calendar from "primevue/calendar";
-import Textarea from "primevue/textarea";
-import DataTable from "primevue/datatable";
-import Column from "primevue/column";
-import Tag from "primevue/tag";
-import Dialog from "primevue/dialog";
-import UiDropdownBasic from "../../components/ui/Dropdown.vue";
-import { MaintenanceserviceApi } from "../../api/maintenance.service"; // <-- Add this import
-import { useToast } from "primevue/usetoast";
+import CorrectiveCreateDialog from "../../components/correctives/CorrectiveCreateDialog.vue";
 
-import SearchBar from "../../components/ui/SearchBar.vue";
-import InputDate from "../../components/ui/InputDate.vue";
-import InputHour from "../../components/ui/InputHour.vue";
-import Button from "../../components/ui/Button.vue";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
-const store = useMaintenanceStore();
-const toast = useToast();
+export default {
+  name: "CorrectiveMaintenance",
 
-const selectedFile = ref<File | null>(null);
-function onFileChange(e: Event) {
-  const f = (e.target as HTMLInputElement).files?.[0] || null;
-  selectedFile.value = f;
-}
+  components: {
+    EjsGrid: GridComponent,
+    Button,
+    CorrectiveCreateDialog,
+    "e-columns": { template: "<slot />" },
+    "e-column": { template: "<slot />" }
+  },
 
-const page = ref(1);
-const limit = ref(10);
-const total = computed(() => store.correctiveList.total);
+  setup() {
+    provide("grid", [Page, Sort, Toolbar, ExcelExport, PdfExport]);
 
-const isEditingCorrective = ref(false);
-const editingCorrectiveId = ref<string | null>(null);
+    const gridRef = ref<any>(null);
+    const tableData = ref<any[]>([]);
 
-// Abre el modal en modo edición y precarga SOLO campos editables
-function openEditCorrective(row: any) {
-  isEditingCorrective.value = true;
-  editingCorrectiveId.value = row?._id || null;
+    const showDetail = ref(false);
+    const showCreate = ref(false);
+    const selected = ref<any>(null);
 
-  // Precarga; NO tocamos mantenimientoId ni placa (normalmente inmutables al editar)
-  form.fecha = row?.fecha ?? form.fecha;
-  form.hora = row?.hora ?? form.hora;
-  form.nit = row?.nit ?? form.nit;
-  form.razonSocial = row?.razonSocial ?? form.razonSocial;
-  form.descripcionFalla = row?.descripcionFalla ?? form.descripcionFalla;
-  form.accionesRealizadas = row?.accionesRealizadas ?? form.accionesRealizadas;
-  form.detalleActividades = row?.detalleActividades ?? form.detalleActividades;
-
-  dlg.visible = true;
-}
-
-function toIntOrUndef(value: any): number | undefined {
-  if (value === null || value === undefined || value === '') return undefined;
-  const n = Number(value);
-  return Number.isNaN(n) ? undefined : n;
-}
-
-function onPlacaInput(e: Event) {
-  const input = e.target as HTMLInputElement;
-  let value = input.value.toUpperCase();
-
-  // solo letras A-Z y números
-  value = value.replace(/[^A-Z0-9]/g, '');
-
-  // máximo 6 caracteres
-  value = value.slice(0, 6);
-
-  form.placa = value;
-}
-
-
-// Guarda edición (reusa normDate / normTime / toInt existentes en tu archivo)
-async function saveEditCorrective() {
-  if (!editingCorrectiveId.value) return;
-
-  // Payload SOLO con campos editables (mantenemos tu misma lógica)
-  const payload: any = {};
-  if (form.fecha) payload.fecha = normDate(form.fecha);
-  if (form.hora) payload.hora = normTime(form.hora);
-  if (form.nit !== undefined && form.nit !== null && form.nit !== "")
-    payload.nit = toInt(form.nit);
-  if (form.razonSocial) payload.razonSocial = String(form.razonSocial).trim();
-  if (form.descripcionFalla)
-    payload.descripcionFalla = String(form.descripcionFalla).trim();
-  if (form.accionesRealizadas)
-    payload.accionesRealizadas = String(form.accionesRealizadas).trim();
-  if (form.detalleActividades)
-    payload.detalleActividades = String(form.detalleActividades).trim();
-
-  saving.value = true;
-  try {
-    // ✅ usa la store
-    await store.correctiveUpdateDetail(editingCorrectiveId.value, payload);
-
-    toast.add({
-      severity: "success",
-      summary: "Actualizado",
-      detail: "Correctivo actualizado",
-      life: 2500,
-    });
-    dlg.visible = false;
-    await refresh();
-  } catch (e: any) {
-    const msg =
-      e?.response?.data?.message || e?.message || "No se pudo actualizar";
-    toast.add({ severity: "error", summary: "Error", detail: msg, life: 3500 });
-  } finally {
-    saving.value = false;
-  }
-}
-
-async function fetchEnlistmentById(id: string) {
-  if (typeof (store as any).enlistmentGetDetail === "function") {
-    return await (store as any).enlistmentGetDetail(id);
-  }
-  const local = (store.enlistmentList.items || []).find(
-    (x: any) => x?._id === id
-  );
-  if (local) return local;
-  await store.enlistmentFetchList({ id });
-  return (
-    (store.enlistmentList.items || []).find((x: any) => x?._id === id) || null
-  );
-}
-
-function fillFormFromRow(row: any) {
-  form.placa = row?.placa ?? "";
-  form.fecha = row?.fecha ?? row?.createdAt ?? null;
-  form.hora = row?.hora ?? null;
-
-  // Vista: NIT + Razón Social
-  form.nit = row?.nit ?? (row?.vigiladoId ? String(row.vigiladoId) : "");
-  form.razonSocial = row?.razonSocial ?? row?.razon ?? row?.empresa ?? "";
-
-  form.tipoIdentificacion = row?.tipoIdentificacion ?? "";
-  form.numeroIdentificacion = row?.numeroIdentificacion ?? "";
-
-  // Ojo: en Corrective el form usa "nombreResponsable" (singular)
-  form.nombreResponsable =
-    row?.nombreResponsable ?? row?.nombresResponsable ?? row?.responsable ?? "";
-
-  // Resto del detalle
-  form.descripcionFalla = row?.descripcionFalla ?? row?.descripcion ?? "";
-  form.accionesRealizadas = row?.accionesRealizadas ?? row?.acciones ?? "";
-  form.detalleActividades = row?.detalleActividades ?? "";
-}
-
-async function openViewEnlistment(row: any) {
-  viewMode.value = true;
-  const id = row?._id;
-  const full = id ? await fetchEnlistmentById(id) : row;
-  fillFormFromRow(full || row);
-  dlg.visible = true;
-}
-
-// Activar/Desactivar
-async function toggleCorrective(id: string) {
-  try {
-    // ✅ usa la store
-    const res = await store.correctiveToggle(id);
-
-    const estadoTxt = res?.estado ? "activado" : "desactivado";
-    toast.add({
-      severity: res?.estado ? "success" : "warn",
-      summary: "Estado",
-      detail: `Correctivo ${estadoTxt}`,
-      life: 2500,
-    });
-    await refresh();
-  } catch (e: any) {
-    const msg =
-      e?.response?.data?.message ||
-      e?.message ||
-      "No se pudo cambiar el estado";
-    toast.add({ severity: "error", summary: "Error", detail: msg, life: 3500 });
-  }
-}
-
-const documentTypeOptions = [
-  { label: "Cédula de ciudadanía", value: 1 },
-  { label: "Cédula de ciudadanía digital", value: 2 },
-  { label: "Tarjeta de identidad", value: 3 },
-  { label: "Registro civil", value: 4 },
-  { label: "Cédula de extranjería", value: 5 },
-  { label: "Pasaporte", value: 6 },
-  { label: "Permiso Especial de Permanencia (PEP)", value: 7 },
-  { label: "Documento de Identificación Extranjero (DIE)", value: 8 },
-];
-
-const viewMode = ref(false);
-const dialogTitle = computed(() =>
-  viewMode.value ? "Detalle de alistamiento" : "Nuevo alistamiento"
-);
-
-const saving = ref(false);
-const filters = reactive({ mantenimientoId: "", placa: "" });
-const dlg = reactive({ visible: false });
-watch(
-  () => dlg.visible,
-  (v) => {
-    if (v) ensureMaintenances();
-    if (!v) viewMode.value = false;
-  }
-);
-const form = reactive({
-  mantenimientoId: "",
-  nombreResponsable: "",
-  placa: "",
-  fecha: null as any,
-  hora: null as any,
-  nit: "",
-  razonSocial: "",
-  tipoIdentificacion: "",
-  numeroIdentificacion: "",
-  descripcionFalla: "",
-  accionesRealizadas: "",
-  detalleActividades: "",
-});
-
-const fileInputRef = ref<HTMLInputElement | null>(null);
-
-function resetForm() {
-  Object.assign(form, {
-    mantenimientoId: "",
-    nombreResponsable: "",
-    placa: "",
-    fecha: null as any,
-    hora: null as any,
-    nit: "",
-    razonSocial: "",
-    tipoIdentificacion: "",
-    numeroIdentificacion: "",
-    descripcionFalla: "",
-    accionesRealizadas: "",
-    detalleActividades: "",
-  });
-  selectedFile.value = null;
-  if (fileInputRef.value) fileInputRef.value.value = "";
-}
-
-const correctiveOptsLoading = ref(false);
-const hasCorrective = ref(new Set<string>());
-
-const correctiveMaintenanceOpts = computed(() =>
-  (store.maintenanceList.items || [])
-    .filter((m: any) => Number(m?.tipoId) === 2)
-    .map((m: any) => ({
-      label: formatMaintLabel(m),
-      value: m?._id,
-    }))
-);
-
-async function ensureCorrectiveOpts() {
-  // Aseguramos mantenimientos en memoria
-  if (!store.maintenanceList.items?.length) {
-    await store.maintenanceFetchList({ page: 1, limit: 200 });
-  }
-  correctiveOptsLoading.value = true;
-  try {
-    // Para cada mantenimiento verifico si tiene correctivo
-    for (const m of store.maintenanceList.items) {
-      const id = String(m._id);
-      if (hasCorrective.value.has(id)) continue;
-      try {
-        const { data } = await MaintenanceserviceApi.viewCorrective({
-          mantenimientoId: id,
-        });
-        if (data && (data._id || data?.mantenimientoId)) {
-          hasCorrective.value.add(id);
-        }
-      } catch {
-        // si no tiene correctivo -> ignorar
-      }
-    }
-  } finally {
-    correctiveOptsLoading.value = false;
-  }
-}
-
-// Al elegir opción, actualizo el filtro y reutilizo tu búsqueda
-function onFilterPick(val: any) {
-  const id =
-    typeof val === "object"
-      ? val?._id || val?.value || val?.id || ""
-      : val || "";
-  filters.mantenimientoId = String(id);
-  onSearch(); // tu función existente
-}
-
-const loading = computed(() => store.correctiveList.loading);
-const rows = computed(() => (store.correctiveList.items || []).map(normalize));
-
-function normalize(r: any) {
-  const m = r.mantenimiento || r.maintenance || {};
-  const estadoBool =
-    typeof r.estado === "boolean"
-      ? r.estado
-      : r.estado === "ACTIVO" || r.estado === 1 || r.estado === "1";
-  return {
-    _id: r._id,
-    placa: r.placa ?? m.placa ?? "",
-    fecha: r.fecha ?? r.createdAt ?? null,
-    nombresResponsable: r.nombresResponsable ?? r.responsable ?? "",
-    estado: estadoBool,
-    ...r,
-  };
-}
-
-function fmtDate(s?: string) {
-  if (!s) return "—";
-  try {
-    return new Date(s).toLocaleDateString();
-  } catch {
-    return s as any;
-  }
-}
-
-async function refresh() {
-  const params: any = { page: page.value, limit: limit.value };
-  if (
-    filters.placa &&
-    typeof filters.placa === "string" &&
-    filters.placa.trim()
-  ) {
-    params.plate = filters.placa.trim(); // el store lo mapea a 'placa'
-  }
-  await store.correctiveFetchList(params);
-}
-
-function onSearch() {
-  refresh();
-}
-
-// Add clearFilters method for template binding
-function clearFilters() {
-  filters.mantenimientoId = "";
-  refresh();
-}
-
-function openCreate() {
-  Object.assign(form, {
-    mantenimientoId: "",
-    placa: "",
-    fecha: null,
-    detalleActividades: "",
-  });
-  dlg.visible = true;
-  ensureMaintenances();
-}
-
-function onPage(e: any) {
-  page.value = Math.floor(e.first / e.rows) + 1;
-  limit.value = e.rows;
-  refresh();
-}
-
-function normDate(v: any): string | undefined {
-  if (!v) return undefined;
-  if (typeof v === "string") return v.slice(0, 10);
-  const d = new Date(v);
-  if (isNaN(+d)) return undefined;
-  const y = d.getFullYear(),
-    m = String(d.getMonth() + 1).padStart(2, "0"),
-    d2 = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d2}`; // YYYY-MM-DD
-}
-
-function normTime(v: any): string | undefined {
-  if (!v) return undefined;
-  try {
-    if (v instanceof Date) {
-      const hh = String(v.getHours()).padStart(2, "0");
-      const mm = String(v.getMinutes()).padStart(2, "0");
-      return `${hh}:${mm}`;
-    }
-    const m = String(v).match(/^(\d{1,2}):(\d{2})$/);
-    if (m) {
-      const hh = String(m[1]).padStart(2, "0");
-      return `${hh}:${m[2]}`;
-    }
-    return undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function toInt(v: any) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : undefined;
-}
-
-async function save() {
-  // 1) Armar payload ANTES de limpiar el form
-  const payload: any = {
-    placa: form.placa?.trim(),
-    fecha: normDate(form.fecha),
-    hora: normTime(form.hora),
-    nit: toInt(form.nit),
-    razonSocial: form.razonSocial?.trim(),
-    tipoIdentificacion: toIntOrUndef(form.tipoIdentificacion),
-    numeroIdentificacion: form.numeroIdentificacion?.trim(),
-    nombresResponsable: form.nombresResponsable?.trim(),
-    detalleActividades: form.detalleActividades?.trim(),
-
-    //descripcionFalla: form.descripcionFalla?.trim(),
-    //accionesRealizadas: form.accionesRealizadas?.trim(),
-    //detalleActividades: form.detalleActividades?.trim(),
-  };
-
-  const req = ["placa", "fecha", "hora"];
-  const missing = req.filter((k) => !payload[k]);
-  if (missing.length) {
-    toast?.add?.({
-      severity: "warn",
-      summary: "Campos requeridos",
-      detail: `Completá: ${missing.join(", ")}`,
-      life: 3000,
-    });
-    return;
-  }
-
-  saving.value = true;
-  try {
-    await store.correctiveCreateDetail(payload);
-
-    // 4) Marcar localmente que este mantenimiento ya tiene correctivo
-    hasCorrective.value?.add(String(payload.mantenimientoId));
-
-    // 5) Feedback
-    toast?.add?.({
-      severity: "success",
-      summary: "Correctivo creado",
-      detail: "Se guardó correctamente.",
-      life: 2500,
-    });
-
-    // 6) Cerrar modal, refrescar lista y opciones del dropdown (tipo 2)
-    dlg.visible = false;
-    await ensureMaintenances(); // repuebla el dropdown con tipo 2
-    await refresh(); // actualiza la tabla principal
-
-    // 7) Limpieza del form (recién acá)
-    Object.assign(form, {
-      mantenimientoId: "",
+    const filters = ref({
       placa: "",
-      fecha: null,
-      hora: null,
-      tipoIdentificacion: "",
-      numeroIdentificacion: "",
-      nombresResponsable: "",
-      descripcionFalla: "",
-      accionesRealizadas: "",
-      detalleActividades: "",
+      fechaDesde: "",
+      fechaHasta: ""
     });
-  } catch (e: any) {
-    const status = e?.response?.status;
-    const msg =
-      e?.response?.data?.message ||
-      e?.message ||
-      "No se pudo crear el correctivo";
 
-    // Mostrar "duplicado" SOLO si el back devolvió 409
-    if (status === 409) {
-      toast?.add?.({
-        severity: "warn",
-        summary: "Correctivo ya existente",
-        detail: "Ya existe un correctivo para esta transacción.",
-        life: 4000,
+    const toolbar = ref([]);
+    const store = useMaintenanceStore();
+
+    const showDetailModal = (rowData: any) => {
+      selected.value = rowData;
+      showDetail.value = true;
+    };
+
+    const onClear = () => {
+      filters.value = {
+        placa: "",
+        fechaDesde: "",
+        fechaHasta: ""
+      };
+      fetchData();
+    };
+
+    const toolbarClick = (args: any) => {
+      if (args.item.id === "Grid_pdfexport") {
+        gridRef.value?.pdfExport();
+      } else if (args.item.id === "Grid_excelexport") {
+        gridRef.value?.excelExport();
+      }
+    };
+
+    const formatDate = (d: Date | null) => {
+      if (!d) return "";
+      return d.toISOString().slice(0, 10);
+    };
+
+    const dateAccessor = (_field: string, data: any) => {
+      if (!data.Fecha) return "";
+      const d = new Date(data.Fecha);
+      return d.toISOString().slice(0, 10); // yyyy-MM-dd
+    };
+
+
+    function exportExcel() {
+      if (!tableData.value.length) return;
+
+      const data = tableData.value.map((r: any) => ({
+        Placa: r.Placa,
+        Fecha: formatDate(r.Fecha),
+        Taller: r.Taller,
+        Mecánico: r.Mecanico,
+        Estado: r.Estado
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Mantenimientos");
+
+      const excelBuffer = XLSX.write(workbook, {
+        bookType: "xlsx",
+        type: "array"
       });
-    } else {
-      toast?.add?.({
-        severity: "error",
-        summary: "Error al crear",
-        detail: msg,
-        life: 4000,
-      });
+
+      saveAs(
+        new Blob([excelBuffer], {
+          type:
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        }),
+        `mantenimientos_${Date.now()}.xlsx`
+      );
     }
-    return;
-  } finally {
-    saving.value = false;
+
+    async function saveFromDialog(data: any) {
+      await store.correctiveCreateDetail(data);
+      showCreate.value = false;
+      await fetchData();
+    }
+
+    const toYMD = (value: any): string => {
+      if (!value) return "";
+
+      const d = value instanceof Date ? value : new Date(value);
+
+      if (isNaN(d.getTime())) return "";
+
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+      const day = String(d.getUTCDate()).padStart(2, "0");
+
+      return `${y}-${m}-${day}`;
+    };
+
+
+ const fetchData = async () => {
+  try {
+    const params = {
+      numero_items: 15,
+      page: 1,
+      placa: filters.value.placa || undefined,
+      fechaDesde: filters.value.fechaDesde || undefined,
+      fechaHasta: filters.value.fechaHasta || undefined
+    };
+
+    await store.correctiveFetchList(params);
+
+    tableData.value = store.correctiveList.items.map((item: any) => {
+      return {
+        Placa: item.placa,
+        Fecha: toYMD(item.fecha), // 👈 YA FORMATEADA
+        Taller: item.taller || item.razonSocial || "",
+        Mecanico: item.mecanico || item.nombresResponsable || "",
+        Estado: item.estado ? "Activo" : "Inactivo"
+      };
+    });
+
+  } catch (error) {
+    console.error("Error cargando datos", error);
+    tableData.value = [];
   }
-}
+};
 
-function formatMaintLabel(m: any) {
-  const placa = (m?.placa || "").toString().toUpperCase();
-  const tipo = m?.tipoId ?? "-";
-  return `${placa || "(sin placa)"} — Tipo ${tipo}`;
-}
 
-const maintenanceOptsType2 = computed(() =>
-  (store.maintenanceList.items || [])
-    .filter((m: any) => Number(m?.tipoId) === 2)
-    .map((m: any) => ({
-      label: formatMaintLabel(m), // tu helper de etiqueta
-      value: m?._id,
-    }))
-);
+    onMounted(fetchData);
 
-async function ensureMaintenances() {
-  await store.maintenanceFetchList({ page: 1, limit: 100, tipoId: 2 });
-}
-
-function onPickMaintenance(id: string | number | null) {
-  if (!id) return;
-  const m = store.maintenanceList.items.find((x: any) => x._id === id);
-  if (m) {
-    form.placa = m.placa || "";
+    return {
+      gridRef,
+      tableData,
+      filters,
+      toolbar,
+      showDetail,
+      showCreate,
+      selected,
+      showDetailModal,
+      onClear,
+      toolbarClick,
+      fetchData,
+      exportExcel,
+      saveFromDialog,
+      formatDate
+    };
   }
-}
-
-onMounted(() => {
-  ensureMaintenances();
-  refresh();
-});
+};
 </script>
 
+
+
 <style scoped>
+
+
+.control-section {
+  background: #f9fafb;
+  padding: 1.5rem;
+}
+
 .bolt-wrap {
   display: grid;
   gap: 1rem;
@@ -767,16 +321,6 @@ onMounted(() => {
   border: 1px solid rgba(17, 17, 17, 0.06);
   border-radius: 0.75rem;
   box-shadow: 0 2px 8px rgba(17, 17, 17, 0.05);
-}
-
-.bolt-center {
-  display: flex;
-  justify-content: start;
-  align-items: center;
-}
-
-.bolt-search {
-  padding: 0 !important;
 }
 
 /* Toolbar */
@@ -812,6 +356,67 @@ onMounted(() => {
   background: #fff !important;
   color: #111 !important;
 }
+
+/* =====================================
+   TABLA ACTIVIDADES – MODERNA SUAVE
+   ===================================== */
+.activities-table {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(13, 110, 253, 0.12);
+}
+
+/* Header */
+.activities-table :deep(.p-datatable-thead > tr > th) {
+  background: linear-gradient(
+    135deg,
+    #e7f1ff,
+    #dbeafe
+  );
+  color: #1e3a8a !important;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.75rem;
+  border: none;
+}
+
+/* Redondeo SOLO arriba */
+.activities-table :deep(.p-datatable-thead > tr > th:first-child) {
+  border-top-left-radius: 12px;
+}
+.activities-table :deep(.p-datatable-thead > tr > th:last-child) {
+  border-top-right-radius: 12px;
+}
+
+/* Texto header (forzado) */
+.activities-table :deep(.p-datatable-thead span),
+.activities-table :deep(.p-datatable-thead div) {
+  color: #1e3a8a !important;
+}
+
+/* Body */
+.activities-table :deep(.p-datatable-tbody > tr > td) {
+  background: #ffffff;
+  padding: 0.7rem;
+  font-size: 0.9rem;
+}
+
+/* Hover sutil */
+.activities-table :deep(.p-datatable-tbody > tr:hover) {
+  background: #f8fbff;
+}
+
+/* Checkbox centrado */
+.activities-table :deep(.p-datatable-tbody > tr > td:first-child) {
+  text-align: center;
+}
+
+/* Quitar líneas duras */
+.activities-table :deep(.p-datatable-tbody > tr > td) {
+  border-bottom: 1px solid #eef2ff;
+}
+
+
 
 /* DataTable en blanco: cabecera, filas y paginador */
 .bolt-card :deep(.p-datatable),
@@ -905,13 +510,34 @@ onMounted(() => {
 :deep(.p-datatable-tbody > tr > td *) {
   color: #111 !important;
 }
-
-/* Texto negro dentro del panel de Detalle */
+.bolt-card :deep(.p-datatable),
+.bolt-card :deep(.p-datatable-wrapper),
+.bolt-card :deep(.p-datatable-header),
+.bolt-card :deep(.p-datatable-thead > tr > th),
+.bolt-card :deep(.p-datatable-tbody > tr),
+.bolt-card :deep(.p-datatable-tbody > tr > td),
+.bolt-card :deep(.p-paginator) {
+  background: #fff !important;
+}
 .detail-pane :deep(*) {
   color: #111 !important;
 }
-/* Mantener el texto del Tag legible */
 .detail-pane :deep(.p-tag) {
+  color: #fff !important;
+}
+
+.dlg-2col :deep(.p-dialog-content) {
+  max-height: none;
+  overflow-y: visible;
+}
+
+:deep(.p-checkbox-box.p-highlight),
+:deep(.p-checkbox.p-checkbox-checked .p-checkbox-box),
+:deep(.p-checkbox.p-highlight .p-checkbox-box) {
+  background: #16a34a !important;
+  border-color: #16a34a !important;
+}
+:deep(.p-checkbox .p-checkbox-icon) {
   color: #fff !important;
 }
 
@@ -964,4 +590,11 @@ onMounted(() => {
   background: #9ca3af !important;
   border-color: #9ca3af !important;
 }
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
 </style>

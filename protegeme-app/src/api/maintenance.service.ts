@@ -61,4 +61,21 @@ export const MaintenanceserviceApi = {
   toggleEnlistment(id: string) {
     return http.patch(`${baseURL}/enlistment/${id}/toggle`, {});
   },
+
+  printEnlistmentPdfOLD(id: string) {
+    return http.get(`/maintenance-enlistment/${id}/print`, {
+      responseType: "blob",
+    });
+  },
+
+  printEnlistmentPdf(id: string) {
+    return http.get(
+      `${baseURL}/enlistment/${id}/pdf`,
+      {
+        responseType: "blob",
+      }
+    );
+  }
+  
+
 };

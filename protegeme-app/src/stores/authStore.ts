@@ -100,26 +100,29 @@ export const useAuthStore = defineStore('auth', {
 
     /** Persiste la sesión completa en localStorage y configura Axios */
     persistSession() {
+      // 🔒 Evita guardar tokens inválidos
+      if (!this.token || this.token.length < 100) {
+        console.warn('Token inválido, no se persiste:', this.token);
+        return;
+      }
+    
       const snapshot: AuthSnapshot = {
         user: this.user,
         token: this.token,
         rol: this.role,
         enterprise_id: this.enterpriseId,
       };
+      //var token2 = '';
+      localStorage.setItem('token2', this.token);
       localStorage.setItem(AUTH_KEY, JSON.stringify(snapshot));
-
-      if (this.token) {
-        http.defaults.headers.common.Authorization = `Bearer ${this.token}`;
-      } else {
-        delete http.defaults.headers.common.Authorization;
-      }
-
+    
+      http.defaults.headers.common.Authorization = `Bearer ${this.token}`;
+    
       if (this.enterpriseId) {
         (http.defaults.headers.common as any)['x-enterprise-id'] = this.enterpriseId;
-      } else {
-        delete (http.defaults.headers.common as any)['x-enterprise-id'];
       }
     },
+    
 
     async login(payload: LoginPayload) {
       this.loading = true;

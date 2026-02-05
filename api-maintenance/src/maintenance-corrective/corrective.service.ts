@@ -272,28 +272,126 @@ export class CorrectiveService {
     return res;
   }
 
+  
 
+  private buildDateFilter(q: any) {
+    if (q?.fecha_desde || q?.fecha_hasta) {
+      const range: any = {};
+      if (q.fecha_desde) range.$gte = new Date(q.fecha_desde);
+      if (q.fecha_hasta) {
+        const end = new Date(q.fecha_hasta);
+        end.setHours(23, 59, 59, 999);
+        range.$lte = end;
+      }
+      return range;
+    }
+  
+    // 🔥 por defecto: HOY
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+  
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+  
+    return { $gte: start, $lte: end };
+  }
+  
+
+  
   // ======================================================
   // LIST
   // ======================================================
-  async list(q: any, user?: { enterprise_id?: string }) {
-    const filter: any = { enterprise_id: user?.enterprise_id };
-
+  async list(q: any, user: any) {
+    // =============================
+    // Match base (empresa)
+    // =============================
+    const match: any = {
+      enterprise_id: String(user.enterprise_id),
+    };
+  
+    // =============================
+    // Filtro por placa
+    // =============================
     if (q?.placa) {
-      filter.placa = { $regex: '^' + q.placa, $options: 'i' };
+      match.placa = {
+        $regex: '^' + q.placa.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+        $options: 'i',
+      };
     }
-
+  
+    // =============================
+    // Filtro por fechas (createdAt)
+    // =============================
+    if (q?.fechaDesde || q?.fechaHasta) {
+      const range: any = {};
+  
+      if (q.fechaDesde) {
+        range.$gte = new Date(`${q.fechaDesde}T00:00:00.000`);
+      }
+  
+      if (q.fechaHasta) {
+        const end = new Date(`${q.fechaHasta}T23:59:59.999`);
+        range.$lte = end;
+      }
+  
+      match.createdAt = range;
+    }
+  
+    // =============================
+    // Ordenamiento (sortable columns)
+    // =============================
+    const sort: any = {};
+  
+    if (q?.sortBy) {
+      sort[q.sortBy] = q.sortDir === 'asc' ? 1 : -1;
+    } else {
+      // 🔥 default
+      sort.createdAt = -1;
+    }
+  
+    // =============================
+    // Paginación (opcional)
+    // =============================
     const page = Math.max(1, Number(q?.page) || 1);
-    const limit = Math.max(1, Math.min(200, Number(q?.numero_items) || 10));
-    const skip = (page - 1) * limit;
-
+    const limitParam = Number(q?.numero_items);
+  
+    const skip = (page - 1) * (limitParam || 0);
+  
+    // =============================
+    // Query base
+    // =============================
+    let query = this.model.find(match).sort(sort);
+  
+    // =============================
+    // 👉 SIN FILTROS → últimos 500
+    // =============================
+    const noFilters =
+      !q?.placa &&
+      !q?.fechaDesde &&
+      !q?.fechaHasta;
+  
+    if (noFilters) {
+      query = query.limit(500);
+    } else if (limitParam) {
+      query = query.skip(skip).limit(limitParam);
+    }
+  
     const [items, total] = await Promise.all([
-      this.model.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
-      this.model.countDocuments(filter),
+      query.lean(),
+      this.model.countDocuments(match),
     ]);
-
-    return { items, total, page, numero_items: limit };
+  
+    return {
+      items,
+      total,
+      page,
+      numero_items: noFilters ? items.length : limitParam,
+    };
   }
+  
+  
+  
+  
 
   // ======================================================
   // TOGGLE

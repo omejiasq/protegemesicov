@@ -10,6 +10,7 @@ import {
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Get, Req } from '@nestjs/common';
 
 @Controller('users')
 export class UsersController {
@@ -40,6 +41,14 @@ export class UsersController {
 
     return this.usersService.updatePassword(id, newPassword);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('drivers')
+  findDrivers(@Req() req) {
+    return this.usersService.findDriversByEnterprise(req.user);
+  }
+  
+
 }
 
 

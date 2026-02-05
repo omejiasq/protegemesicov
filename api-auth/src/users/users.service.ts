@@ -6,6 +6,8 @@ import * as bcrypt from 'bcrypt';
 import { User } from '../schemas/user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 
+import { BadRequestException } from '@nestjs/common';
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -156,4 +158,29 @@ export class UsersService {
     if (!user) throw new NotFoundException('Usuario no encontrado');
     return this.sanitize(user);
   }
+
+  async findDriversByEnterprise(user: any) {
+    if (!user?.enterprise_id) {
+      throw new BadRequestException('enterprise_id no presente en el token');
+    }
+  
+    const enterpriseId = Types.ObjectId.isValid(user.enterprise_id)
+      ? new Types.ObjectId(user.enterprise_id)
+      : null;
+  
+    if (!enterpriseId) {
+      throw new BadRequestException('enterprise_id inválido');
+    }
+  
+    const drivers = await this.userModel
+      .find({
+        enterprise_id: enterpriseId,
+        roleType: 'driver',
+        active: true, // opcional pero recomendado
+      })
+      .lean();
+  
+    return drivers.map((u) => this.sanitize(u));
+  }
+
 }

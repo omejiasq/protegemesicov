@@ -45,6 +45,14 @@ export class VehiclesController {
   }
 
   /* ===============================
+  * GET BY PLATE
+  * =============================== */
+  @Get('plate/:plate')
+  findByPlate(@Param('plate') plate: string, @Req() req: any) {
+    return this.service.getByPlate(plate, req.user);
+  }
+
+  /* ===============================
    * UPDATE
    * =============================== */
   @Patch(':id')

@@ -126,10 +126,9 @@ export class VehiclesService {
   /* =====================================================
    * GET ALL
    * ===================================================== */
+
   
   async getAll(query: any, user: any) {
-    console.log('USER EN VEHICLES =>', user);
-
     if (!user?.enterprise_id) {
       throw new BadRequestException('enterprise_id no presente en el token');
     }
@@ -142,20 +141,41 @@ export class VehiclesService {
       throw new BadRequestException('enterprise_id inválido');
     }
   
-    const filter: any = {
+    const match: any = {
       enterprise_id: enterpriseId,
     };
   
-    if (query.placa) {
-      filter.placa = { $regex: query.placa, $options: 'i' };
+    if (query?.placa) {
+      match.placa = { $regex: query.placa, $options: 'i' };
     }
   
-    if (query.estado !== undefined) {
-      filter.estado = query.estado === 'true' || query.estado === true;
+    if (query?.estado !== undefined) {
+      match.estado = query.estado === 'true' || query.estado === true;
     }
   
-    return this.vehicleModel.find(filter).lean();
+    return this.vehicleModel.aggregate([
+      { $match: match },
+  
+      {
+        $lookup: {
+          from: 'users',           // colección real
+          localField: 'driver_id', // Vehicle.driver_id
+          foreignField: '_id',     // User._id
+          as: 'driver',
+        },
+      },
+  
+      {
+        $unwind: {
+          path: '$driver',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+    ]);
   }
+  
+  
+
   
 
   /* =====================================================
@@ -177,6 +197,93 @@ export class VehiclesService {
 
     return vehicle;
   }
+
+  async getByPlate(plate: string, user: UserCtx) {
+    if (!user?.enterprise_id) {
+      throw new BadRequestException('enterprise_id no presente en el token');
+    }
+  
+    const enterpriseId = Types.ObjectId.isValid(user.enterprise_id)
+      ? new Types.ObjectId(user.enterprise_id)
+      : null;
+  
+    if (!enterpriseId) {
+      throw new BadRequestException('enterprise_id inválido');
+    }
+  
+    const result = await this.vehicleModel.aggregate([
+      // ================= PLACA (case-insensitive) =================
+      {
+        $match: {
+          placa: { $regex: `^${plate}$`, $options: 'i' },
+        },
+      },
+  
+      // ================= NORMALIZAR enterprise_id =================
+      {
+        $addFields: {
+          enterpriseObjId: {
+            $cond: [
+              { $eq: [{ $type: '$enterprise_id' }, 'objectId'] },
+              '$enterprise_id',
+              { $toObjectId: '$enterprise_id' },
+            ],
+          },
+        },
+      },
+  
+      // ================= MATCH POR EMPRESA =================
+      {
+        $match: {
+          enterpriseObjId: enterpriseId,
+        },
+      },
+  
+      // ================= CONDUCTOR =================
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'driver_id',
+          foreignField: '_id',
+          as: 'driver',
+        },
+      },
+      {
+        $unwind: {
+          path: '$driver',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+  
+      // ================= EMPRESA =================
+      {
+        $lookup: {
+          from: 'enterprises',
+          localField: 'enterpriseObjId',
+          foreignField: '_id',
+          as: 'enterprise',
+        },
+      },
+      {
+        $unwind: {
+          path: '$enterprise',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+  
+      // ================= SOLO UN DOCUMENTO =================
+      { $limit: 1 },
+    ]);
+  
+    if (!result.length) {
+      throw new NotFoundException('Vehículo no encontrado');
+    }
+  
+    return result[0];
+  }
+  
+  
+  
 
   /* =====================================================
    * UPDATE

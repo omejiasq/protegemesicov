@@ -40,6 +40,8 @@
               <li class="layout-menuitem-category">
                 <div class="layout-menuitem-root-text">MANTENIMIENTOS</div>
                 <ul>
+
+                <!--
                   <li>
                     <router-link
                       to="/maintenance/program"
@@ -54,36 +56,8 @@
                       <span class="layout-menuitem-text">Programas</span>
                     </router-link>
                   </li>
+                -->
 
-                  <li>
-                    <router-link
-                      to="/maintenance/preventive"
-                      class="layout-menuitem-link"
-                      :class="{
-                        'active-menuitem': $route.path.includes(
-                          '/maintenance/preventive'
-                        ),
-                      }"
-                    >
-                      <i class="pi pi-shield layout-menuitem-icon"></i>
-                      <span class="layout-menuitem-text">Preventivo</span>
-                    </router-link>
-                  </li>
-
-                  <li>
-                    <router-link
-                      to="/maintenance/corrective"
-                      class="layout-menuitem-link"
-                      :class="{
-                        'active-menuitem': $route.path.includes(
-                          '/maintenance/corrective'
-                        ),
-                      }"
-                    >
-                      <i class="pi pi-wrench layout-menuitem-icon"></i>
-                      <span class="layout-menuitem-text">Correctivo</span>
-                    </router-link>
-                  </li>
                   <li>
                     <router-link
                       to="/maintenance/enlistment"
@@ -95,7 +69,35 @@
                       }"
                     >
                       <i class="pi pi-list-check layout-menuitem-icon"></i>
-                      <span class="layout-menuitem-text">Alistamiento</span>
+                      <span class="layout-menuitem-text">Alistamientos</span>
+                    </router-link>
+                  </li>
+                  <li>
+                    <router-link
+                      to="/maintenance/corrective"
+                      class="layout-menuitem-link"
+                      :class="{
+                        'active-menuitem': $route.path.includes(
+                          '/maintenance/corrective'
+                        ),
+                      }"
+                    >
+                      <i class="pi pi-wrench layout-menuitem-icon"></i>
+                      <span class="layout-menuitem-text">Correctivos</span>
+                    </router-link>
+                  </li>
+                  <li>
+                    <router-link
+                      to="/maintenance/preventive"
+                      class="layout-menuitem-link"
+                      :class="{
+                        'active-menuitem': $route.path.includes(
+                          '/maintenance/preventive'
+                        ),
+                      }"
+                    >
+                      <i class="pi pi-shield layout-menuitem-icon"></i>
+                      <span class="layout-menuitem-text">Preventivos</span>
                     </router-link>
                   </li>
 
@@ -118,6 +120,7 @@
 
                 </ul>
               </li>
+              <!--
               <li class="layout-menuitem-category">
                 <div class="layout-menuitem-root-text">AUTORIZACIONES</div>
                 <ul>
@@ -137,6 +140,8 @@
                   </li>
                 </ul>
               </li>
+            
+
               <li class="layout-menuitem-category">
                 <div class="layout-menuitem-root-text">NOVEDADES</div>
                 <ul>
@@ -156,6 +161,7 @@
                   </li>
                 </ul>
               </li>
+            -->
 
          <li class="layout-menuitem-category">
             <div class="layout-menuitem-root-text">Config</div> 

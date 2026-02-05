@@ -12,7 +12,7 @@ import { CreateInspectionTypeDto } from './dto/create-inspection-type.dto';
 @Injectable()
 export class InspectionTypesService {
   private readonly BASE_COMPANY_ID = new Types.ObjectId(
-    '697abdaa63318a1495ffb3f2',
+    '693b66575a43ad156758e84c',
   );
 
   constructor(
@@ -40,7 +40,7 @@ export class InspectionTypesService {
 
     return this.model
       .find({
-        enabled: true,
+        //enabled: true,
         company: {
           $in: [
             new Types.ObjectId(company),

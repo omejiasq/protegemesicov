@@ -406,32 +406,44 @@ export const useMaintenanceStore = defineStore("maintenance", {
       }
     },
 
+
     async preventiveFetchList(params?: Record<string, any>) {
       this.preventiveList.loading = true;
       this.preventiveList.error = "";
+      
+      if (params?.sortBy) query.sortBy = params.sortBy;
+      if (params?.sortDir) query.sortDir = params.sortDir;
+
       try {
-        const query: any = { ...params };
-
-        if (query.numero_items == null && query.limit == null) {
-          query.numero_items = 100000;
-        }
-        if (query.limit) {
-          query.numero_items = query.limit;
-          delete query.limit;
-        }
-        if (query.plate) {
-          query.placa = query.plate;
-          delete query.plate;
-        }
-
-        const { data } = await MaintenanceserviceApi.listPreventives(query);
-        console.log('%cprotegeme-app\src\stores\maintenanceStore.ts:428 data', 'color: #007acc;', data);
-        // Soporta {items,total} o array plano (por si acaso)
-        const items = Array.isArray(data) ? data : data?.items ?? [];
+        const query: any = {};
+    
+        // =============================
+        // Paginación
+        // =============================
+        if (params?.page) query.page = params.page;
+        if (params?.numero_items) query.numero_items = params.numero_items;
+    
+        // =============================
+        // Filtros estándar (IGUAL alistamientos)
+        // =============================
+        if (params?.placa) query.placa = params.placa;
+        if (params?.fechaDesde) query.fechaDesde = params.fechaDesde;
+        if (params?.fechaHasta) query.fechaHasta = params.fechaHasta;
+    
+        // 👉 Si no se envía nada, backend filtra HOY
+        const { data } =
+          await MaintenanceserviceApi.listPreventives(query);
+    
+        const items = Array.isArray(data)
+          ? data
+          : data?.items ?? [];
+    
         this.preventiveList.items = items;
         this.preventiveList.total =
-          typeof data?.total === "number" ? data.total : items.length;
-
+          typeof data?.total === "number"
+            ? data.total
+            : items.length;
+    
         return data;
       } catch (e: any) {
         this.preventiveList.error =
@@ -447,27 +459,40 @@ export const useMaintenanceStore = defineStore("maintenance", {
     async correctiveFetchList(params?: Record<string, any>) {
       this.correctiveList.loading = true;
       this.correctiveList.error = "";
+      
+      if (params?.sortBy) query.sortBy = params.sortBy;
+      if (params?.sortDir) query.sortDir = params.sortDir;
+
       try {
-        const query: any = { ...params };
-        if (query.numero_items == null && query.limit == null) {
-          query.numero_items = 100000;
-        }
-        if (query.limit) {
-          query.numero_items = query.limit;
-          delete query.limit;
-        }
-        if (query.plate) {
-          query.placa = query.plate;
-          delete query.plate;
-        }
-
-        const { data } = await MaintenanceserviceApi.listCorrectives(query);
-
-        const items = Array.isArray(data) ? data : data?.items ?? [];
+        const query: any = {};
+    
+        // =============================
+        // Paginación
+        // =============================
+        if (params?.page) query.page = params.page;
+        if (params?.numero_items) query.numero_items = params.numero_items;
+    
+        // =============================
+        // Filtros estándar (IGUAL alistamientos)
+        // =============================
+        if (params?.placa) query.placa = params.placa;
+        if (params?.fechaDesde) query.fechaDesde = params.fechaDesde;
+        if (params?.fechaHasta) query.fechaHasta = params.fechaHasta;
+    
+        // 👉 Si no se envía nada, backend filtra HOY
+        const { data } =
+          await MaintenanceserviceApi.listCorrectives(query);
+    
+        const items = Array.isArray(data)
+          ? data
+          : data?.items ?? [];
+    
         this.correctiveList.items = items;
         this.correctiveList.total =
-          typeof data?.total === "number" ? data.total : items.length;
-
+          typeof data?.total === "number"
+            ? data.total
+            : items.length;
+    
         return data;
       } catch (e: any) {
         this.correctiveList.error =
@@ -478,7 +503,9 @@ export const useMaintenanceStore = defineStore("maintenance", {
       } finally {
         this.correctiveList.loading = false;
       }
-    },
+    }
+    ,
+    
 
     // ========== Corrective ==========
     async correctiveCreateDetail(payload: AnyObj) {
@@ -592,26 +619,46 @@ export const useMaintenanceStore = defineStore("maintenance", {
     async enlistmentFetchList(params?: Record<string, any>) {
       this.enlistmentList.loading = true;
       this.enlistmentList.error = "";
+    
       try {
-        const query: any = { ...params };
-        if (query.numero_items == null && query.limit == null) {
-          query.numero_items = 100000;
+        const query: any = {};
+    
+        // =============================
+        // Paginación (opcional)
+        // =============================
+        if (params?.page) query.page = params.page;
+        if (params?.numero_items) query.numero_items = params.numero_items;
+    
+        // =============================
+        // Filtros reales que usa el backend
+        // =============================
+        if (params?.placa) {
+          query.placa = params.placa;
         }
-        if (query.limit) {
-          query.numero_items = query.limit;
-          delete query.limit;
+    
+        if (params?.fechaDesde) {
+          query.fechaDesde = params.fechaDesde;
         }
-        if (query.plate) {
-          query.placa = query.plate;
-          delete query.plate;
+    
+        if (params?.fechaHasta) {
+          query.fechaHasta = params.fechaHasta;
         }
-
+    
+        // 👉 Si NO se envía nada, el backend trae SOLO el día actual
         const { data } = await MaintenanceserviceApi.listEnlistments(query);
-        const items = Array.isArray(data) ? data : data?.items ?? [];
+    
+        const items = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.items)
+          ? data.items
+          : [];
+    
         this.enlistmentList.items = items;
         this.enlistmentList.total =
-          typeof data?.total === "number" ? data.total : items.length;
-
+          typeof data?.total === "number"
+            ? data.total
+            : items.length;
+    
         return data;
       } catch (e: any) {
         this.enlistmentList.error =
@@ -623,6 +670,7 @@ export const useMaintenanceStore = defineStore("maintenance", {
         this.enlistmentList.loading = false;
       }
     },
+    
 
     // ========== Files ==========
     async uploadFile(file: File | Blob) {
