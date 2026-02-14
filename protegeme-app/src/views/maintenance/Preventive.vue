@@ -17,7 +17,7 @@
           @click="exportExcel"
         />
         <Button
-          label="Nuevo Correctivo"
+          label="Nuevo Preventivo"
           icon="pi pi-plus"
           class="btn-dark-green"
           @click="showCreate = true"
@@ -247,6 +247,22 @@ export default {
       return `${y}-${m}-${day}`;
     };
 
+function formatDateTimeLocal(value?: string | Date) {
+  if (!value) return '';
+
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+
+  return new Intl.DateTimeFormat('es-CO', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'America/Bogota',
+  }).format(d);
+}
 
  const fetchData = async () => {
   try {
@@ -263,7 +279,10 @@ export default {
     tableData.value = store.preventiveList.items.map((item: any) => {
       return {
         Placa: item.placa,
-        Fecha: toYMD(item.fecha), // 👈 YA FORMATEADA
+        //Fecha: toYMD(item.fecha), // 👈 YA FORMATEADA
+        Fecha_ejecutada: formatDateTimeLocal(item.executedAt || item.executedAt),
+        Fecha_vencimiento: formatDateTimeLocal(item.dueDate || item.dueDate),
+
         Taller: item.taller || item.razonSocial || "",
         Mecanico: item.mecanico || item.nombresResponsable || "",
         Estado: item.estado ? "Activo" : "Inactivo"

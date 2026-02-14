@@ -70,7 +70,7 @@ export class AlistamientoService {
     if (!placa) {
       throw new BadRequestException('Placa requerida');
     }
-
+    /*
     // 1️⃣ PREVENIR DUPLICADO POR PLACA / DÍA
     const existsToday = await this.model.findOne({
       placa,
@@ -86,6 +86,7 @@ export class AlistamientoService {
         `Ya existe un alistamiento para la placa ${placa} el día de hoy`,
       );
     }
+    */
 
     // 2️⃣ CREAR MANTENIMIENTO (LOCAL + SICOV)
     const { doc, externalId } =
@@ -350,15 +351,16 @@ export class AlistamientoService {
     // ================= ENCABEZADO =================
     doc
       .font('Helvetica-Bold')
-      .fontSize(11)
-      .text(e.enterprise.name, { align: 'center' });
+      .fontSize(12)
+      .text(e.enterprise.name+ ' NIT:'+e.enterprise.vigiladoId  , { align: 'center' });
   
     doc.moveDown(0.3);
   
     doc
+      .font('Helvetica')
       .fontSize(9)
       .text(
-        'Certificado de alistamiento avalado por la\nSuperintendencia de Transporte',
+        'Documento generado a través de la plataforma tecnológica de Itfusion SAS, aliado tecnológico autorizado por la Superintendencia de Transporte.',
         { align: 'center' },
       );
   

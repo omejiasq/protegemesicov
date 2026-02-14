@@ -59,8 +59,8 @@ export class VehiclesService {
       nivelServicio: Number(dto.nivelServicio),
       clase: dto.clase ?? null,
 
-      estado: dto.estado ?? true,
-      active: dto.active ?? true,
+      estado: dto.estado ?? false,
+      active: dto.active ?? false,
 
       driver_id: dto.driver_id
         ? new Types.ObjectId(dto.driver_id)
@@ -149,9 +149,9 @@ export class VehiclesService {
       match.placa = { $regex: query.placa, $options: 'i' };
     }
   
-    if (query?.estado !== undefined) {
+    /*if (query?.estado !== undefined) {
       match.estado = query.estado === 'true' || query.estado === true;
-    }
+    }*/
   
     return this.vehicleModel.aggregate([
       { $match: match },
@@ -171,6 +171,7 @@ export class VehiclesService {
           preserveNullAndEmptyArrays: true,
         },
       },
+      { $sort: { placa: 1 } }
     ]);
   }
   
@@ -363,12 +364,139 @@ export class VehiclesService {
       throw new NotFoundException('Vehículo no encontrado');
     }
 
-    vehicle.estado = !vehicle.estado;
+    vehicle.active = !vehicle.active;
     await vehicle.save();
 
     return {
       _id: vehicle._id,
-      estado: vehicle.estado,
+      active: vehicle.active,
     };
   }
+  /* =====================================================
+ * UPDATE MODELO BY PLATE
+ * ===================================================== */
+async updateModeloByPlate(
+  placa: string,
+  modelo: string,
+  user: UserCtx,
+) {
+  if (!user?.enterprise_id) {
+    throw new BadRequestException('enterprise_id no presente en el token');
+  }
+
+  if (!placa || !modelo) {
+    throw new BadRequestException('placa y modelo son obligatorios');
+  }
+
+  const enterpriseId = Types.ObjectId.isValid(user.enterprise_id)
+    ? new Types.ObjectId(user.enterprise_id)
+    : null;
+
+  if (!enterpriseId) {
+    throw new BadRequestException('enterprise_id inválido');
+  }
+
+  const vehicle = await this.vehicleModel.findOneAndUpdate(
+    {
+      placa: { $regex: `^${placa}$`, $options: 'i' }, // exacta, sin importar mayúsculas
+      enterprise_id: enterpriseId,
+    },
+    {
+      $set: {
+        modelo: modelo,
+        updatedAt: new Date(),
+      },
+    },
+    {
+      new: true,
+    },
+  ).lean();
+
+  if (!vehicle) {
+    throw new NotFoundException(
+      `No se encontró vehículo con placa ${placa}`,
+    );
+  }
+
+  return vehicle;
+}
+
+/* =====================================================
+ * UPDATE SOLO CAMPOS NO NULL (CONTROLADO)
+ * ===================================================== */
+async updateNonNullFieldsById(
+  id: string,
+  dto: any,
+  user: UserCtx,
+) {
+  if (!Types.ObjectId.isValid(id)) {
+    throw new NotFoundException('Vehículo no encontrado');
+  }
+
+  if (!user?.enterprise_id) {
+    throw new BadRequestException('enterprise_id no presente en el token');
+  }
+
+  const enterpriseId = new Types.ObjectId(user.enterprise_id);
+
+  // ⛔ Campos prohibidos
+  const forbiddenFields = new Set([
+    '_id',
+    'placa',
+    'active',
+    'fecha_activacion',
+    'createdAt',
+    'updatedAt',
+    '__v',
+  ]);
+
+  const update: any = {};
+
+  for (const [key, value] of Object.entries(dto)) {
+    // ❌ no permitir campos prohibidos
+    if (forbiddenFields.has(key)) continue;
+
+    // ❌ ignorar null o undefined
+    if (value === null || value === undefined) continue;
+
+    // 📅 normalizar fechas
+    if (key.startsWith('expiration_') || key.startsWith('expedition_')) {
+      const date = this.normalizeDate(value as any);
+      if (date) update[key] = date;
+      continue;
+    }
+
+    // 🧍‍♂️ ObjectId conductores
+    if (key === 'driver_id' || key === 'driver2_id') {
+      update[key] = value ? new Types.ObjectId(value as string) : null;
+      continue;
+    }
+
+    // 🔁 cualquier otro campo permitido
+    update[key] = value;
+  }
+
+  if (!Object.keys(update).length) {
+    throw new BadRequestException(
+      'No hay campos válidos para actualizar',
+    );
+  }
+
+  const vehicle = await this.vehicleModel.findOneAndUpdate(
+    {
+      _id: new Types.ObjectId(id),
+      enterprise_id: enterpriseId,
+    },
+    { $set: update },
+    { new: true },
+  ).lean();
+
+  if (!vehicle) {
+    throw new NotFoundException('Vehículo no encontrado');
+  }
+
+  return vehicle;
+}
+
+
 }

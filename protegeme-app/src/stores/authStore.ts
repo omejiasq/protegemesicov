@@ -114,6 +114,7 @@ export const useAuthStore = defineStore('auth', {
       };
       //var token2 = '';
       localStorage.setItem('token2', this.token);
+      localStorage.setItem('token', this.token);
       localStorage.setItem(AUTH_KEY, JSON.stringify(snapshot));
     
       http.defaults.headers.common.Authorization = `Bearer ${this.token}`;

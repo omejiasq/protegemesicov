@@ -16,6 +16,7 @@
           maxlength="6"
           placeholder="ABC123"
           :disabled="saving"
+          @keyup.enter="buscarVehiculoPorPlaca"
         />
       </div>
 
@@ -115,6 +116,78 @@ const dialogVisible = computed({
   get: () => props.visible,
   set: (val: boolean) => emit("update:visible", val),
 });
+
+async function buscarVehiculoPorPlaca() {
+  if (!form.placa) return;
+
+  const placa = form.placa.trim().toUpperCase();
+  form.placa = placa;
+
+  try {
+    const token = localStorage.getItem("token2");
+
+    const response = await fetch(
+      `https://sicov.protegeme.com.co/api/vehicles/vehicles/plate/${placa}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) throw new Error("Vehículo no encontrado");
+
+    const vehiculo = await response.json();
+
+    // =============================
+    // CENTRO ESPECIALIZADO
+    // =============================
+    form.nit =
+      vehiculo?.enterprise?.specialized_center_document_number || "";
+
+    form.razonSocial =
+      vehiculo?.enterprise?.specialized_center_name || "";
+
+    // =============================
+    // INGENIERO MECÁNICO
+    // =============================
+    form.tipoIdentificacion =
+      vehiculo?.enterprise?.mechanic_document_type
+        ? Number(vehiculo.enterprise.mechanic_document_type)
+        : null;
+
+
+    form.numeroIdentificacion =
+      vehiculo?.enterprise?.mechanic_document_number || "";
+
+    form.nombresResponsable =
+      vehiculo?.enterprise?.mechanic_name || "";
+
+  } catch (error) {
+    console.error(error);
+
+    form.nit = "";
+    form.razonSocial = "";
+    form.tipoIdentificacion = null;
+    form.numeroIdentificacion = "";
+    form.nombresResponsable = "";
+  }
+}
+
+function mapDocumentType(type: any): number | null {
+  if (!type) return null;
+
+  const backendValue = String(type).toLowerCase().trim();
+
+  const option = documentTypeOptions.find(opt =>
+    opt.label.toLowerCase().trim() === backendValue
+  );
+
+  return option ? option.value : null;
+}
+
+
 
 const documentTypeOptions = [
   { label: "Cédula de ciudadanía", value: 1 },

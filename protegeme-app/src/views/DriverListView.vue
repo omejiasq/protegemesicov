@@ -12,6 +12,15 @@ import DriverFormView from "../views/DriverFormView.vue";
 const toast = useToast();
 const store = useDriversStore();
 
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
+const goToCreateDriver = () => {
+  router.push({ name: 'drivercreate' })
+}
+
+
 const showForm = ref(false);
 const editingId = ref<string | null>(null);
 
@@ -62,7 +71,7 @@ const docNumber = (d: any) => d?.usuario?.documentNumber || "—";
         label="Nuevo Conductor"
         icon="pi pi-plus"
         class="p-button-success"
-        @click="openCreate"
+        @click="goToCreateDriver"
       />
     </div>
 
@@ -97,16 +106,7 @@ const docNumber = (d: any) => d?.usuario?.documentNumber || "—";
           </template>
         </Column>
 
-        <Column header="Acciones" style="width: 140px">
-          <template #body="{ data }">
-            <Button
-              icon="pi pi-pencil"
-              text
-              severity="secondary"
-              @click="openEdit(data)"
-            />
-          </template>
-        </Column>
+
       </DataTable>
     </div>
   </div>

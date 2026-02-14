@@ -111,6 +111,9 @@
       @save="saveFromDialog"
     />
   </div>
+  
+  <p>tableData:{{tableData}}:</p>
+
 </template>
 
 <script lang="ts">
@@ -204,6 +207,8 @@ export default {
       const data = tableData.value.map((r: any) => ({
         Placa: r.Placa,
         Fecha: formatDate(r.Fecha),
+        //Fecha2: toYMD(item.ocurredAt),
+
         Taller: r.Taller,
         Mecánico: r.Mecanico,
         Estado: r.Estado
@@ -248,6 +253,40 @@ export default {
     };
 
 
+function formatDateTime(value?: string | Date) {
+  if (!value) return '';
+
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+
+  return `${y}-${m}-${day} ${hh}:${mm}`;
+}
+
+function formatDateTimeLocal(value?: string | Date) {
+  if (!value) return '';
+
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+
+  return new Intl.DateTimeFormat('es-CO', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'America/Bogota',
+  }).format(d);
+}
+
+
  const fetchData = async () => {
   try {
     const params = {
@@ -260,13 +299,25 @@ export default {
 
     await store.correctiveFetchList(params);
 
+     // 👇 VER TODOS LOS CAMPOS DEL ENDPOINT
+    /*if (store.correctiveList.items.length > 0) {
+      console.log("Primer item completo:", store.correctiveList.items[0]);
+      console.log("Todos los campos:", Object.keys(store.correctiveList.items[0]));
+    }*/
+
     tableData.value = store.correctiveList.items.map((item: any) => {
       return {
         Placa: item.placa,
-        Fecha: toYMD(item.fecha), // 👈 YA FORMATEADA
+        Fecha: formatDateTimeLocal(item.occurredAt || item.updatedAt),
+        //Fecha2: formatDateTime(item.ocurredAt),
+
         Taller: item.taller || item.razonSocial || "",
         Mecanico: item.mecanico || item.nombresResponsable || "",
-        Estado: item.estado ? "Activo" : "Inactivo"
+        Estado: item.estado ? "Activo" : "Inactivo",
+
+        // 👇 AGREGAR ESTOS DOS NUEVOS CAMPOS (opcional, para depuración)
+        //_occurredAt: item.occurredAt,        // Fecha original sin formatear
+        //OccurredAtFormatted: toYMD(item.occurredAt)  // Fecha formateada
       };
     });
 

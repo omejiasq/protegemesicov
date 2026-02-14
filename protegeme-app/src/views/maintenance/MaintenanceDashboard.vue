@@ -1,227 +1,231 @@
 <template>
   <div class="dashboard">
+<section class="filters-bar">
+  <!-- AÑO -->
+  <button
+    class="filter-btn"
+    :class="{ active: year === 2025 }"
+    @click="setYear(2025)"
+  >2025</button>
 
-    <!-- ================= HEADER ================= -->
-    <header class="header">
-      <h1>Tablero Ejecutivo · Mantenimientos</h1>
-      <span class="subtitle">Flota · Visión analítica 2025</span>
-    </header>
+  <button
+    class="filter-btn"
+    :class="{ active: year === 2026 }"
+    @click="setYear(2026)"
+  >2026</button>
 
-    <!-- ================= KPI ================= -->
-    <section class="kpis-wrapper">
-  
-      <div class="kpi-card primary">
-        <span class="kpi-label">Alistamientos / día</span>
-        <span class="kpi-value">166</span>
+  <!-- MES -->
+  <select
+    class="month-select"
+    v-model="month"
+    @change="setMonth"
+  >
+    <option :value="null">Todos los meses</option>
+    <option
+      v-for="(m, i) in MESES"
+      :key="i"
+      :value="i + 1"
+    >
+      {{ m }}
+    </option>
+  </select>
+</section>
+
+
+
+
+
+    <!-- KPIs -->
+    <section class="kpis">
+      <div class="kpi">
+        <span>Total Alistamientos </span>
+        <h2>{{ kpis.totalAlistamientos }}</h2>
       </div>
-      <div class="kpi-card warning">
-        <span class="kpi-label">Vencimientos</span>
-        <span class="kpi-value"> 87</span>
+
+      <div class="kpi alert">
+        <span>Preventivos vencidos</span>
+        <h2>{{ kpis.preventivosVencidos }}</h2>
       </div>
-        <div class="kpi-card primary">
-        <span class="kpi-label">Cumplimiento</span>
-        <span class="kpi-value"> 95%</span>
+
+      <div class="kpi ok">
+        <span>Correctivos año</span>
+        <h2>{{ kpis.correctivos }}</h2>
+      </div>
+
+      <div class="kpi">
+        <span>Vehículos con hallazgos</span>
+        <h2>{{ kpis.alistamientosConFalla }}</h2>
       </div>
     </section>
 
-    <!-- ================= CHARTS ================= -->
-    <section class="charts-grid">
+    <!-- FILA 1 -->
+    <section class="row">
+<div class="card wide">
+<h3>
+  Alistamientos por
+  {{ store.month ? 'Día' : 'Mes' }}
+</h3>
 
-      <!-- PIE (ESTILO TABLEAU) -->
-      <div class="chart-card" id="chart-pie">
-        <div class="chart-header">
-          <h3>Estado de Preventivos</h3>
-          <button @click="toggleFullscreen('chart-pie')">⛶</button>
-        </div>
+<ejs-chart
+  height="200px"
 
+  :primaryXAxis="{ valueType: 'Category' }"
+  :primaryYAxis="{ minimum: 0 }"
+  :tooltip="{ enable: true }"
+  ref="columnChartRef"
+>
+  <e-series-collection>
+    <e-series
+      type="Column"
+      :dataSource="meses"
+      xName="mes"
+      yName="total"
+    />
+  </e-series-collection>
+</ejs-chart>
+
+
+</div>
+
+
+<div class="card small">
+  <h3>Estado Preventivos</h3>
 <ejs-circularchart3d
+  ref="pieChartRef"
   id="pie3d"
-  height="280"
+  height="210"
+  width="300"
   :tilt="-45"
   :depth="55"
   :rotation="25"
   :legendSettings="{ 
     visible: true, 
-    position: 'Bottom',
+    position: 'Right',
     alignment: 'Center'
   }"
   :tooltip="{ enable: true }"
 >
   <e-circularchart3d-series-collection>
-    <e-circularchart3d-series
-      type="Pie"
-      :dataSource="preventiveStatus"
-      xName="status"
-      yName="value"
-      pointColorMapping="color"
-    />
+  <e-circularchart3d-series
+    type="Pie"
+    :dataSource="pie3D"
+    xName="status"
+    yName="value"
+    pointColorMapping="color"
+    :dataLabel="dataLabel3D"
+  />
 
   </e-circularchart3d-series-collection>
 
 </ejs-circularchart3d>
 
 
-
-
-
-        
-      </div>
-
-<!-- COMPARATIVO -->
-<div class="chart-card" id="chart-trend">
-  <div class="chart-header">
-    <h3>Comparativo Mensual · Preventivos vs Alistamientos</h3>
-    <button @click="toggleFullscreen('chart-trend')">⛶</button>
-  </div>
-
-  <ejs-chart
-    height="300"
-    :primaryXAxis="primaryXAxis"
-    :primaryYAxis="primaryYAxis"
-    :axes="secondaryAxes"
-    :tooltip="{ enable: true, shared: true }"
-    :legendSettings="{ visible: true }"
-  >
-    <e-series-collection>
-
-      <!-- ALISTAMIENTOS (ESCALA ALTA) -->
-      <e-series
-        type="Column"
-        name="Alistamientos"
-        :dataSource="trendData"
-        xName="month"
-        yName="enlistments"
-        fill="#bfdbfe"
-        columnSpacing="0.2"
-      />
-
-      <!-- PREVENTIVOS (ESCALA BAJA) -->
-      <e-series
-        type="Line"
-        name="Mantenimientos Preventivos"
-        :dataSource="trendData"
-        xName="month"
-        yName="preventive"
-        yAxisName="secondary"
-        width="3"
-        fill="#2563eb"
-        marker="{ visible: true, width: 10, height: 10 }"
-      />
-
-    </e-series-collection>
-  </ejs-chart>
 </div>
 
 
     </section>
 
-    <!-- ================= TABLE ================= -->
-    <section class="table-section">
-      <div class="table-header">
-        <h3>Análisis Mensual de Mantenimientos Preventivos</h3>
+    <!-- FILA 2 -->
+  <!-- TABLA VEHÍCULOS -->
+<div class="card wide_table">
+  <h3>Detalle</h3>
 
+  <table class="veh-table">
+<thead>
+  <tr>
+    <th @click="setSort('placa')" style="cursor: pointer">
+      Placa 
+      <span v-if="sortKey === 'placa'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+    </th>
+    <th @click="setSort('totalAlistamientos')" style="cursor: pointer">
+      Alistamientos 
+      <span v-if="sortKey === 'totalAlistamientos'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+    </th>
+    <th @click="setSort('preventivosTotal')" style="cursor: pointer">
+      Preventivos 
+      <span v-if="sortKey === 'preventivosTotal'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+    </th>
+    <th @click="setSort('correctivosTotal')" style="cursor: pointer">
+      Correctivos 
+      <span v-if="sortKey === 'correctivosTotal'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+    </th>
+    <th @click="setSort('alistamientosCriticos')" style="cursor: pointer">
+      Con hallazgos 
+      <span v-if="sortKey === 'alistamientosCriticos'">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+    </th>
+  </tr>
+</thead>
+
+    <tbody>
+      <tr v-for="v in paginatedVehiculos" :key="v.placa">
+        <td>{{ v.placa }}</td>
+        <td>{{ v.totalAlistamientos }}</td>
+        <td>{{ v.preventivosTotal }}</td>
+        <td>{{ v.correctivosTotal }}</td>
+        <td>
+          <span
+            class="badge"
+            :class="{ danger: v.alistamientosConFalla > 0 }"
+          >
+            {{ v.alistamientosConFalla }}
+          </span>
+        </td>
+      </tr>
+
+      <tr v-if="paginatedVehiculos.length === 0">
+        <td colspan="5" class="empty">
+          No hay datos para el período seleccionado
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- PAGINACIÓN -->
+  <div class="pagination">
     <button
-      class="excel-btn"
-      @click="exportTable"
-      title="Exportar a Excel"
+      @click="prevPage"
+      :disabled="currentPage === 1"
     >
-      <img src="/icons/excel.png" alt="Excel" />
+      ◀
     </button>
 
-      </div>
+    <span>Página {{ currentPage }} de {{ totalPages }}</span>
 
-        <ejs-grid
-          ref="gridRef"
-          :dataSource="tableData"
-          height="320"
-          :allowExcelExport="true"
-          :allowPaging="true"
-          :pageSettings="{ pageSize: 8 }"
-          :queryCellInfo="customiseCell"
-        >
-        <e-columns>
+    <button
+      @click="nextPage"
+      :disabled="currentPage === totalPages"
+    >
+      ▶
+    </button>
+  </div>
+</div>
 
-          <e-column field="mes" headerText="Mes" width="80" />
 
-          <e-column field="programados" headerText="Programados" width="120" textAlign="Right" />
-
-          <e-column field="ejecutados" headerText="Ejecutados" width="120" textAlign="Right" />
-
-          <e-column field="cumplimiento" headerText="Cumplimiento" width="120" textAlign="Right" />
-
-        </e-columns>
-      </ejs-grid>
-      
-    </section>
 
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, provide } from 'vue';
+import { ref, onMounted, computed, provide, watch } from 'vue';
+import { useDashboardStore } from '../../stores/DashboardStore';
 
-/* ===== Charts ===== */
+import {
+  ChartComponent as EjsChart,
+  SeriesCollectionDirective as ESeriesCollection,
+  SeriesDirective as ESeries,
+  ColumnSeries, BarSeries, Category, Tooltip, Legend, DataLabel,
+  Export
+} from '@syncfusion/ej2-vue-charts';
+
 import {
   AccumulationChartComponent as EjsAccumulationchart,
   AccumulationSeriesCollectionDirective as EAccumulationSeriesCollection,
   AccumulationSeriesDirective as EAccumulationSeries,
-  ChartComponent as EjsChart,
-  SeriesCollectionDirective as ESeriesCollection,
-  SeriesDirective as ESeries,
-  LineSeries,
-  ColumnSeries,
-  Category,
-  Tooltip,
-  Zoom,
-  Legend
+  PieSeries, AccumulationLegend, AccumulationDataLabel
 } from '@syncfusion/ej2-vue-charts';
 
-const customiseCell = (args: any) => {
-  if (args.column.field === 'cumplimiento') {
-    const value = args.data.cumplimiento;
-
-    if (value < 80) {
-      args.cell.classList.add('cumplimiento-red');
-    } else if (value < 90) {
-      args.cell.classList.add('cumplimiento-orange');
-    } else {
-      args.cell.classList.add('cumplimiento-green');
-    }
-
-    // Opcional: formato %
-    args.cell.innerText = `${value}%`;
-  }
-};
-
-
-const secondaryAxes = [
-  {
-    name: 'secondary',
-    title: 'Mantenimientos Preventivos',
-    opposedPosition: true,
-    minimum: 0,
-    labelFormat: '{value}',
-    majorGridLines: { width: 0 } // limpia visualmente
-  }
-];
-const primaryXAxis = {
-  valueType: 'Category',
-  title: 'Mes',
-  majorGridLines: { width: 0 }
-};
-
-
-/* ===== Grid ===== */
-import {
-  GridComponent as EjsGrid,
-  ColumnsDirective as EColumns,
-  ColumnDirective as EColumn,
-  Page,
-  ExcelExport
-} from '@syncfusion/ej2-vue-grids';
-
-provide('chart', [LineSeries, ColumnSeries, Category, Tooltip, Zoom, Legend]);
-provide('grid', [Page, ExcelExport]);
+provide('chart', [ColumnSeries, BarSeries, Category, Tooltip, Legend, DataLabel, Export]);
+provide('accumulationchart', [PieSeries, AccumulationLegend, AccumulationDataLabel, Export]);
 
 import {
   CircularChart3DComponent as EjsCircularchart3d,
@@ -229,313 +233,498 @@ import {
   CircularChart3DSeriesDirective,
   PieSeries3D,
   CircularChartLegend3D,
-  CircularChartTooltip3D
+  CircularChartTooltip3D,
+  CircularChartDataLabel3D
 } from '@syncfusion/ej2-vue-charts';
 
 provide('circularchart3d', [
   PieSeries3D,
   CircularChartLegend3D,
-  CircularChartTooltip3D
+  CircularChartTooltip3D,
+  CircularChartDataLabel3D   // 👈 OBLIGATORIO
+  //,CircularChartExport3D 
 ]);
 
-const getTrendClass = (value: number) => {
-  if (value >= 5) return 'trend-green';
-  if (value >= -5) return 'trend-yellow';
-  return 'trend-red';
+const pieChartRef = ref<any>(null);
+
+const store = useDashboardStore();
+
+const ROWS_PER_PAGE = 5;
+const currentPage = ref(1);
+
+const tablaVehiculos = computed(() => store.tablaVehiculos ?? []);
+/*
+const totalPages = computed(() =>
+  Math.ceil(tablaVehiculos.value.length / ROWS_PER_PAGE)
+);
+*/
+
+/*
+const paginatedVehiculos = computed(() => {
+  const start = (currentPage.value - 1) * ROWS_PER_PAGE;
+  return tablaVehiculos.value.slice(start, start + ROWS_PER_PAGE);
+});
+*/
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++;
+  }
+};
+
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+  }
+};
+
+/* 🔄 Reinicia página cuando cambian filtros */
+watch(
+  () => [store.year, store.month],
+  () => {
+    currentPage.value = 1;
+  }
+);
+
+//const year = ref(new Date().getFullYear());
+//const month = ref<number | null>(null);
+const year = computed(() => store.year);
+const month = computed({
+  get: () => store.month,
+  set: (val) => store.setMonth(val),
+});
+
+const placas = computed(() =>
+  (store.tablaVehiculos ?? []).map((v: any) => ({
+    placa: v.placa,
+    alistamientos: v.totalAlistamientos,
+    criticos: v.alistamientosCriticos,
+    preventivos: v.preventivosTotal,
+    vencidos: v.preventivosVencidos,
+    correctivos: v.correctivosTotal,
+  }))
+);
+
+
+
+const setYear = (y: number) => {
+  store.setYear(y);
+};
+
+const conductores = computed(() => {
+  return store.rankingConductores.map((c: any) => ({
+    nombre: c.nombre,
+    total: c.total,
+  }));
+});
+
+const primaryXAxisCategory = {
+  valueType: 'Category',
+  majorGridLines: { width: 0 }
 };
 
 
-/* ===== DATA ===== */
-const pastelPalette = ['#93c5fd', '#bfdbfe', '#60a5fa'];
+const primaryXAxis = {
+  valueType: 'Category',
+  title: 'Mes',
+  majorGridLines: { width: 0 }
+};
 
-const preventiveStatus = [
-  {
-    status: 'Vigentes',
-    value: 820,
-    color: '#cfe8ff' // azul pastel suave (Tableau style)
-  },
-  {
-    status: 'Próximos',
-    value: 310,
-    color: '#fff1b8' // amarillo pastel suave
-  },
-  {
-    status: 'Vencidos',
-    value: 118,
-    color: '#ffd6d6' // rojo pastel MUY suave
-  }
-];
-
-
-const trendData = [
-  { month: 'Ene', preventive: 80, enlistments: 188 },
-  { month: 'Feb', preventive: 95, enlistments: 210 },
-  { month: 'Mar', preventive: 110, enlistments: 230 },
-  { month: 'Abr', preventive: 105, enlistments: 240 },
-  { month: 'May', preventive: 120, enlistments: 260 },
-  
-  { month: 'Jun', preventive: 160, enlistments: 2850 },
-  { month: 'Jul', preventive: 166, enlistments: 3570 },
-  { month: 'Ago', preventive: 167, enlistments: 4769 },
-  { month: 'Sep', preventive: 176, enlistments: 4845 },
-  { month: 'Oct', preventive: 177, enlistments: 4845 },
-  { month: 'Nov', preventive: 178, enlistments: 4850 },
-  { month: 'Dic', preventive: 180, enlistments: 4980 }
-
-];
-
-const tableData = trendData.map(m => {
-  const programados = m.preventive + 10;
-  const cumplimiento = Math.round((m.preventive / programados) * 100);
-  return {
-    mes: m.month,
-    programados,
-    ejecutados: m.preventive,
-    cumplimiento,
-    tendencia: cumplimiento - 85
-  };
-});
-
-/* ===== CONFIG ===== */
 const primaryYAxis = {
-  title: 'Alistamientos',
-  labelFormat: '{value}',
   minimum: 0,
 };
 
-const zoomSettings = {
-  enableMouseWheelZooming: true,
-  enableSelectionZooming: true,
-  mode: 'X'
+const tooltip = { enable: true };
+
+const legendSettings = {
+  visible: true,
+  position: 'Bottom',
+  alignment: 'Center'
 };
 
-/* ===== FULLSCREEN ===== */
-const toggleFullscreen = (id: string) => {
-  const el = document.getElementById(id);
-  if (!el) return;
-  document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen();
+const tooltipPie = {
+  enable: true,
+  format: '${point.x} : ${point.y} (${point.percentage}%)'
 };
 
-//const gridRef = ref();
-const gridRef = ref<any>(null);
-//const exportTable = () => gridRef.value?.excelExport();
-const exportTable = () => {
-  if (gridRef.value) {
-    gridRef.value.excelExport();
+const dataLabel3D = {
+  visible: true,
+  position: 'Outside',
+  font: { fontWeight: '600', size: '12px' },
+  connectorStyle: { length: '20px' },
+  //format: '${point.y}'  // Muestra el valor numérico
+  //format: '${point.y} (${point.percentage}%)'
+  //format: '${point.x}'
+};
+
+/* ================= FILTROS ================= */
+//const year = ref(new Date().getFullYear());
+//const month = ref<number | null>(null);
+
+onMounted(() => {
+  store.load(year.value);
+});
+
+const pie3D = computed(() => {
+  return store.piePreventivos.map((p: any) => ({
+    status: p.label,
+    value: p.value,
+    color: p.color,
+  }));
+});
+
+/*
+watch(
+  conductores,
+  (val) => {
+    //console.log('conductores WATCH 👉', val);
+  },
+  { immediate: true }
+  
+);
+*/
+
+
+watch(
+  () => pie3D.value,
+  (val) => {
+    console.log('pie3D WATCH 👉', val);
+
+    if (pieChartRef.value?.ej2Instances) {
+      pieChartRef.value.ej2Instances.dataBind();
+    }
+  },
+  { deep: true }
+);
+
+
+
+const setRange = (type: string) => {
+  const today = new Date();
+  let from: Date | null = null;
+  let to: Date | null = null;
+
+  switch (type) {
+    case 'today':
+      from = new Date(today);
+      to = new Date(today);
+      break;
+
+    case '7':
+      from = new Date();
+      from.setDate(today.getDate() - 7);
+      to = today;
+      break;
+
+    case '30':
+      from = new Date();
+      from.setDate(today.getDate() - 30);
+      to = today;
+      break;
+
+    case 'year':
+      from = new Date(today.getFullYear(), 0, 1);
+      to = new Date(today.getFullYear(), 11, 31);
+      break;
+  }
+
+  store.setDateRange(from, to);
+};
+
+
+
+/* ================= COMPUTEDS CORRECTOS ================= */
+
+const kpis = computed(() => store.kpis);
+
+/*
+const meses = computed(() => {
+  const labels = store.trendEnlistamientos.labels;
+  const data = store.trendEnlistamientos.data;
+
+  return labels.map((mes: string, i: number) => ({
+    mes,
+    total: data[i] || 0,
+  }));
+});
+*/
+const meses = computed(() => {
+  const labels = store.trendEnlistamientos.labels;
+  const data = store.trendEnlistamientos.data;
+
+  return labels.map((mes: string, i: number) => ({
+    mes,
+    total: data[i] || 0,
+  }));
+});
+
+const MESES = [
+  'Ene','Feb','Mar','Abr','May','Jun',
+  'Jul','Ago','Sep','Oct','Nov','Dic'
+];
+
+
+/*
+areaData.value = {
+  labels: response.trendEnlistamientos.map(x => `Mes ${x.mes}`),
+  datasets: [
+    {
+      label: "Enlistamientos",
+      data: response.trendEnlistamientos.map(x => x.total),
+      fill: true,
+      tension: 0.4,
+    },
+  ],
+};
+*/
+/*
+pieData.value = {
+  labels: response.piePreventivos.map(x => x.status),
+  datasets: [
+    {
+      data: response.piePreventivos.map(x => x.value),
+      backgroundColor: response.piePreventivos.map(x => x.color),
+    },
+  ],
+};
+*/
+
+
+
+
+
+const pie = computed(() => store.piePreventivos);
+
+//const conductores = ref<any[]>([]);
+
+
+//const placas = computed(() => store.tablaVehiculos);
+
+//const tablaVehiculos = computed(() => store.tablaVehiculos ?? []);
+
+
+const pageSettings = ref({
+  pageSize: 10,
+  pageSizes: [5, 10, 20, 50],
+  currentPage: 1
+});
+
+// Estados para ordenamiento
+const sortKey = ref<'placa' | 'totalAlistamientos' | 'preventivosTotal' | 'correctivosTotal' | 'alistamientosCriticos'>('placa');
+const sortOrder = ref<'asc' | 'desc'>('asc');
+
+// Función para cambiar orden al hacer click
+const setSort = (key: typeof sortKey.value) => {
+  if (sortKey.value === key) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortKey.value = key;
+    sortOrder.value = 'asc';
   }
 };
 
+// Computed con datos ordenados
+const sortedVehiculos = computed(() => {
+  const data = [...(store.tablaVehiculos ?? [])];
+  
+  return data.sort((a, b) => {
+    let valA = a[sortKey.value];
+    let valB = b[sortKey.value];
+    
+    // Manejo especial para strings (placa)
+    if (sortKey.value === 'placa') {
+      valA = String(valA).toUpperCase();
+      valB = String(valB).toUpperCase();
+    }
+    
+    if (sortOrder.value === 'asc') {
+      return valA > valB ? 1 : -1;
+    } else {
+      return valA < valB ? 1 : -1;
+    }
+  });
+});
+
+// Paginación usa sortedVehiculos en lugar de tablaVehiculos
+const totalPages = computed(() =>
+  Math.ceil(sortedVehiculos.value.length / ROWS_PER_PAGE)
+);
+
+const paginatedVehiculos = computed(() => {
+  const start = (currentPage.value - 1) * ROWS_PER_PAGE;
+  return sortedVehiculos.value.slice(start, start + ROWS_PER_PAGE);
+});
+
 </script>
 
+
 <style scoped>
-.dashboard {
-  padding: 1.5rem;
-  background: #f8fafc;
-  display: grid;
-  gap: 1.5rem;
+.dashboard{padding:24px;display:flex;flex-direction:column;gap:24px;background:#f1f5f9}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.kpi{background:#fff;padding:18px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.06)}
+.kpi.alert{border-left:6px solid #f87171}
+.kpi.ok{border-left:6px solid #34d399}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.card{background:white;padding:16px;border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.06)}
+
+.filters{
+  display:flex;
+  gap:12px;
 }
 
-/* HEADER */
-.header {
-  padding-bottom: .5rem;
+.row{
+  display:grid;
+  grid-template-columns: 2fr 1fr; /* mensual ancho, pie angosto */
+  gap:18px
+}
+
+.card.wide{grid-column: span 1;}
+.card.small{grid-column: span 1;}
+
+.card{
+  background:white;
+  padding:10px;
+  border-radius:16px;
+  box-shadow:0 6px 18px rgba(0,0,0,.06);
+  height:260px;
+}
+
+
+.filters-bar{
+  display:flex;
+  gap:.6rem;
+}
+
+.filter-btn{
+  border:1px solid #e5e7eb;
+  background:white;
+  padding:.45rem .9rem;
+  border-radius:999px;
+  font-weight:600;
+  cursor:pointer;
+  transition:.2s;
+}
+
+.filter-btn:hover{
+  background:#eff6ff;
+  border-color:#93c5fd;
+}
+
+.filter-btn.active{
+  background:#2563eb;
+  color:white;
+  border-color:#2563eb;
+}
+
+.kpi-card{
+  padding: .7rem 1rem;
+}
+
+.kpi-value{
+  font-size: 1.6rem;
+}
+
+.kpi{
+  background:#fff;
+  height:80px;
+  border-radius:14px;
+  box-shadow:0 6px 18px rgba(0,0,0,.06);
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  text-align:center;
+}
+
+.kpi h2{
+  margin:0;
+  font-size:1.4rem;
+}
+
+.month-select{
+  border:1px solid #e5e7eb;
+  border-radius:999px;
+  padding:.45rem .9rem;
+  font-weight:600;
+  cursor:pointer;
+}
+
+.crit-table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:12px;
+}
+
+.crit-table th,
+.crit-table td{
+  padding:10px;
+  border-bottom:1px solid #e5e7eb;
+  text-align:left;
+}
+
+.crit-table th{
+  font-weight:700;
+  background:#f8fafc;
+}
+
+.veh-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+}
+
+.veh-table th,
+.veh-table td {
+  padding: 10px;
   border-bottom: 1px solid #e5e7eb;
-}
-.subtitle { color: #64748b; }
-
-/* KPI */
-.kpis-wrapper {
-  display: grid;
-  grid-template-columns: repeat(3,1fr);
-  gap: 1rem;
-  margin-top: .5rem;
-}
-.kpi-card {
-  background: white;
-  border-radius: 14px;
-  padding: 1.25rem;
-  box-shadow: 0 4px 20px rgba(0,0,0,.06);
-  border-left: 6px solid #93c5fd;
-}
-.kpi-card.warning { border-left-color: #fde68a; }
-.kpi-label {
-  color: #64748b;
-  font-size: .85rem;
-}
-.kpi-value {
-  font-size: 2rem;
-  font-weight: 700;
-}
-
-/* CHARTS */
-.charts-grid {
-  display: grid;
-  grid-template-columns: 2fr 3fr; /* PIE | BARRAS */
-  gap: 1.5rem;
-}
-.chart-card {
-  background: white;
-  border-radius: 16px;
-  padding: 1rem;
-  box-shadow: 0 4px 20px rgba(0,0,0,.06);
-}
-.chart-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-/* TABLE */
-.table-section {
-  background: white;
-  border-radius: 16px;
-  padding: 1rem;
-  box-shadow: 0 4px 20px rgba(0,0,0,.06);
-}
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: .5rem;
-}
-
-/* SEMÁFORO PASTEL */
-.trend-soft {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: .5rem;
-  font-weight: 600;
-}
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-.dot.green { background: #bbf7d0; }
-.dot.yellow { background: #fef3c7; }
-.dot.red { background: #fecaca; }
-
-/* ================= SEMÁFORO TENDENCIA ================= */
-.trend-cell {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 0.85rem;
-  min-width: 90px;
-}
-
-/* DOT */
-.trend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-
-/* POSITIVO */
-.trend-green {
-  background: #ecfdf5;
-  color: #065f46;
-}
-.trend-green .trend-dot {
-  background: #34d399;
-}
-
-/* NEUTRO */
-.trend-yellow {
-  background: #fffbeb;
-  color: #92400e;
-}
-.trend-yellow .trend-dot {
-  background: #facc15;
-}
-
-/* NEGATIVO */
-.trend-red {
-  background: #fef2f2;
-  color: #991b1b;
-}
-.trend-red .trend-dot {
-  background: #f87171;
-}
-
-/* ================= EXCEL ICON BUTTON ================= */
-.excel-btn {
-  background: #ecfdf5;
-  border: 1px solid #d1fae5;
-  border-radius: 10px;
-  padding: 0.45rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all .2s ease;
-}
-
-.excel-btn img {
-  width: 20px;
-  height: 20px;
-}
-
-.excel-btn:hover {
-  background: #d1fae5;
-  transform: scale(1.05);
-}
-
-.excel-btn:active {
-  transform: scale(0.95);
-}
-
-/* ===== CUMPLIMIENTO SEMÁFORO CELDA ===== */
-.cumplimiento-green {
-  background-color: #ecfdf5;
-  color: #065f46;
-  font-weight: 700;
-}
-
-.cumplimiento-orange {
-  background-color: #fffbeb;
-  color: #92400e;
-  font-weight: 700;
-}
-
-.cumplimiento-red {
-  background-color: #fef2f2;
-  color: #991b1b;
-  font-weight: 700;
-}
-.cumplimiento-green,
-.cumplimiento-orange,
-.cumplimiento-red {
-  border-radius: 6px;
-}
-
-:deep(.cumplimiento-green) {
-  background-color: #ecfdf5 !important;
-  color: #065f46 !important;
-  font-weight: 700;
-}
-
-:deep(.cumplimiento-orange) {
-  background-color: #fffbeb !important;
-  color: #92400e !important;
-  font-weight: 700;
-}
-
-:deep(.cumplimiento-red) {
-  background-color: #fef2f2 !important;
-  color: #991b1b !important;
-  font-weight: 700;
-}
-
-:deep(.cumplimiento-green),
-:deep(.cumplimiento-orange),
-:deep(.cumplimiento-red) {
-  border-radius: 6px;
   text-align: center;
 }
 
+.veh-table th {
+  background: #f8fafc;
+  font-weight: 700;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  font-weight: 600;
+}
+
+.badge.danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.empty {
+  padding: 20px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.pagination button {
+  border: 1px solid #e5e7eb;
+  background: white;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.pagination button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.card.wide_table {
+  height: 300px;       /* ajusta a gusto: 480–600 */
+}
 
 </style>

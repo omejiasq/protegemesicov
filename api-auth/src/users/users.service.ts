@@ -178,6 +178,7 @@ export class UsersService {
         roleType: 'driver',
         active: true, // opcional pero recomendado
       })
+      .sort('usuario.nombre') 
       .lean();
   
     return drivers.map((u) => this.sanitize(u));

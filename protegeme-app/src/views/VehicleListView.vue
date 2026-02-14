@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { ref, reactive, watch, onMounted, provide } from "vue";
+import { computed, ref, reactive, watch, onMounted, provide } from "vue";
 import { useToast } from "primevue/usetoast";
 import Button from "primevue/button";
-import Tag from "primevue/tag";
 import InputText from "primevue/inputtext";
 import Dropdown from "primevue/dropdown";
-import Dialog from "primevue/dialog";
+//import { computed, ref, onMounted } from 'vue';
 
 import {
   GridComponent as EjsGrid,
@@ -14,12 +13,50 @@ import {
 } from "@syncfusion/ej2-vue-grids";
 
 import { useVehiclesStore } from "../stores/vehiclesStore";
-import VehicleFormView from "../views/VehicleFormView.vue";
+import { useRouter } from "vue-router";
+
+// 👇 ESTO FALTABA (o estaba mal escrito)
+const vehiclesStore = useVehiclesStore();
+
+const vehiclesForGrid = computed(() =>
+  vehiclesStore.items.map(v => ({
+    ...v,
+    __actions: null // 👈 campo virtual SOLO para el Grid
+  }))
+);
 
 provide("grid", [Page, Sort]);
 
 const toast = useToast();
 const store = useVehiclesStore();
+const router = useRouter();
+
+/* =========================
+   ACTION TEMPLATE (SYNCFUSION)
+========================= */
+const actionTemplate = (args: any) => {
+  const row = args.data;
+
+  const btn = document.createElement('button');
+  btn.className = 'p-button p-button-text p-button-warning p-button-sm';
+  btn.innerHTML = '<span class="pi pi-pencil"></span>';
+
+  btn.onclick = () => {
+    router.push({
+      name: 'vehicle-edit',
+      params: { id: row._id }
+    });
+  };
+
+  return btn;
+};
+
+
+
+const estadoAccessor = (_field: string, data: any) => {
+  return data.active ? 'Activo' : 'Inactivo'
+}
+
 
 /* =========================
    STATE
@@ -31,9 +68,6 @@ const query = reactive({
 
 const page = ref(1);
 const pageSize = ref(10);
-
-const showForm = ref(false);
-const editingId = ref<string | null>(null);
 
 /* =========================
    METHODS
@@ -47,36 +81,6 @@ function refresh() {
   });
 }
 
-function openCreate() {
-  editingId.value = null;
-  showForm.value = true;
-}
-
-function openEdit(row: any) {
-  editingId.value = row?._id || null;
-  showForm.value = true;
-}
-
-async function toggle(id: string) {
-  try {
-    await store.toggle(id);
-    toast.add({
-      severity: "success",
-      summary: "Actualizado",
-      detail: "Estado actualizado",
-      life: 2500
-    });
-    refresh();
-  } catch (e: any) {
-    toast.add({
-      severity: "error",
-      summary: "Error",
-      detail: e?.response?.data?.message || "No se pudo actualizar",
-      life: 3500
-    });
-  }
-}
-
 /* =========================
    GRID EVENTS
 ========================= */
@@ -86,26 +90,65 @@ function onPageChange(args: any) {
   refresh();
 }
 
+function onActionComplete(e: any) {
+  if (e.requestType === "paging") {
+    page.value = e.currentPage;
+    pageSize.value = e.pageSize;
+    refresh();
+  }
+}
+const conductorAccessor = (_field: string, data: any) => {
+  return data?.driver?.usuario?.nombre ?? "";
+};
+
+const statusTemplate = (props: any) => {
+  return props.active
+    ? 'Activo'
+    : 'Inactivo'
+}
+
+
 /* =========================
    LIFECYCLE
 ========================= */
-watch([page, pageSize], refresh);
-onMounted(refresh);
+
+//onMounted(refresh);
+onMounted(() => {
+  vehiclesStore.fetch();
+})
+
+function goToEdit(row: any) {
+  router.push({
+    name: "vehicle-edit",
+    params: { id: row._id }
+  });
+}
+
+const goToCreateVehicle = () => {
+  router.push({ name: 'vehiclescreate' })
+}
+
+const verDetalle = (row: any) => {
+  console.log('Fila:', row)
+  // navegación o modal aquí
+}
+
 </script>
+
 
 <template>
   <div class="grid">
     <!-- ================= TOOLBAR ================= -->
     <div class="col-12 page-toolbar flex justify-between items-center">
       <h2 class="m-0">Gestión de Vehículos</h2>
-      <!--
+      
       <Button
         label="Nuevo Vehículo"
         icon="pi pi-plus"
         class="p-button-success"
-        @click="openCreate"
+        @click="goToCreateVehicle"
       />
-      -->
+      
     </div>
 
     <!-- ================= FILTROS ================= -->
@@ -166,48 +209,63 @@ onMounted(refresh);
       </div>
 
       <!-- ================= GRID SYNCFUSION ================= -->
-      <EjsGrid
-        :dataSource="store.items"
-        :allowPaging="true"
-        :allowSorting="true"
-        :pageSettings="{
-          currentPage: page,
-          pageSize: pageSize,
-          totalRecordsCount: store.total
-        }"
-        height="550"
-        @actionComplete="(e:any) => e.requestType === 'paging' && onPageChange(e)"
-      >
-        <e-columns>
-          <e-column field="placa" headerText="Placa" width="120" />
-          <e-column field="clase" headerText="Clase" width="120" />
-          <e-column field="modelo" headerText="Modelo" width="100" />
-          <e-column field="capacidad" headerText="Capacidad" width="120" />
-          <e-column field="nombre_propietario" headerText="Propietario" width="180" />
+<EjsGrid
+  :dataSource="vehiclesStore.items"
+  :allowPaging="true"
+  :allowSorting="true"
+  :pageSettings="{
+    currentPage: page,
+    pageSize: pageSize,
+    totalRecordsCount: vehiclesStore.total
+  }"
+>
+  <e-columns>
+    <e-column field="placa" headerText="Placa" width="120" />
+    <e-column field="clase" headerText="Clase" width="120" />
+    <e-column field="modelo" headerText="Modelo" width="100" />
+    <e-column field="nombre_propietario" headerText="Propietario" width="180" />
+    <e-column field="driver.usuario.nombre" headerText="Conductor" width="180" />
+<e-column
+  field="active"
+  headerText="Estado"
+  width="120"
+  textAlign="Center"
+  :valueAccessor="estadoAccessor"
+/>
 
-          <e-column field="driver.usuario.nombre" headerText="Conductor" width="180" />
 
-        </e-columns>
-      </EjsGrid>
+
+    <e-column
+    
+      headerText="Acciones"
+      width="120"
+      textAlign="Center"
+      :allowSorting="false"
+      :allowFiltering="false"
+      :allowGrouping="false"
+      :allowResizing="false"
+      :allowEditing="false"
+      template="actionTemplate"
+    />
+  </e-columns>
+
+  <!-- ✅ SLOT VA AQUÍ DENTRO -->
+  <template #actionTemplate="{ data }">
+    <Button
+      icon="pi pi-pencil"
+      class="p-button-text p-button-warning p-button-sm"
+      @click="goToEdit(data)"
+    />
+  </template>
+
+</EjsGrid>
+
+
+
     </div>
   </div>
 
-  <!-- ================= DIALOG ================= -->
-  <Dialog
-    v-model:visible="showForm"
-    modal
-    :header="editingId ? 'Editar Vehículo' : 'Nuevo Vehículo'"
-    style="width: 650px"
-  >
-    <VehicleFormView
-      :id="editingId"
-      @saved="
-        showForm = false;
-        refresh();
-      "
-      @cancel="showForm = false"
-    />
-  </Dialog>
+
 </template>
 
 <style scoped>

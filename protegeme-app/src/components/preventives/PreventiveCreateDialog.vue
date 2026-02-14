@@ -2,7 +2,7 @@
   <Dialog
     v-model:visible="dialogVisible"
     modal
-    header="Nuevo correctivo"
+    header="Nuevo preventivo"
     class="w-11 md:w-8 lg:w-7"
     :closable="!saving"
   >
@@ -16,10 +16,11 @@
           maxlength="6"
           placeholder="ABC123"
           :disabled="saving"
+          @keyup.enter="buscarVehiculoPorPlaca"
         />
       </div>
 
-      <div class="field col-12 sm:col-4">
+      <div class=  "field col-12 sm:col-4">
         <InputDate
           v-model="form.fecha"
           :disabled="saving"
@@ -115,6 +116,66 @@ const dialogVisible = computed({
   get: () => props.visible,
   set: (val: boolean) => emit("update:visible", val),
 });
+async function buscarVehiculoPorPlaca() {
+  if (!form.placa) return;
+
+  const placa = form.placa.trim().toUpperCase();
+  form.placa = placa;
+
+  try {
+    const token = localStorage.getItem("token2");
+
+    const response = await fetch(
+      `https://sicov.protegeme.com.co/api/vehicles/vehicles/plate/${placa}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) throw new Error("Vehículo no encontrado");
+
+    const vehiculo = await response.json();
+
+    // =============================
+    // CENTRO ESPECIALIZADO
+    // =============================
+    form.nit =
+      vehiculo?.enterprise?.specialized_center_document_number || "";
+
+    form.razonSocial =
+      vehiculo?.enterprise?.specialized_center_name || "";
+
+    // =============================
+    // INGENIERO MECÁNICO
+    // =============================
+
+    const docType = vehiculo?.enterprise?.mechanic_document_type;
+
+    form.tipoIdentificacion =
+      docType !== undefined && docType !== null
+        ? Number(docType)   // 👈 CLAVE
+        : null;
+
+    form.numeroIdentificacion =
+      vehiculo?.enterprise?.mechanic_document_number || "";
+
+    form.nombresResponsable =
+      vehiculo?.enterprise?.mechanic_name || "";
+
+  } catch (error) {
+    console.error(error);
+
+    form.nit = "";
+    form.razonSocial = "";
+    form.tipoIdentificacion = null;
+    form.numeroIdentificacion = "";
+    form.nombresResponsable = "";
+  }
+}
+
 
 const documentTypeOptions = [
   { label: "Cédula de ciudadanía", value: 1 },

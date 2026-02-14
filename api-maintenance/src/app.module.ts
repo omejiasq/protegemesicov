@@ -13,6 +13,8 @@ import { StorageDebugModule } from './debug/storage-debug.module';
 
 import { InspectionTypesModule } from './maintenance-catalogs/inspection-types.module';
 import { MaintenanceTypesModule } from './maintenance-catalogs/maintenance-types.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+
 
 @Module({
   imports: [
@@ -34,6 +36,7 @@ import { MaintenanceTypesModule } from './maintenance-catalogs/maintenance-types
 
     InspectionTypesModule,
     MaintenanceTypesModule,
+    DashboardModule,
   ],
   providers: [JwtStrategy],
 })

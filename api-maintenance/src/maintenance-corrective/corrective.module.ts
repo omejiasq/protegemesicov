@@ -51,6 +51,6 @@ import {
   ],
   controllers: [CorrectiveController],
   providers: [CorrectiveService, MaintenanceExternalApiService],
-  exports: [CorrectiveService],
+  exports: [CorrectiveService, MongooseModule],
 })
 export class CorrectiveModule {}

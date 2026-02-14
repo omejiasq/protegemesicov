@@ -73,6 +73,17 @@ export class Enterprise {
   @Prop({ default: false })
   admin: boolean;
 
+  @Prop({ trim: true })
+  specialized_center_name?: string;
+  @Prop({ required: false, trim: true })
+  specialized_center_document_type: { 
+    type: Number,
+    enum: [12], //NIT
+    default: 12,
+  };
+  @Prop({ trim: true })
+  specialized_center_document_number?: string;
+
 }
 
 export const EnterpriseSchema = SchemaFactory.createForClass(Enterprise);

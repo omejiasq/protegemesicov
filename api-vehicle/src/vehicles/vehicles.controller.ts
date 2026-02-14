@@ -71,4 +71,33 @@ export class VehiclesController {
   toggle(@Param('id') id: string, @Req() req: any) {
     return this.service.toggleState(id, req.user);
   }
+
+  @Patch('by-plate/:placa/modelo')
+  updateModeloByPlate(
+    @Param('placa') placa: string,
+    @Body('modelo') modelo: string,
+    @Req() req,
+  ) {
+    return this.service.updateModeloByPlate(
+      placa,
+      modelo,
+      req.user,
+    );
+  }
+
+  @Patch(':id/partial')
+  updateNonNullFields(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req,
+  ) {
+    return this.service.updateNonNullFieldsById(
+      id,
+      body,
+      req.user,
+    );
+  }
+
+
+
 }

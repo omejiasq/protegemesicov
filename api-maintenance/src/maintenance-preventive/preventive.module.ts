@@ -48,6 +48,6 @@ import {
   ],
   controllers: [PreventiveController],
   providers: [PreventiveService, MaintenanceExternalApiService],
-  exports: [PreventiveService],
+  exports: [PreventiveService, MongooseModule],
 })
 export class PreventiveModule {}

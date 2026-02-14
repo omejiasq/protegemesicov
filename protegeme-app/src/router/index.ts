@@ -87,7 +87,26 @@ const routes: RouteRecordRaw[] = [
         name: "/maintenance/maintenancecalendar",
         component: () => import("../views/maintenance/PreventiveMaintenanceCalendar.vue"),
       },
-
+      {
+        path: '/vehicles/edit/:id',
+        name: 'vehicle-edit',
+        component: () => import('../views/VehicleEdit.vue'),
+        //component: () => import("../views/VehicleListView.vue"),
+        props: true
+      },
+      {
+        path: 'vehiclescreate',
+        name: 'vehiclescreate',
+        component: () => import('../views/VehicleCreate.vue'),
+        props: true
+      },
+      {
+        path: 'drivercreate',
+        name: 'drivercreate',
+        component: () => import('../views/DriverCreate.vue'),
+        props: true
+      }
+      
 
     ],
   },

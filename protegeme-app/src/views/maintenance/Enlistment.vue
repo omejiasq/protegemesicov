@@ -99,13 +99,23 @@
         :first="(page - 1) * limit"
         class="p-datatable-sm"
       >
-        <Column field="placa" header="Placa" />
-        <Column field="nombresConductor" header="Conductor" />
-        <Column field="numeroIdentificacion" header="Documento" />
-        <Column header="Fecha">
+        <Column field="placa" header="Placa" sortable />
+        <Column field="nombresConductor" header="Conductor" sortable />
+        <Column field="numeroIdentificacion" header="Documento" sortable />
+        <Column header="Fecha" sortable>
           <template #body="{ data }">{{ fmtDate(data.createdAt) }}</template>
         </Column>
-        <Column header="Estado">
+        
+        <Column header="Con falla" sortable :sortFunction="sortByFailure">
+        <template #body="{ data }">
+          <Tag
+            :value="hasFailure(data.actividades) ? 'SI' : 'NO'"
+            :severity="hasFailure(data.actividades) ? 'danger' : 'success'"
+          />
+        </template>
+      </Column>
+
+        <Column header="Estado" sortable>
           <template #body="{ data }">
             <Tag
               :value="data.estado ? 'ACTIVO' : 'INACTIVO'"
@@ -357,6 +367,16 @@ const documentTypeMap: Record<string, number> = {
   PEP: 7,
   DIE: 8,
 };
+
+function sortByFailure(event: any) {
+  event.data.sort((a: any, b: any) => {
+    const aFail = hasFailure(a.actividades) ? 1 : 0;
+    const bFail = hasFailure(b.actividades) ? 1 : 0;
+
+    return (aFail - bFail) * event.order;
+  });
+}
+
 
 // Función mejorada para mapear tipos de documento
 function mapDocumentType(type: any): number | null {
@@ -1247,6 +1267,15 @@ function onPickMaintenance(id: string | number | null) {
   }
 }
 
+const REQUIRED_CODES = ["1","2","3","4","5","6","7","8","9","10","11"];
+
+function hasFailure(actividades: string[] = []) {
+  return REQUIRED_CODES.some(code => !actividades.includes(code));
+}
+
+
+
+
 onMounted(async () => {
   // traer actividades (sigue siendo útil)
   //await store.enlistmentFetchActivities();
@@ -1255,10 +1284,9 @@ onMounted(async () => {
 
   // traer la lista de alistamientos **al montar** (sin filtros)
   await store.enlistmentFetchList();
+  
 
-  // logs útiles para debug — podés borrar después
-  console.log("store.enlistment.activities ->", (store.enlistment.activities));
-  console.log("store.enlistmentList.items ->",JSON.stringify(store.enlistmentList.items));
+  
 });
 </script>
 

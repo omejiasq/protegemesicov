@@ -158,14 +158,15 @@ export class MaintenanceExternalApiService {
   ) {
     const started = Date.now();
     const token = await this.login();
+  
     const resp = await fetch(endpoint, {
       method,
       headers: this.buildHeaders(token, vigiladoId, vigiladoToken),
       body: body ? JSON.stringify(body) : undefined,
     });
-
+  
     const data = await this.safeJson(resp);
-
+  
     await this.audit.log({
       module: 'maintenance',
       operation,
@@ -176,19 +177,22 @@ export class MaintenanceExternalApiService {
       success: resp.ok,
       durationMs: Date.now() - started,
     });
-
+  
+    /* ================= RETRY POR AUTH ================= */
     if (resp.status === 401 || resp.status === 403) {
       this.bearerToken = null;
+  
       const retryStarted = Date.now();
       const retryToken = await this.login();
-
+  
       const retry = await fetch(endpoint, {
         method,
         headers: this.buildHeaders(retryToken, vigiladoId, vigiladoToken),
         body: body ? JSON.stringify(body) : undefined,
       });
+  
       const retryData = await this.safeJson(retry);
-
+  
       await this.audit.log({
         module: 'maintenance',
         operation: `${operation}:retry`,
@@ -199,19 +203,35 @@ export class MaintenanceExternalApiService {
         success: retry.ok,
         durationMs: Date.now() - retryStarted,
       });
-
-      if (!resp.ok) {
+  
+      // ✅ AQUÍ ESTABA EL BUG
+      if (!retry.ok) {
         throw new HttpException(
-          { message: 'Error en SICOV', data },
-          resp.status,
+          {
+            message: 'Error en SICOV (retry)',
+            data: retryData,
+          },
+          retry.status,
         );
       }
+  
       return { ok: true, status: retry.status, data: retryData };
     }
-
-    if (!resp.ok) throw new HttpException('Error en SICOV', resp.status);
+  
+    // ✅ Propagar error REAL de SICOV
+    if (!resp.ok) {
+      throw new HttpException(
+        {
+          message: 'Error en SICOV',
+          data,
+        },
+        resp.status,
+      );
+    }
+  
     return { ok: true, status: resp.status, data };
   }
+  
 
   private async requestWithAuditSafe(
     endpoint: string,
@@ -395,7 +415,8 @@ export class MaintenanceExternalApiService {
     // NORMALIZACIÓN ESTRICTA DE TIPOS
     const body = {
       fecha: this.asStr(payload.fecha),
-      hora: this.asStr(payload.hora),
+      //hora: this.asStr(payload.hora),
+      hora: this.normalizeHoraForExternal(payload.hora), 
       nit: this.asInt(payload.nit), // string
       razonSocial: this.asStr(payload.razonSocial),
       tipoIdentificacion: this.asInt(payload.tipoIdentificacion), // number
@@ -443,33 +464,41 @@ export class MaintenanceExternalApiService {
     numeroIdentificacion: number | string;
     nombresResponsable: string;
     mantenimientoId: number | string;
-    //descripcionFalla: string;
-    detalleActividades: string;
-    //accionesRealizadas: string;
-    // ⬇️ AHORA OPCIONALES
     descripcionFalla?: string;
+    detalleActividades: string;
     accionesRealizadas?: string;
-
     vigiladoId?: string;
     vigiladoToken?: string;
   }) {
     const endpoint = this.mantBase('/api/v2/mantenimiento/guardar-correctivo');
+  
     const body = {
-      fecha: payload.fecha,
-      hora: payload.hora,
-      nit: payload.nit,
-      razonSocial: payload.razonSocial,
-      tipoIdentificacion: payload.tipoIdentificacion,
-      numeroIdentificacion: payload.numeroIdentificacion,
-      nombresResponsable: payload.nombresResponsable,
-      mantenimientoId: payload.mantenimientoId,
-      descripcionFalla: payload.descripcionFalla,
-      detalleActividades: payload.detalleActividades,
-      accionesRealizadas: payload.accionesRealizadas,
+      fecha: this.asStr(payload.fecha),
+      //hora: this.asStr(payload.hora),
+      hora: this.normalizeHoraForExternal(payload.hora), 
+      nit: this.asInt(payload.nit),
+      razonSocial: this.asStr(payload.razonSocial),
+      tipoIdentificacion: this.asInt(payload.tipoIdentificacion),
+      numeroIdentificacion: this.asStr(payload.numeroIdentificacion),
+      nombresResponsable: this.asStr(payload.nombresResponsable),
+      mantenimientoId: this.asInt(payload.mantenimientoId),
+  
+      // opcionales, solo si vienen
+      descripcionFalla: payload.descripcionFalla
+        ? this.asStr(payload.descripcionFalla)
+        : undefined,
+  
+      detalleActividades: this.asStr(payload.detalleActividades),
+  
+      accionesRealizadas: payload.accionesRealizadas
+        ? this.asStr(payload.accionesRealizadas)
+        : undefined,
+  
       documento_vigilado: (payload.vigiladoId || '')
         .toString()
-        .replace(/[.\- ]/g, ''),
+        .replace(/\D+/g, ''),
     };
+  
     return this.requestWithAudit(
       endpoint,
       'POST',
@@ -479,6 +508,27 @@ export class MaintenanceExternalApiService {
       payload.vigiladoToken,
     );
   }
+  
+  private normalizeHoraForExternal(value: unknown): string {
+    const raw = this.asStr(value);
+  
+    // Caso 1: ya es HH:mm
+    if (/^\d{2}:\d{2}$/.test(raw)) {
+      return raw;
+    }
+  
+    // Caso 2: ISODate o fecha completa
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) {
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      return `${hh}:${mm}`;
+    }
+  
+    // Fallback defensivo
+    return raw;
+  }
+  
 
   /** Visualiza el mantenimiento correctivo */
   async visualizarCorrectivo(

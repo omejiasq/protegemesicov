@@ -18,7 +18,7 @@ export class Vehicle {
   @Prop({ type: Number, required: true })
   nivelServicio!: number;
 
-  @Prop({ type: Boolean, default: true, index: true })
+  @Prop({ type: Boolean, default: false, index: true })
   estado!: boolean;
 
   // 🔥 CAMBIO CLAVE
@@ -90,7 +90,7 @@ export class Vehicle {
     required: false,
   })
   driver2_id?: Types.ObjectId;
-  @Prop({ type: Boolean, default: true }) active!: boolean;
+  @Prop({ type: Boolean, default: false }) active!: boolean;
 
   @Prop({
     type: Number,

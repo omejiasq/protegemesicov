@@ -1,68 +1,118 @@
-import { defineStore } from "pinia";
-import { useVehiclesStore } from "./vehiclesStore";
-import { useDriversStore } from "./driversStore";
-import { IncidentsserviceApi } from "../api/incidents.service";
-import { AuthorizationsserviceApi } from "../api/authorization.service";
+import { defineStore } from 'pinia';
+import { DashboardServiceApi } from '../api/dashboard.service';
 
-export const useDashboardStore = defineStore("dashboard", {
+type AnyObj = Record<string, any>;
+
+const MESES = [
+  'Ene','Feb','Mar','Abr','May','Jun',
+  'Jul','Ago','Sep','Oct','Nov','Dic'
+];
+
+export const useDashboardStore = defineStore('dashboard', {
+  /* ===================== STATE ===================== */
   state: () => ({
-    kpis: {
-      vehiclesActive: 0,
-      driversActive: 0,
-      documentsExpiring: 0,
-      incidentsOpen: 0,
-      authorizationOpen: 0,
+    year: new Date().getFullYear(),
+    month: null as number | null,
+
+    data: {
+      kpis: {},
+      piePreventivos: [],
+      trendEnlistamientos: [],
+      rankingConductores: [],
+      rankingPlacas: [],
+      tablaVehiculos: [], // ✅ NUEVO
     },
-    expiringList: [] as any[],
-    recent: [] as any[], // actividad reciente (incidents u otros)
-    loading: false,
   }),
-  actions: {
-    async load() {
-      this.loading = true;
-      try {
-        const vehicles = useVehiclesStore();
-        const drivers = useDriversStore();
-        const [vehAct, drvAct, expiring, incidents, authTotal] =
-          await Promise.all([
-            vehicles.countActive(),
-            drivers.countActive(),
-            vehicles.soonToExpire(30),
-            IncidentsserviceApi.list?.({ page: 1, numero_items: 5 })
-              .then((r) => r?.data?.items ?? r?.data ?? [])
-              .catch(() => []),
 
-            // 👉 pedir 1 item y leer el total global
-            AuthorizationsserviceApi.authorizationList({
-              page: 1,
-              numero_items: 1,
-            })
-              .then((r: any) => {
-                const p = r?.data ?? r;
-                if (typeof p?.total === "number") return p.total;
-                if (typeof p?.count === "number") return p.count;
-                if (Array.isArray(p?.items)) return p.items.length;
-                if (Array.isArray(p)) return p.length;
-                return 0;
-              })
-              .catch(() => 0),
-          ]);
+  /* ===================== GETTERS ===================== */
+  getters: {
+    /* ---------- KPIs ---------- */
+    kpis: (s) => s.data.kpis ?? {},
 
-        this.kpis.vehiclesActive = vehAct;
-        this.kpis.driversActive = drvAct;
-        this.kpis.documentsExpiring = expiring.total;
-        this.kpis.incidentsOpen = Array.isArray(incidents)
-          ? incidents.length
-          : 0;
+    /* ---------- PIE PREVENTIVOS ---------- */
+    piePreventivos: (s) =>
+      (s.data.piePreventivos ?? []).map((p: any) => ({
+        label: p.label,
+        value: p.value,
+        color: p.color,
+      })),
 
-        // 👉 ahora sí, el total real de autorizaciones
-        this.kpis.authorizationOpen = authTotal;
+    /* ---------- TENDENCIA ALISTAMIENTOS ---------- */
+    trendEnlistamientos: (s) => {
+      const arr = s.data.trendEnlistamientos ?? [];
 
-        this.expiringList = expiring.list;
-        this.recent = incidents;
-      } finally {
-        this.loading = false;
+      // 🔹 FILTRADO POR MES → DÍAS
+      if (s.month) {
+        const daysInMonth = new Date(s.year, s.month, 0).getDate();
+        const totals = Array(daysInMonth).fill(0);
+
+        arr.forEach((d: any) => {
+          totals[d.periodo - 1] = d.total;
+        });
+
+        return {
+          labels: Array.from(
+            { length: daysInMonth },
+            (_, i) => `Día ${i + 1}`
+          ),
+          data: totals,
+        };
       }
+
+      // 🔹 SOLO AÑO → MESES
+      const totals = Array(12).fill(0);
+
+      arr.forEach((m: any) => {
+        totals[m.periodo - 1] = m.total;
+      });
+
+      return {
+        labels: MESES,
+        data: totals,
+      };
+    },
+
+    /* ---------- RANKINGS ---------- */
+    rankingConductores: (s) =>
+      s.data.rankingConductores ?? [],
+
+    rankingPlacas: (s) =>
+      s.data.rankingPlacas ?? [],
+
+    /* ---------- TABLA POR PLACA ---------- */
+    tablaVehiculos: (s) =>
+      s.data.tablaVehiculos ?? [],
+  },
+
+  /* ===================== ACTIONS ===================== */
+  actions: {
+    /* ---------- CARGA PRINCIPAL ---------- */
+    async load(year: number, month?: number | null) {
+      this.year = year;
+      this.month = month ?? null;
+
+      const params: AnyObj = { year };
+      if (this.month) params.month = this.month;
+
+      const res = await DashboardServiceApi.get(params);
+
+      console.log('📊 DASHBOARD PARAMS 👉', params);
+      console.log('📦 DATA BACKEND 👉', res.data);
+
+      this.data = res.data; // 🔥 reactivo y limpio
+    },
+
+    /* ---------- FILTROS ---------- */
+    setYear(year: number) {
+      this.load(year, this.month);
+    },
+
+    setMonth(month: number | null) {
+      this.load(this.year, month);
+    },
+
+    clearMonth() {
+      this.load(this.year, null);
     },
   },
 });

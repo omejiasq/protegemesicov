@@ -9,25 +9,41 @@ import { VehiclesserviceApi } from '../api/vehicles.service';
  * Compat: dejamos soat como union para no romper código viejo que lee soat.fechaVencimiento
  */
 export type Vehicle = {
-  _id: string;
-  placa: string;
+  _id?: string;
 
-  // ahora como números (compat: null)
-  clase?: number | null;
-  nivelServicio?: number | null;
+  placa: string;
 
   estado?: boolean;
 
-  // compat: puede ser string (nuevo), objeto con fecha (viejo) o null
-  soat?: string | { fechaVencimiento?: string } | null;
+  modelo?: number | null;
+  kilometraje?: number | null;
+  tipo_vehiculo?: string | null;
+  modalidad?: string | null;
+  no_interno?: string | null;
+  motor?: string | null;
+  no_chasis?: string | null;
+  capacidad?: number | null;
 
-  // NUEVO: fecha plana del SOAT
+  nombre_propietario?: string | null;
+
+  driver_id?: string | null;
+  driver2_id?: string | null;
+
+  // 🔥 NUEVO CONTRATO
+  soat?: string | null;
   fechaVencimientoSoat?: string | Date | null;
 
-  // otros (viejo esquema, por si se usan)
-  rtm?: { fechaVencimiento?: string } | null;
-  to?:  { fechaVencimiento?: string } | null;
+  // 🔥 SIGUEN EXISTIENDO
+  rtm?: {
+    fechaVencimiento?: string | Date | null;
+  } | null;
+
+  to?: {
+    fechaVencimiento?: string | Date | null;
+  } | null;
 };
+
+
 
 function daysUntil(date?: string | Date | null | undefined) {
   if (!date) return Infinity;
@@ -94,6 +110,7 @@ export const useVehiclesStore = defineStore('vehicles', {
         this.loading = false;
       }
     },
+    
 
     async update(id: string, payload: Partial<Vehicle>) {
       this.loading = true;

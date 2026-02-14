@@ -36,6 +36,7 @@ import { MaintenanceModule } from 'src/maintenance/maintenance.module';
   ],
   controllers: [EnlistmentController],
   providers: [AlistamientoService, MaintenanceExternalApiService],
-  exports: [AlistamientoService],
+  // 👇 ESTA LÍNEA ES LA CLAVE
+  exports: [MongooseModule, AlistamientoService],
 })
 export class EnlistmentModule {}
