@@ -51,159 +51,281 @@ export class PreventiveService {
   // ======================================================
   // CREATE
   // ======================================================
-  async create(
-    dto: any,
-    user?: {
-      enterprise_id?: string;
-      sub?: string;
-      vigiladoId?: number;
-      vigiladoToken?: string;
-    },
-  ) {
-    // 1. Desactivar preventivos activos previos
-    await this.model.updateMany(
-      { placa: dto.placa, enterprise_id: user?.enterprise_id, estado: true },
-      { $set: { estado: false } },
-    );
+// ======================================================
+// CREATE
+// ======================================================
+async create(
+  dto: any,
+  user?: {
+    enterprise_id?: string;
+    sub?: string;
+    vigiladoId?: number;
+    vigiladoToken?: string;
+    jwt?: string; // 🔥 AGREGAR ESTO
+  },
+  //jwt?: string,
+) {
 
-    let mantenimientoIdLocal: string | undefined = dto.mantenimientoId;
-    let mantenimientoIdExterno: number | undefined;
+  // ---------------------------------------------------
+  // 1. Desactivar preventivos activos previos
+  // ---------------------------------------------------
+  await this.model.updateMany(
+    { placa: dto.placa, enterprise_id: user?.enterprise_id, estado: true },
+    { $set: { estado: false } },
+  );
 
-    //const vigiladoId = user?.vigiladoId ?? Number(process.env.SICOV_VIGILADO_ID);
-    const vigiladoId =
+  let mantenimientoIdLocal: string | null = dto.mantenimientoId ?? null;
+  let mantenimientoIdExterno: number | null = null;
+
+  const vigiladoId =
     user?.vigiladoId ?? Number(process.env.SICOV_VIGILADO_ID);
 
-    // 2. Crear mantenimiento base (LOCAL + SICOV)
-    if (!mantenimientoIdLocal) {
-      const maintPayload = {
-        placa: dto.placa,
-        tipoId: 1 as const,
-        vigiladoId,
-        enterprise_id: user?.enterprise_id,
-        createdBy: user?.sub,
-      };
-      
+  // ---------------------------------------------------
+  // 2. Crear mantenimiento base (LOCAL + SICOV)
+  // ---------------------------------------------------
+  if (!mantenimientoIdLocal) {
+    const maintPayload = {
+      placa: dto.placa,
+      tipoId: 1 as const,
+      vigiladoId,
+    };
 
-      const { doc, externalId } = await this.maintenanceService.create(
-        maintPayload,
-        user,
-        { awaitExternal: true },
+    const userForMaintenance = {
+      ...user,
+      vigiladoId,
+    };
+
+    const { doc, externalId } = await this.maintenanceService.create(
+      maintPayload,
+      userForMaintenance,
+      { awaitExternal: true },
+    );
+
+    const localId = (doc as any)?._id ?? (doc as any)?.id;
+
+    if (!localId) {
+      throw new ConflictException(
+        'No se pudo generar el mantenimiento base local',
       );
-
-      const localId = (doc as any)?._id ?? (doc as any)?.id;
-
-      if (!localId) {
-        throw new ConflictException(
-          'No se pudo generar el mantenimiento base local',
-        );
-      }
-
-      mantenimientoIdLocal = String(localId);
-
-      if (!externalId) {
-        throw new ConflictException(
-          'No se pudo obtener el mantenimiento externo',
-        );
-      }
-
-      mantenimientoIdExterno = Number(externalId);
-    } else if (/^\d+$/.test(String(mantenimientoIdLocal))) {
-      mantenimientoIdExterno = Number(mantenimientoIdLocal);
     }
 
-    // 3. Guardar preventivo LOCAL (igual que siempre)
-    const doc = await this.model.create({
-      enterprise_id: user?.enterprise_id,
-      createdBy: user?.sub,
+    mantenimientoIdLocal = String(localId);
 
-      placa: String(dto.placa).trim(),
-      mantenimientoId: mantenimientoIdLocal,
+    if (!externalId) {
+      throw new ConflictException(
+        'No se pudo obtener el mantenimiento externo',
+      );
+    }
 
+    mantenimientoIdExterno = Number(externalId);
+  } 
+  else if (/^\d+$/.test(String(mantenimientoIdLocal))) {
+    mantenimientoIdExterno = Number(mantenimientoIdLocal);
+  }
+
+  // ---------------------------------------------------
+  // 3. Guardar Preventivo LOCAL
+  // ---------------------------------------------------
+  const doc = await this.model.create({
+    enterprise_id: user?.enterprise_id,
+    createdBy: user?.sub,
+
+    placa: String(dto.placa).trim(),
+    mantenimientoId: mantenimientoIdLocal,
+
+    fecha: dto.fecha,
+    hora: dto.hora,
+
+    nit: dto.nit,
+    razonSocial: dto.razonSocial,
+    tipoIdentificacion: dto.tipoIdentificacion,
+    numeroIdentificacion: dto.numeroIdentificacion,
+    nombresResponsable: dto.nombresResponsable,
+    detalleActividades: dto.detalleActividades,
+
+    estado: true,
+  });
+
+  // ---------------------------------------------------
+  // 4. GUARDAR ESTRUCTURA PRMT (robusto)
+  // ---------------------------------------------------
+  const prmtData = dto.prmtData ?? dto.crmtData;
+
+  if (prmtData && mantenimientoIdLocal) {
+    const mid = String(mantenimientoIdLocal);
+  /*
+    if (prmtData.vehicle) {
+      await this.vehicleSnap.create({
+        mantenimientoId: mid,
+        ...prmtData.vehicle,
+      });
+    }
+  */
+     // ============================================
+    // VEHICLE SNAPSHOT (DESDE SICOV POR PLACA)
+    // ============================================
+    try {
+      //const placa = String(dto.placa).trim().toUpperCase();
+
+      /*if (!user?.vigiladoToken) {
+        throw new ConflictException('Token SICOV no disponible');
+      }*/
+
+      //const jwt = req?.headers?.authorization?.replace('Bearer ', '');
+
+      const jwt = user?.jwt; // 👈 DECLARARLO
+
+      if (!jwt) {
+        throw new ConflictException('JWT no disponible en header');
+      }
+    
+      const placa = String(dto.placa).trim().toUpperCase();
+    
+      const vehicleData = await this.getVehicleByPlate(placa, jwt);
+
+      if (vehicleData && mantenimientoIdLocal) {
+        await this.vehicleSnap.create({
+          mantenimientoId: mantenimientoIdLocal,
+
+          placa: vehicleData.placa,
+          clase: vehicleData.clase,
+          marca: vehicleData.marca,
+          linea: vehicleData.Linea,
+          servicio: vehicleData.servicio,
+          kilometraje: vehicleData.kilometraje,
+          modelo: vehicleData.modelo,
+          combustible: vehicleData.combustible,
+          color: vehicleData.color,
+          cilindraje: vehicleData.cilindraje,
+
+          no_rtm: vehicleData.no_rtm,
+          expedition_rtm: vehicleData.expedition_rtm,
+          expiration_rtm: vehicleData.expiration_rtm,
+
+          no_soat: vehicleData.no_soat,
+          expedition_soat: vehicleData.expedition_soat,
+          expiration_soat: vehicleData.expiration_soat,
+
+          no_rcc: vehicleData.no_rcc,
+          expiration_rcc: vehicleData.expiration_rcc,
+          no_rce: vehicleData.no_rce,
+          expiration_rce: vehicleData.expiration_rce,
+
+          no_tecnomecanica: vehicleData.no_tecnomecanica,
+          expiration_tecnomecanica:
+            vehicleData.expiration_tecnomecanica,
+
+          no_tarjeta_opera: vehicleData.no_tarjeta_opera,
+          expiration_tarjeta_opera:
+            vehicleData.expiration_tarjeta_opera,
+
+          nombre_aseguradora: vehicleData.nombre_aseguradora,
+          tipo_vehiculo: vehicleData.tipo_vehiculo,
+          modalidad: vehicleData.modalidad,
+          no_interno: vehicleData.no_interno,
+          motor: vehicleData.motor,
+          to: vehicleData.to,
+          vencim: vehicleData.vencim,
+          no_chasis: vehicleData.no_chasis,
+          tipo: vehicleData.tipo,
+          capacidad: vehicleData.capacidad,
+
+          nombre_propietario: vehicleData.nombre_propietario,
+          cedula_propietario: vehicleData.cedula_propietario,
+          telefono_propietario: vehicleData.telefono_propietario,
+          direccion_propietario: vehicleData.direccion_propietario,
+        });
+      }
+    } catch (err) {
+      console.error('Error consultando vehículo en SICOV:', err);
+    }
+
+    if (prmtData.people) {
+      await this.peopleSnap.create({
+        mantenimientoId: mid,
+        ...prmtData.people,
+      });
+    }
+  
+    if (Array.isArray(prmtData.items) && prmtData.items.length) {
+      await this.itemResult.insertMany(
+        prmtData.items.map((it: any) => ({
+          mantenimientoId: mid,
+          itemId: new Types.ObjectId(it.itemId),
+          tipoFalla: it.tipoFalla,
+          observacion: it.observacion,
+          planAccion: it.planAccion,
+          responsable: it.responsable,
+        })),
+      );
+    }
+  }
+  
+
+  // ---------------------------------------------------
+  // 5. ENVÍO A SICOV
+  // ---------------------------------------------------
+  try {
+    const sicovPayload = {
       fecha: dto.fecha,
       hora: dto.hora,
-
       nit: dto.nit,
       razonSocial: dto.razonSocial,
       tipoIdentificacion: dto.tipoIdentificacion,
       numeroIdentificacion: dto.numeroIdentificacion,
       nombresResponsable: dto.nombresResponsable,
+      mantenimientoId: mantenimientoIdExterno as number,
       detalleActividades: dto.detalleActividades,
+      vigiladoId: String(vigiladoId),
+      vigiladoToken: user?.vigiladoToken,
+    };
 
-      estado: true,
-    });
+    const REQUIRED = [
+      'fecha',
+      'hora',
+      'nit',
+      'razonSocial',
+      'tipoIdentificacion',
+      'numeroIdentificacion',
+      'nombresResponsable',
+      'detalleActividades',
+      'mantenimientoId',
+      'vigiladoId',
+    ];
 
-    // ======================================================
-    // SNAPSHOTS PRMT (solo si viene desde app móvil)
-    // ======================================================
-    if (dto.prmtData) {
-      const { vehicle, people, items } = dto.prmtData;
+    const missing = REQUIRED.filter(
+      (k) => !sicovPayload[k as keyof typeof sicovPayload],
+    );
 
-      await this.vehicleSnap.create({
-        preventiveId: String(doc._id),
-        ...vehicle,
-      });
-
-      await this.peopleSnap.create({
-        preventiveId: String(doc._id),
-        ...people,
-      });
-
-      if (Array.isArray(items) && items.length) {
-        await this.itemResult.insertMany(
-          items.map((it: any) => ({
-            preventiveId: String(doc._id),
-            ...it,
-          })),
-        );
-      }
+    if (missing.length === 0 && user?.vigiladoToken) {
+      await this.external.guardarPreventivo(sicovPayload);
     }
-
-    // ======================================================
-    // Envío a SICOV protegido
-    // ======================================================
-    try {
-      const sicovPayload = {
-        fecha: dto.fecha,
-        hora: dto.hora,
-        nit: dto.nit,
-        razonSocial: dto.razonSocial,
-        tipoIdentificacion: dto.tipoIdentificacion,
-        numeroIdentificacion: dto.numeroIdentificacion,
-        nombresResponsable: dto.nombresResponsable,
-        mantenimientoId: mantenimientoIdExterno as number,
-        detalleActividades: dto.detalleActividades,
-        vigiladoId: String(vigiladoId),
-        vigiladoToken: user?.vigiladoToken,
-      };
-
-      const REQUIRED = [
-        'fecha',
-        'hora',
-        'nit',
-        'razonSocial',
-        'tipoIdentificacion',
-        'numeroIdentificacion',
-        'nombresResponsable',
-        'detalleActividades',
-        'mantenimientoId',
-        'vigiladoId',
-      ];
-
-      const missing = REQUIRED.filter(
-        (k) => !sicovPayload[k as keyof typeof sicovPayload],
-      );
-
-      if (missing.length === 0 && user?.vigiladoToken) {
-        await this.external.guardarPreventivo(sicovPayload);
-      } else {
-        console.warn('Preventivo NO enviado a SICOV. Faltan:', missing);
-      }
-    } catch (err) {
-      console.error('Error enviando preventivo a SICOV:', err);
-    }
-
-    return this.model.findById(doc._id).lean();
+  } catch (err) {
+    console.error('Error enviando preventivo a SICOV:', err);
   }
+
+  return this.model.findById(doc._id).lean();
+}
+
+async getVehicleByPlate(placa: string, jwt: string) {
+  const response = await fetch(
+    `https://sicov.protegeme.com.co/api/vehicles/vehicles/plate/${placa}`,
+    {
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+        Accept: 'application/json',
+      },
+    },
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    console.error('SICOV error:', text);
+    throw new Error('Vehículo no encontrado');
+  }
+
+  return response.json();
+}
 
   // ======================================================
   // VIEW

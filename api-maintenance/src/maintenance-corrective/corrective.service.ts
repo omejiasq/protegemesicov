@@ -59,7 +59,11 @@ export class CorrectiveService {
       vigiladoId?: number;
       vigiladoToken?: string;
     },
+    jwt?: string,
   ) {
+    // ============================================
+    // Desactivar correctivo activo anterior
+    // ============================================
     await this.model.updateMany(
       { placa: dto.placa, enterprise_id: user?.enterprise_id, estado: true },
       { $set: { estado: false } },
@@ -71,18 +75,16 @@ export class CorrectiveService {
     const vigiladoId =
       user?.vigiladoId ?? Number(process.env.SICOV_VIGILADO_ID);
 
-    // ======================================================
-    // CREAR MANTENIMIENTO BASE (LOCAL + SICOV)
-    // ======================================================
+    // ============================================
+    // CREAR MANTENIMIENTO BASE
+    // ============================================
     if (!mantenimientoIdLocal) {
       const maintPayload = {
         placa: dto.placa,
         tipoId: 2 as const,
-        vigiladoId: vigiladoId, // ← obligatorio aquí
+        vigiladoId,
       };
-      
 
-      // 🔥 FIX DEFINITIVO
       const userForMaintenance = {
         ...user,
         vigiladoId,
@@ -115,9 +117,9 @@ export class CorrectiveService {
       mantenimientoIdExterno = Number(mantenimientoIdLocal);
     }
 
-    // ======================================================
+    // ============================================
     // GUARDAR CORRECTIVO LOCAL
-    // ======================================================
+    // ============================================
     const doc = await this.model.create({
       enterprise_id: user?.enterprise_id,
       createdBy: user?.sub,
@@ -134,80 +136,130 @@ export class CorrectiveService {
       estado: true,
     });
 
-    // ======================================================
-    // GUARDAR ESTRUCTURA CRMT (si viene desde móvil)
-    // ======================================================
-    if (dto.crmtData && mantenimientoIdLocal) {
-      try {
-        const mid = String(mantenimientoIdLocal);
+    // ============================================
+    // VEHICLE SNAPSHOT (DESDE SICOV POR PLACA)
+    // ============================================
+    try {
+      const placa = String(dto.placa).trim().toUpperCase();
 
-        if (dto.crmtData.vehicle) {
-          await this.vehicleSnapshotModel.create({
-            mantenimientoId: mid,
-            ...dto.crmtData.vehicle,
-          });
-        }
-
-        if (dto.crmtData.people) {
-          await this.peopleSnapshotModel.create({
-            mantenimientoId: mid,
-            ...dto.crmtData.people,
-          });
-        }
-
-        if (Array.isArray(dto.crmtData.items) && dto.crmtData.items.length) {
-          await this.itemResultModel.insertMany(
-            dto.crmtData.items.map((i: any) => ({
-              mantenimientoId: mid,
-              itemId: new Types.ObjectId(i.itemId),
-              tipoFalla: i.tipoFalla,
-              observacion: i.observacion,
-              planAccion: i.planAccion,
-              responsable: i.responsable,
-            })),
-          );
-        }
-      } catch (err) {
-        console.error('Error guardando estructura CRMT:', err);
+      if (!user?.vigiladoToken) {
+        throw new ConflictException('Token SICOV no disponible');
       }
+
+      //const jwt = req?.headers?.authorization?.replace('Bearer ', '');
+
+      if (!jwt) {
+        throw new ConflictException('JWT no disponible en header');
+      }
+      
+      const vehicleData = await this.getVehicleByPlate(placa, jwt);   
+
+      if (vehicleData && mantenimientoIdLocal) {
+        await this.vehicleSnapshotModel.create({
+          mantenimientoId: mantenimientoIdLocal,
+
+          placa: vehicleData.placa,
+          clase: vehicleData.clase,
+          marca: vehicleData.marca,
+          linea: vehicleData.Linea,
+          servicio: vehicleData.servicio,
+          kilometraje: vehicleData.kilometraje,
+          modelo: vehicleData.modelo,
+          combustible: vehicleData.combustible,
+          color: vehicleData.color,
+          cilindraje: vehicleData.cilindraje,
+
+          no_rtm: vehicleData.no_rtm,
+          expedition_rtm: vehicleData.expedition_rtm,
+          expiration_rtm: vehicleData.expiration_rtm,
+
+          no_soat: vehicleData.no_soat,
+          expedition_soat: vehicleData.expedition_soat,
+          expiration_soat: vehicleData.expiration_soat,
+
+          no_rcc: vehicleData.no_rcc,
+          expiration_rcc: vehicleData.expiration_rcc,
+          no_rce: vehicleData.no_rce,
+          expiration_rce: vehicleData.expiration_rce,
+
+          no_tecnomecanica: vehicleData.no_tecnomecanica,
+          expiration_tecnomecanica:
+            vehicleData.expiration_tecnomecanica,
+
+          no_tarjeta_opera: vehicleData.no_tarjeta_opera,
+          expiration_tarjeta_opera:
+            vehicleData.expiration_tarjeta_opera,
+
+          nombre_aseguradora: vehicleData.nombre_aseguradora,
+          tipo_vehiculo: vehicleData.tipo_vehiculo,
+          modalidad: vehicleData.modalidad,
+          no_interno: vehicleData.no_interno,
+          motor: vehicleData.motor,
+          to: vehicleData.to,
+          vencim: vehicleData.vencim,
+          no_chasis: vehicleData.no_chasis,
+          tipo: vehicleData.tipo,
+          capacidad: vehicleData.capacidad,
+
+          nombre_propietario: vehicleData.nombre_propietario,
+          cedula_propietario: vehicleData.cedula_propietario,
+          telefono_propietario: vehicleData.telefono_propietario,
+          direccion_propietario: vehicleData.direccion_propietario,
+        });
+      }
+    } catch (err) {
+      console.error('Error consultando vehículo en SICOV:', err);
     }
 
-    // ======================================================
-    // ENVÍO A SICOV
-    // ======================================================
-    try {
-      const sicovPayload = {
-        fecha: dto.fecha,
-        hora: dto.hora,
-        nit: dto.nit,
-        razonSocial: dto.razonSocial,
-        tipoIdentificacion: dto.tipoIdentificacion,
-        numeroIdentificacion: dto.numeroIdentificacion,
-        nombresResponsable: dto.nombresResponsable,
-        mantenimientoId: mantenimientoIdExterno as number,
-        detalleActividades: dto.detalleActividades,
-        vigiladoId: String(vigiladoId),
-        vigiladoToken: user?.vigiladoToken,
-      };
+    // ============================================
+    // PEOPLE SNAPSHOT
+    // ============================================
+    if (dto.crmtData?.people && mantenimientoIdLocal) {
+      await this.peopleSnapshotModel.create({
+        mantenimientoId: mantenimientoIdLocal,
+        ...dto.crmtData.people,
+      });
+    }
 
-      const REQUIRED = [
-        'fecha',
-        'hora',
-        'nit',
-        'razonSocial',
-        'tipoIdentificacion',
-        'numeroIdentificacion',
-        'nombresResponsable',
-        'detalleActividades',
-        'mantenimientoId',
-        'vigiladoId',
-      ];
-
-      const missing = REQUIRED.filter(
-        (k) => !sicovPayload[k as keyof typeof sicovPayload],
+    // ============================================
+    // ITEM RESULTS SNAPSHOT
+    // ============================================
+    if (
+      Array.isArray(dto.crmtData?.items) &&
+      dto.crmtData.items.length &&
+      mantenimientoIdLocal
+    ) {
+      await this.itemResultModel.insertMany(
+        dto.crmtData.items.map((i: any) => ({
+          mantenimientoId: mantenimientoIdLocal,
+          itemId: new Types.ObjectId(i.itemId),
+          tipoFalla: i.tipoFalla,
+          observacion: i.observacion,
+          planAccion: i.planAccion,
+          responsable: i.responsable,
+        })),
       );
+    }
 
-      if (missing.length === 0 && user?.vigiladoToken) {
+    // ============================================
+    // ENVÍO A SICOV
+    // ============================================
+    try {
+      if (user?.vigiladoToken && mantenimientoIdExterno) {
+        const sicovPayload = {
+          fecha: dto.fecha,
+          hora: dto.hora,
+          nit: dto.nit,
+          razonSocial: dto.razonSocial,
+          tipoIdentificacion: dto.tipoIdentificacion,
+          numeroIdentificacion: dto.numeroIdentificacion,
+          nombresResponsable: dto.nombresResponsable,
+          mantenimientoId: mantenimientoIdExterno,
+          detalleActividades: dto.detalleActividades,
+          vigiladoId: String(vigiladoId),
+          vigiladoToken: user.vigiladoToken,
+        };
+
         await this.external.guardarCorrectivo(sicovPayload);
       }
     } catch (err) {
@@ -217,6 +269,30 @@ export class CorrectiveService {
     return this.model.findById(doc._id).lean();
   }
 
+
+
+  async getVehicleByPlate(placa: string, jwt: string) {
+    const response = await fetch(
+      `https://sicov.protegeme.com.co/api/vehicles/vehicles/plate/${placa}`,
+      {
+        headers: {
+          Authorization: `Bearer ${jwt}`,
+          Accept: 'application/json',
+        },
+      },
+    );
+  
+    if (!response.ok) {
+      const text = await response.text();
+      console.error('SICOV error:', text);
+      throw new Error('Vehículo no encontrado');
+    }
+  
+    return response.json();
+  }
+  
+
+  
   // ======================================================
   // VIEW
   // ======================================================

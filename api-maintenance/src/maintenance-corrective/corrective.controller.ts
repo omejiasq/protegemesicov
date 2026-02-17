@@ -13,13 +13,20 @@ export class CorrectiveController {
   create(@Body() dto: any, @Req() req: any) {
     const user = req.user;
   
-    return this.svc.create(dto, {
-      enterprise_id: user.enterprise_id,
-      sub: user.sub,
-      vigiladoId: user.vigiladoId,      // 🔥 ESTA LÍNEA FALTABA
-      vigiladoToken: user.vigiladoToken,
-    });
+    const jwt = req.headers.authorization?.replace('Bearer ', '');
+  
+    return this.svc.create(
+      dto,
+      {
+        enterprise_id: user.enterprise_id,
+        sub: user.sub,
+        vigiladoId: user.vigiladoId,
+        vigiladoToken: user.vigiladoToken,
+      },
+      jwt, // 👈 ahora sí lo envías
+    );
   }
+  
   
 
   @Post('view')

@@ -6,7 +6,8 @@ export type PreventivePeopleSnapshotDocument =
 
 @Schema({ collection: 'preventive_people_snapshots', timestamps: true })
 export class PreventivePeopleSnapshot {
-  @Prop({ required: true }) preventiveId!: string;
+  @Prop({ required: true, index: true })
+  mantenimientoId!: string;
 
   @Prop() conductorNombre!: string;
   @Prop() conductorCedula!: string;

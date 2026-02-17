@@ -74,31 +74,46 @@ PreventiveDetailSchema.index(
 // 🔥 AUTO-CONSTRUCCIÓN ROBUSTA
 //
 PreventiveDetailSchema.pre('save', function (next) {
+  if (!this.fecha || !this.hora) {
+    return next();
+  }
 
-  if (this.fecha && this.hora) {
+  try {
+    let scheduled: Date;
 
-    // Convertimos ambos a Date reales
-    const fechaDate = new Date(this.fecha);
-    const horaDate = new Date(this.hora);
+    // --------------------------------------------
+    // Caso 1: hora viene como ISO (app web)
+    // --------------------------------------------
+    if (this.hora.includes('T')) {
+      scheduled = new Date(this.hora);
+    } 
+    // --------------------------------------------
+    // Caso 2: hora viene como "HH:mm" (curl)
+    // --------------------------------------------
+    else {
+      const fechaBase = new Date(this.fecha);
 
-    // Extraemos partes
-    const year = fechaDate.getFullYear();
-    const month = fechaDate.getMonth();
-    const day = fechaDate.getDate();
+      const [hours, minutes] = this.hora.split(':').map(Number);
 
-    const hours = horaDate.getHours();
-    const minutes = horaDate.getMinutes();
+      if (isNaN(hours) || isNaN(minutes)) {
+        return next();
+      }
 
-    // Unimos correctamente fecha + hora
-    const scheduled = new Date(
-      year,
-      month,
-      day,
-      hours,
-      minutes,
-      0,
-      0
-    );
+      scheduled = new Date(
+        fechaBase.getFullYear(),
+        fechaBase.getMonth(),
+        fechaBase.getDate(),
+        hours,
+        minutes,
+        0,
+        0,
+      );
+    }
+
+    // Validar fecha válida
+    if (isNaN(scheduled.getTime())) {
+      return next();
+    }
 
     // 🔹 Planeada
     this.scheduledAt = scheduled;
@@ -112,6 +127,9 @@ PreventiveDetailSchema.pre('save', function (next) {
     const due = new Date(scheduled);
     due.setMonth(due.getMonth() + 2);
     this.dueDate = due;
+
+  } catch (err) {
+    console.error('Error construyendo fechas preventivo:', err);
   }
 
   next();

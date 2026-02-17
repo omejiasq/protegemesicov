@@ -202,12 +202,14 @@ export class AlistamientoService {
     });
 
     // 7️⃣ SNAPSHOT
+    /*
     if (dto.dailySnapshot) {
       await this.snapshotModel.create({
         mantenimientoId: String(doc._id),
         ...dto.dailySnapshot,
       });
     }
+    */
 
     // 8️⃣ ITEMS
     if (Array.isArray(dto.items) && dto.items.length) {
