@@ -27,6 +27,10 @@ import {
   CorrectiveItemResultSchema,
 } from '../schema/corrective_item_result.schema';
 
+import {
+  TipoVehiculoTipoMantenimiento,
+  TipoVehiculoTipoMantenimientoSchema,
+} from '../schema/tipos-vehiculos-tipos-mantenimientos.schema';
 
 @Module({
   imports: [
@@ -44,6 +48,11 @@ import {
         name: CorrectiveItemResult.name,
         schema: CorrectiveItemResultSchema,
       },
+      {
+        name: TipoVehiculoTipoMantenimiento.name,
+        schema: TipoVehiculoTipoMantenimientoSchema,
+      },
+
     ]),
     
     AuditModule,

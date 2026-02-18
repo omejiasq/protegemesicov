@@ -538,4 +538,83 @@ export class CorrectiveService {
   }
 
 
+// ======================================================
+// FULL REPORT
+// ======================================================
+async getFullReportByCorrectiveId(
+  id: string,
+  user?: { enterprise_id?: string },
+) {
+  if (!Types.ObjectId.isValid(id)) {
+    throw new NotFoundException('ID inválido');
+  }
+
+  // 1️⃣ Buscar correctivo base
+  const corrective = await this.model
+    .findOne({
+      _id: new Types.ObjectId(id),
+      enterprise_id: user?.enterprise_id,
+    })
+    .lean();
+
+  if (!corrective) {
+    throw new NotFoundException('Correctivo no encontrado');
+  }
+
+  const mantenimientoId = corrective.mantenimientoId;
+
+  if (!mantenimientoId) {
+    throw new NotFoundException(
+      'El correctivo no tiene mantenimiento asociado',
+    );
+  }
+
+  // 2️⃣ Consultar snapshots en paralelo
+  const [vehicleSnapshot, peopleSnapshot, itemResults] =
+    await Promise.all([
+      this.vehicleSnapshotModel
+        .findOne({ mantenimientoId })
+        .lean(),
+
+      this.peopleSnapshotModel
+        .findOne({ mantenimientoId })
+        .lean(),
+
+      this.itemResultModel
+        .find({ mantenimientoId })
+        .populate({
+          path: 'itemId',
+          select: 'tipo_parte dispositivo', // 🔥 campos que quieres traer
+        })
+        .lean(),
+    ]);
+
+  // 3️⃣ Construir JSON consolidado
+  const report = {
+    corrective: {
+      _id: corrective._id,
+      placa: corrective.placa,
+      fecha: corrective.fecha,
+      hora: corrective.hora,
+      nit: corrective.nit,
+      razonSocial: corrective.razonSocial,
+      tipoIdentificacion: corrective.tipoIdentificacion,
+      numeroIdentificacion: corrective.numeroIdentificacion,
+      nombresResponsable: corrective.nombresResponsable,
+      detalleActividades: corrective.detalleActividades,
+      estado: corrective.estado,
+      occurredAt: corrective.occurredAt,
+    },
+
+    vehicle: vehicleSnapshot ?? null,
+
+    people: peopleSnapshot ?? null,
+
+    items: itemResults ?? [],
+  };
+
+  return report;
+}
+
+
 }

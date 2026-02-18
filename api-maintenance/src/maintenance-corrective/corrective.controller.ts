@@ -60,4 +60,17 @@ toggle(@Param('id') id: string, @Req() req: Request) {
     return this.svc.listByUser(q, req.user);
   }
 
+  // =========================================
+  // FULL REPORT
+  // =========================================
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/report')
+  async getReport(@Param('id') id: string, @Req() req: any) {
+    const user = req.user;
+
+    return this.svc.getFullReportByCorrectiveId(id, {
+      enterprise_id: user.enterprise_id,
+    });
+  }
+
 }

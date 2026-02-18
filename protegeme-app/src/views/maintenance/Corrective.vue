@@ -81,12 +81,34 @@
     >
       <e-columns>
 
+        <e-column field="Placa" headerText="Placa" width="25" />
+        <e-column field="Fecha" headerText="Fecha" width="50" />
 
-        <e-column field="Taller" headerText="Taller" width="20" />
-        <e-column field="Mecanico" headerText="Mecánico" width="20" />
-        <e-column field="Estado" headerText="Estado" width="20" />
+        <e-column field="Taller" headerText="Taller" width="30" />
+        <e-column field="Mecanico" headerText="Mecánico" width="60" />
+        <e-column field="Estado" headerText="Estado" width="30" />
+        <e-column
+          headerText="Reporte"
+          width="30"
+          textAlign="Center"
+          :allowSorting="false"
+          :allowFiltering="false"
+          :allowGrouping="false"
+          :allowResizing="false"
+          :allowEditing="false"
+          template="reportTemplate"
+        />
 
       </e-columns>
+   <!-- ✅ SLOT VA AQUÍ DENTRO -->
+    <template #reportTemplate="{ data }">
+      <Button
+        icon="pi pi-file-pdf"
+        class="p-button-text p-button-info p-button-sm"
+        @click="goToReport(data)"
+      />
+    </template>
+
     </EjsGrid>
 
     <!-- ================= MODAL DETALLE ================= -->
@@ -123,6 +145,8 @@ import Button from "primevue/button";
 /* ===== Syncfusion ===== */
 import {
   GridComponent,
+  ColumnsDirective,
+  ColumnDirective,
   Page,
   Sort,
   Toolbar,
@@ -137,18 +161,21 @@ import CorrectiveCreateDialog from "../../components/correctives/CorrectiveCreat
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
+import { useRouter } from "vue-router";
+
 export default {
   name: "CorrectiveMaintenance",
 
   components: {
     EjsGrid: GridComponent,
+    EColumns: ColumnsDirective,
+    EColumn: ColumnDirective,
     Button,
-    CorrectiveCreateDialog,
-    "e-columns": { template: "<slot />" },
-    "e-column": { template: "<slot />" }
+    CorrectiveCreateDialog
   },
 
   setup() {
+    
     provide("grid", [Page, Sort, Toolbar, ExcelExport, PdfExport]);
 
     const gridRef = ref<any>(null);
@@ -163,6 +190,16 @@ export default {
       fechaDesde: "",
       fechaHasta: ""
     });
+
+    const router = useRouter();
+
+    const goToReport = (row: any) => {
+      router.push({
+        name: "corrective-report",
+        params: { id: row._id }
+      });
+    };
+
 
     const toolbar = ref([]);
     const store = useMaintenanceStore();
@@ -307,6 +344,7 @@ function formatDateTimeLocal(value?: string | Date) {
 
     tableData.value = store.correctiveList.items.map((item: any) => {
       return {
+        _id: item._id, // 👈 AGREGAR ESTO
         Placa: item.placa,
         Fecha: formatDateTimeLocal(item.occurredAt || item.updatedAt),
         //Fecha2: formatDateTime(item.ocurredAt),
@@ -344,7 +382,8 @@ function formatDateTimeLocal(value?: string | Date) {
       fetchData,
       exportExcel,
       saveFromDialog,
-      formatDate
+      formatDate,
+      goToReport
     };
   }
 };

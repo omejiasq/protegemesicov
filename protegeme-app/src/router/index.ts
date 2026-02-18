@@ -105,8 +105,13 @@ const routes: RouteRecordRaw[] = [
         name: 'drivercreate',
         component: () => import('../views/DriverCreate.vue'),
         props: true
+      },
+      {
+        path: "/corrective-report/:id",
+        name: "corrective-report",
+        component: () => import('../views/maintenance/CorrectiveDetail.vue'),
+        props: true
       }
-      
 
     ],
   },
