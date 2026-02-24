@@ -5,7 +5,7 @@ export type FileAssetDocument = HydratedDocument<FileAsset>;
 
 @Schema({ collection: 'file_assets', timestamps: true })
 export class FileAsset {
-  @Prop({ required: true }) vigiladoId!: number;
+  @Prop({ required: false}) vigiladoId!: number;
   @Prop({ required: true }) nombreOriginalArchivo!: string;
   @Prop({ required: true }) nombreAlmacenado!: string; // documento
   @Prop({ required: true }) ruta!: string;             // path relativo

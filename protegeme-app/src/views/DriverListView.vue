@@ -1,71 +1,91 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { ref, reactive, onMounted, provide } from "vue";
 import { useToast } from "primevue/usetoast";
-import DataTable from "primevue/datatable";
-import Column from "primevue/column";
-import Tag from "primevue/tag";
 import Button from "primevue/button";
-import Dialog from "primevue/dialog";
+import InputText from "primevue/inputtext";
+import Dropdown from "primevue/dropdown";
+
+import {
+  GridComponent as EjsGrid,
+  Page,
+  Sort
+} from "@syncfusion/ej2-vue-grids";
+
 import { useDriversStore } from "../stores/driversStore";
-import DriverFormView from "../views/DriverFormView.vue";
+import { useRouter } from "vue-router";
+
+provide("grid", [Page, Sort]);
 
 const toast = useToast();
 const store = useDriversStore();
+const router = useRouter();
 
-import { useRouter } from 'vue-router'
+/* =========================
+   STATE
+========================= */
+const query = reactive({
+  documento: "",
+  estado: null as null | boolean
+});
 
-const router = useRouter()
+const page = ref(1);
+const pageSize = ref(10);
 
-const goToCreateDriver = () => {
-  router.push({ name: 'drivercreate' })
+/* =========================
+   METHODS
+========================= */
+function refresh() {
+  store.fetch({
+    page: page.value,
+    numero_items: pageSize.value,
+    documentNumber: query.documento || undefined,
+    active: query.estado ?? undefined
+  });
 }
 
-
-const showForm = ref(false);
-const editingId = ref<string | null>(null);
-
-async function refresh() {
-  try {
-    await store.fetch(); // ✅ método real del store
-  } catch (e: any) {
-    toast.add({
-      severity: "error",
-      summary: "Error",
-      detail: e?.response?.data?.message || "No se pudo cargar conductores",
-      life: 3500,
-    });
+function onActionComplete(e: any) {
+  if (e.requestType === "paging") {
+    page.value = e.currentPage;
+    pageSize.value = e.pageSize;
+    refresh();
   }
 }
 
-
-
-function openCreate() {
-  editingId.value = null;
-  showForm.value = true;
+function goToEdit(row: any) {
+  router.push({
+    name: "driver-edit",
+    params: { id: row._id }
+  });
 }
 
-function openEdit(row: any) {
-  editingId.value = row?._id || null;
-  showForm.value = true;
-}
+const goToCreateDriver = () => {
+  router.push({ name: "drivercreate" });
+};
+
+/* =========================
+   ACCESSORS
+========================= */
+
+const nombreAccessor = (_field: string, data: any) => {
+  return `${data?.nombres ?? ""} ${data?.apellidos ?? ""}`.trim();
+};
+
+const estadoAccessor = (_field: string, data: any) => {
+  return data.active ? "Activo" : "Inactivo";
+};
+
+/* =========================
+   LIFECYCLE
+========================= */
 
 onMounted(refresh);
-
-// helpers de presentación (acorde a tu payload)
-const fullName = (d: any) =>
-  [
-    d?.usuario?.nombre,
-    d?.usuario?.apellido,
-  ]
-    .filter(Boolean)
-    .join(" ") || "—";
-
-const docNumber = (d: any) => d?.usuario?.documentNumber || "—";
 </script>
 
 <template>
   <div class="grid">
-    <div class="col-12 page-toolbar">
+
+    <!-- ================= TOOLBAR ================= -->
+    <div class="col-12 page-toolbar flex justify-between items-center">
       <h2 class="m-0">Gestión de Conductores</h2>
       <Button
         label="Nuevo Conductor"
@@ -75,55 +95,120 @@ const docNumber = (d: any) => d?.usuario?.documentNumber || "—";
       />
     </div>
 
+    <!-- ================= FILTROS ================= -->
     <div class="col-12 page-section table-card">
-      <DataTable
-        :value="store.items"
-        :loading="store.loading"
-        dataKey="_id"
-        paginator
-        :rows="10"
-        responsiveLayout="scroll"
-        class="dt-clean"
-      >
-        <Column header="Documento">
-          <template #body="{ data }">
-            {{ docNumber(data) }}
-          </template>
-        </Column>
+      <div class="filters-bar">
+        <div class="grid formgrid">
 
-        <Column header="Nombre">
-          <template #body="{ data }">
-            {{ fullName(data) }}
-          </template>
-        </Column>
-
-        <Column header="Estado">
-          <template #body="{ data }">
-            <Tag
-              :value="data?.active ? 'ACTIVO' : 'INACTIVO'"
-              :severity="data?.active ? 'success' : 'danger'"
+          <!-- Documento -->
+          <div class="col-12 md:col-5">
+            <InputText
+              v-model="query.documento"
+              placeholder="Buscar por documento"
+              class="w-full"
+              @keydown.enter="refresh"
             />
-          </template>
-        </Column>
+          </div>
 
+          <!-- Estado -->
+          <div class="col-12 md:col-3">
+            <Dropdown
+              class="w-full"
+              :options="[
+                { label: 'Todos los estados', value: null },
+                { label: 'Activos', value: true },
+                { label: 'Inactivos', value: false }
+              ]"
+              optionLabel="label"
+              optionValue="value"
+              v-model="query.estado"
+              placeholder="Estado"
+            />
+          </div>
 
-      </DataTable>
+          <div class="col-6 md:col-2">
+            <Button
+              label="Filtrar"
+              icon="pi pi-filter"
+              class="w-full"
+              @click="refresh"
+            />
+          </div>
+
+          <div class="col-6 md:col-2">
+            <Button
+              label="Limpiar"
+              icon="pi pi-times"
+              class="w-full p-button-secondary"
+              @click="
+                query.documento = '';
+                query.estado = null;
+                page = 1;
+                refresh();
+              "
+            />
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ================= GRID SYNCFUSION ================= -->
+      <EjsGrid
+        :dataSource="store.items"
+        :allowPaging="true"
+        :allowSorting="true"
+        :pageSettings="{
+          currentPage: page,
+          pageSize: pageSize,
+          totalRecordsCount: store.total
+        }"
+        @actionComplete="onActionComplete"
+      >
+
+        <e-columns>
+
+          <e-column
+            field="documento"
+            headerText="Documento"
+            width="150"
+          />
+
+          <e-column
+            field="nombres"
+            headerText="Nombre"
+            width="200"
+            :valueAccessor="nombreAccessor"
+          />
+
+          <e-column
+            field="active"
+            headerText="Estado"
+            width="120"
+            textAlign="Center"
+            :valueAccessor="estadoAccessor"
+          />
+
+          <e-column
+            headerText="Acciones"
+            width="120"
+            textAlign="Center"
+            :allowSorting="false"
+            template="actionTemplate"
+          />
+
+        </e-columns>
+
+        <!-- SLOT DE ACCIONES -->
+        <template #actionTemplate="{ data }">
+          <Button
+            icon="pi pi-pencil"
+            class="p-button-text p-button-warning p-button-sm"
+            @click="goToEdit(data)"
+          />
+        </template>
+
+      </EjsGrid>
+
     </div>
   </div>
-
-  <Dialog
-    v-model:visible="showForm"
-    modal
-    :header="editingId ? 'Editar Conductor' : 'Nuevo Conductor'"
-    style="width: 640px"
-  >
-    <DriverFormView
-      :id="editingId"
-      @saved="
-        showForm = false;
-        refresh();
-      "
-      @cancel="showForm = false"
-    />
-  </Dialog>
 </template>

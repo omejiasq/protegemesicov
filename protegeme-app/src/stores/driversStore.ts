@@ -16,6 +16,11 @@ export type Driver = {
   telefono?: string | null;
   correo?: string | null;
   estado?: boolean;
+
+  // ✅ NUEVOS CAMPOS
+  no_licencia_conduccion?: string | null;
+  vencimiento_licencia_conduccion?: string | null;
+
   licencia?: { numero?: string; categoria?: string; fechaVencimiento?: string };
   alcoholimetria?: { fecha?: string; resultado?: string };
   examenMedico?: { fecha?: string; apto?: boolean };
@@ -32,16 +37,43 @@ export const useDriversStore = defineStore('drivers', {
   }),
 
   actions: {
-    async fetch() {
-      this.loading = true; this.error = '';
+    async fetch(params: Record<string, any> = {}) {
+      this.loading = true;
+      this.error = '';
+    
       try {
-        const { data } = await DriversserviceApi.list();
-        this.items = data?.items ?? (Array.isArray(data) ? data : []);
-        this.total = data?.total ?? this.items.length ?? 0;
+        const { data } = await DriversserviceApi.list(params);
+    
+        const rawItems = Array.isArray(data) ? data : data?.data ?? [];
+    
+        const mapped = rawItems.map((d: any) => ({
+          _id: d._id,
+          documento: d.usuario?.documentNumber,
+          nombres: d.usuario?.nombre,
+          apellidos: d.usuario?.apellido,
+          telefono: d.usuario?.telefono,
+          correo: d.usuario?.correo,
+          active: d.active,
+        
+          // ✅ NUEVOS CAMPOS
+          no_licencia_conduccion: d.no_licencia_conduccion ?? null,
+          vencimiento_licencia_conduccion: d.vencimiento_licencia_conduccion ?? null,
+        }));
+    
+        this.items = mapped;
+        this.total = data?.total ?? mapped.length;
+    
+        return { items: mapped, total: this.total };
+    
       } catch (e: any) {
-        this.error = e?.response?.data?.message || e?.message || 'No se pudo obtener conductores';
+        this.error =
+          e?.response?.data?.message ||
+          e?.message ||
+          'No se pudo obtener conductores';
         throw e;
-      } finally { this.loading = false; }
+      } finally {
+        this.loading = false;
+      }
     },
 
 async list(params: Record<string, any> = {}) {

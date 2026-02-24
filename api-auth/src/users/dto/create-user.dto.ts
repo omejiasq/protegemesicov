@@ -1,22 +1,39 @@
+import { IsOptional, IsString, IsDateString } from 'class-validator';
+
 export class CreateUserDto {
   usuario: string;
   password: string;
 
-  token?: string | null;
+  @IsOptional()
+  firstName?: string;
 
-  firstName: string;
-  lastName: string;
+  @IsOptional()
+  lastName?: string;
 
+  @IsOptional()
   phone?: string;
+
+  @IsOptional()
   email?: string;
 
-  documentType?: string;
+  @IsOptional()
+  documentType?: number;
+
+  @IsOptional()
   documentNumber?: string;
 
-  roleType: 'admin' | 'driver' | 'operator' | 'viewer';
+  @IsOptional()
+  roleType?: string;
 
+  @IsOptional()
   enterprise_id?: string;
 
-  vigiladoId?: number;
-  vigiladoToken?: string;
+  // ✅ NUEVOS CAMPOS
+  @IsOptional()
+  @IsString()
+  no_licencia_conduccion?: string;
+
+  @IsOptional()
+  @IsDateString()
+  vencimiento_licencia_conduccion?: string;
 }

@@ -1,12 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 
 import { User } from '../schemas/user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
-
-import { BadRequestException } from '@nestjs/common';
 
 @Injectable()
 export class UsersService {
@@ -25,26 +27,44 @@ export class UsersService {
   }
 
   //-----------------------------------------------------
-  // CREATE (LEGACY COMPATIBLE)
+  // CREATE (DESDE TOKEN)
   //-----------------------------------------------------
-  async create(createUserDto: CreateUserDto) {
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+  async create(createUserDto: CreateUserDto, currentUser: any) {
+    if (!currentUser?.enterprise_id) {
+      throw new BadRequestException(
+        'enterprise_id no presente en el token',
+      );
+    }
+
+    const hashedPassword = await bcrypt.hash(
+      createUserDto.password,
+      10,
+    );
 
     const newUser = await this.userModel.create({
       usuario: {
         usuario: createUserDto.usuario,
-        nombre: createUserDto.firstName ?? null,
-        apellido: createUserDto.lastName ?? null,
-        telefono: createUserDto.phone ?? null,
-        correo: createUserDto.email ?? null,
+        nombre: createUserDto.firstName ?? undefined,
+        apellido: createUserDto.lastName ?? undefined,
+        telefono: createUserDto.phone ?? undefined,
+        correo: createUserDto.email ?? undefined,
         document_type: createUserDto.documentType ?? 1,
-        documentNumber: createUserDto.documentNumber ?? null,
+        documentNumber: createUserDto.documentNumber ?? undefined,
       },
       password: hashedPassword,
       roleType: createUserDto.roleType ?? 'admin',
-      enterprise_id: createUserDto.enterprise_id
-        ? new Types.ObjectId(createUserDto.enterprise_id)
-        : undefined,
+      enterprise_id: new Types.ObjectId(
+        currentUser.enterprise_id,
+      ),
+
+      no_licencia_conduccion:
+        createUserDto.no_licencia_conduccion ?? undefined,
+
+      vencimiento_licencia_conduccion:
+        createUserDto.vencimiento_licencia_conduccion
+          ? new Date(createUserDto.vencimiento_licencia_conduccion)
+          : undefined,
+
       active: true,
     });
 
@@ -52,30 +72,128 @@ export class UsersService {
   }
 
   //-----------------------------------------------------
-  // LEGACY SUPPORT (NO QUITAR)
+  // REGISTER (PÚBLICO)
   //-----------------------------------------------------
-  async createFromDto(dto: any) {
-    return this.create(dto);
+  async register(createUserDto: CreateUserDto) {
+    const hashedPassword = await bcrypt.hash(
+      createUserDto.password,
+      10,
+    );
+
+    const newUser = await this.userModel.create({
+      usuario: {
+        usuario: createUserDto.usuario,
+        nombre: createUserDto.firstName ?? undefined,
+        apellido: createUserDto.lastName ?? undefined,
+        telefono: createUserDto.phone ?? undefined,
+        correo: createUserDto.email ?? undefined,
+        document_type: createUserDto.documentType ?? 1,
+        documentNumber: createUserDto.documentNumber ?? undefined,
+      },
+      password: hashedPassword,
+      roleType: createUserDto.roleType ?? 'admin',
+      enterprise_id: createUserDto.enterprise_id
+        ? new Types.ObjectId(createUserDto.enterprise_id)
+        : undefined,
+
+      no_licencia_conduccion:
+        createUserDto.no_licencia_conduccion ?? undefined,
+
+      vencimiento_licencia_conduccion:
+        createUserDto.vencimiento_licencia_conduccion
+          ? new Date(createUserDto.vencimiento_licencia_conduccion)
+          : undefined,
+
+      active: true,
+    });
+
+    return this.sanitize(newUser.toObject());
   }
 
   //-----------------------------------------------------
-  // LOGIN — USADO POR AuthService
+  // FIND BY ID (USADO POR JWT GUARD)
   //-----------------------------------------------------
-  async validateUser(username: string, plainPassword: string) {
+  async findById(id: string) {
+    if (!Types.ObjectId.isValid(id)) {
+      return null;
+    }
+
+    const user = await this.userModel.findById(id).lean();
+    return this.sanitize(user);
+  }
+
+  //-----------------------------------------------------
+  // CREATE POR ADMIN
+  //-----------------------------------------------------
+  async createByAdmin(
+    createUserDto: CreateUserDto,
+    currentUser: any,
+  ) {
+    if (!currentUser?.enterprise_id) {
+      throw new BadRequestException(
+        'enterprise_id no presente en el token',
+      );
+    }
+
+    const hashedPassword = await bcrypt.hash(
+      createUserDto.password,
+      10,
+    );
+
+    const newUser = await this.userModel.create({
+      usuario: {
+        usuario: createUserDto.usuario,
+        nombre: createUserDto.firstName ?? undefined,
+        apellido: createUserDto.lastName ?? undefined,
+        telefono: createUserDto.phone ?? undefined,
+        correo: createUserDto.email ?? undefined,
+        document_type: createUserDto.documentType ?? 1,
+        documentNumber: createUserDto.documentNumber ?? undefined,
+      },
+      password: hashedPassword,
+      roleType: createUserDto.roleType ?? 'admin',
+      enterprise_id: new Types.ObjectId(
+        currentUser.enterprise_id,
+      ),
+
+      no_licencia_conduccion:
+        createUserDto.no_licencia_conduccion ?? undefined,
+
+      vencimiento_licencia_conduccion:
+        createUserDto.vencimiento_licencia_conduccion
+          ? new Date(createUserDto.vencimiento_licencia_conduccion)
+          : undefined,
+
+      active: true,
+    });
+
+    return this.sanitize(newUser.toObject());
+  }
+
+  //-----------------------------------------------------
+  // LOGIN
+  //-----------------------------------------------------
+  async validateUser(
+    username: string,
+    plainPassword: string,
+  ) {
     const user = await this.userModel
       .findOne({ 'usuario.usuario': username })
       .lean();
 
     if (!user) return null;
 
-    const ok = await bcrypt.compare(plainPassword, user.password);
+    const ok = await bcrypt.compare(
+      plainPassword,
+      user.password,
+    );
     if (!ok) return null;
 
     return this.sanitize(user);
   }
 
   //-----------------------------------------------------
-  // USADO POR JwtStrategy
+  // FIND BY USERNAME
   //-----------------------------------------------------
   async findByUsername(username: string) {
     const user = await this.userModel
@@ -86,11 +204,12 @@ export class UsersService {
   }
 
   //-----------------------------------------------------
-  // UPDATE PASSWORD — USADO POR CONTROLLER
+  // UPDATE PASSWORD
   //-----------------------------------------------------
   async updatePassword(id: string, newPassword: string) {
     const user = await this.userModel.findById(id);
-    if (!user) throw new NotFoundException('Usuario no encontrado');
+    if (!user)
+      throw new NotFoundException('Usuario no encontrado');
 
     user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
@@ -99,15 +218,13 @@ export class UsersService {
   }
 
   //-----------------------------------------------------
-  // UPDATE USUARIO (SIN PASSWORD)
+  // UPDATE GENERAL
   //-----------------------------------------------------
   async update(id: string, updateDto: any) {
     const user = await this.userModel.findById(id);
-    if (!user) throw new NotFoundException('Usuario no encontrado');
+    if (!user)
+      throw new NotFoundException('Usuario no encontrado');
 
-    // -----------------------------
-    // SUBDOCUMENTO usuario
-    // -----------------------------
     user.usuario = {
       ...user.usuario,
       ...(updateDto.usuario && { usuario: updateDto.usuario }),
@@ -115,73 +232,105 @@ export class UsersService {
       ...(updateDto.lastName && { apellido: updateDto.lastName }),
       ...(updateDto.phone && { telefono: updateDto.phone }),
       ...(updateDto.email && { correo: updateDto.email }),
-      ...(updateDto.documentType && { document_type: updateDto.documentType }),
-      ...(updateDto.documentNumber && { documentNumber: updateDto.documentNumber }),
+      ...(updateDto.documentType && {
+        document_type: updateDto.documentType,
+      }),
+      ...(updateDto.documentNumber && {
+        documentNumber: updateDto.documentNumber,
+      }),
     };
 
-    // -----------------------------
-    // CAMPOS DIRECTOS
-    // -----------------------------
-    if (updateDto.roleType) user.roleType = updateDto.roleType;
+    if (updateDto.roleType)
+      user.roleType = updateDto.roleType;
 
-    if (updateDto.enterprise_id !== undefined) {
-        user.enterprise_id = updateDto.enterprise_id
-        ? new Types.ObjectId(updateDto.enterprise_id)
-        : undefined;
+    if (updateDto.active !== undefined)
+      user.active = updateDto.active;
+
+    if (updateDto.no_licencia_conduccion !== undefined) {
+      user.no_licencia_conduccion =
+        updateDto.no_licencia_conduccion;
     }
 
-    if (updateDto.active !== undefined) {
-      user.active = updateDto.active;
+    if (
+      updateDto.vencimiento_licencia_conduccion !==
+      undefined
+    ) {
+      user.vencimiento_licencia_conduccion =
+        updateDto.vencimiento_licencia_conduccion
+          ? new Date(updateDto.vencimiento_licencia_conduccion)
+          : undefined;
     }
 
     await user.save();
-
     return this.sanitize(user.toObject());
   }
 
   //-----------------------------------------------------
-  // CRUD BÁSICO
+  // FIND DRIVERS CON PAGINACIÓN
   //-----------------------------------------------------
-  async findAll() {
-    const users = await this.userModel.find().lean();
-    return users.map((u) => this.sanitize(u));
-  }
-
-  async findById(id: string) {
-    const user = await this.userModel.findById(id).lean();
-    if (!user) throw new NotFoundException('Usuario no encontrado');
-    return this.sanitize(user);
-  }
-
-  async remove(id: string) {
-    const user = await this.userModel.findByIdAndDelete(id).lean();
-    if (!user) throw new NotFoundException('Usuario no encontrado');
-    return this.sanitize(user);
-  }
-
-  async findDriversByEnterprise(user: any) {
+  async findDriversByEnterprise(
+    user: any,
+    query: {
+      page?: number;
+      numero_items?: number;
+      documentNumber?: string;
+      active?: boolean;
+      sortField?: string;
+      sortOrder?: 'asc' | 'desc';
+    },
+  ) {
     if (!user?.enterprise_id) {
-      throw new BadRequestException('enterprise_id no presente en el token');
+      throw new BadRequestException(
+        'enterprise_id no presente en el token',
+      );
     }
-  
-    const enterpriseId = Types.ObjectId.isValid(user.enterprise_id)
-      ? new Types.ObjectId(user.enterprise_id)
-      : null;
-  
-    if (!enterpriseId) {
-      throw new BadRequestException('enterprise_id inválido');
-    }
-  
-    const drivers = await this.userModel
-      .find({
-        enterprise_id: enterpriseId,
-        roleType: 'driver',
-        active: true, // opcional pero recomendado
-      })
-      .sort('usuario.nombre') 
-      .lean();
-  
-    return drivers.map((u) => this.sanitize(u));
-  }
 
+    const enterpriseId = new Types.ObjectId(
+      user.enterprise_id,
+    );
+
+    const page = Number(query.page) || 1;
+    const limit = Number(query.numero_items) || 10;
+    const skip = (page - 1) * limit;
+
+    const filters: any = {
+      enterprise_id: enterpriseId,
+      roleType: 'driver',
+    };
+
+    if (query.documentNumber) {
+      filters['usuario.documentNumber'] = {
+        $regex: query.documentNumber,
+        $options: 'i',
+      };
+    }
+
+    if (query.active !== undefined) {
+      filters.active = query.active;
+    }
+
+    const sortField =
+      query.sortField || 'usuario.nombre';
+    const sortOrder =
+      query.sortOrder === 'desc' ? -1 : 1;
+
+    const total =
+      await this.userModel.countDocuments(filters);
+
+    const drivers = await this.userModel
+      .find(filters)
+      .sort({ [sortField]: sortOrder })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    return {
+      data: drivers.map((u) =>
+        this.sanitize(u),
+      ),
+      total,
+      page,
+      numero_items: limit,
+    };
+  }
 }

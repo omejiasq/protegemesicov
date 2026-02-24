@@ -1,40 +1,74 @@
-// src/schemas/user.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 export type UserDocument = User & Document;
 
+/* ======================================================
+   SUBDOCUMENTO: USUARIO (DATOS PERSONALES / LOGIN)
+====================================================== */
+
+@Schema({ _id: false }) // 👈 importante: evita _id en subdocumento
+export class Usuario {
+
+  @Prop({
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    lowercase: true,
+  })
+  usuario: string;
+
+  @Prop({
+    type: String,
+    trim: true,
+    set: (value: string) => value?.toUpperCase(),
+  })
+  nombre?: string;
+
+  @Prop({
+    type: String,
+    trim: true,
+    set: (value: string) => value?.toUpperCase(),
+  })
+  apellido?: string;
+
+  @Prop({ type: String, trim: true })
+  telefono?: string;
+
+  @Prop({
+    type: String,
+    trim: true,
+    lowercase: true,
+  })
+  correo?: string;
+
+  @Prop({
+    type: Number,
+    enum: [1,2,3,4,5,6,7,8,9],
+    default: 1,
+  })
+  document_type?: number;
+
+  @Prop({ type: String, trim: true })
+  documentNumber?: string;
+}
+
+export const UsuarioSchema = SchemaFactory.createForClass(Usuario);
+
+
+/* ======================================================
+   SCHEMA PRINCIPAL: USER
+====================================================== */
+
 @Schema({ timestamps: true })
 export class User {
 
   // =============================
-  // DATOS DE LOGIN (LEGACY)
+  // SUBDOCUMENTO USUARIO
   // =============================
-  @Prop({
-    type: {
-      usuario: { type: String, required: true, unique: true },
-      nombre: { type: String },
-      apellido: { type: String },
-      telefono: { type: String },
-      correo: { type: String },
-      document_type: {
-        type: Number,
-        enum: [1,2,3,4,5,6,7,8,9],
-        default: 1,
-      },
-      documentNumber: { type: String },
-    },
-    required: true,
-  })
-  usuario: {
-    usuario: string;
-    nombre?: string;
-    apellido?: string;
-    telefono?: string;
-    correo?: string;
-    document_type?: number;
-    documentNumber?: string;
-  };
+  @Prop({ type: UsuarioSchema, required: true })
+  usuario: Usuario;
 
   // =============================
   // SEGURIDAD
@@ -59,6 +93,7 @@ export class User {
     type: Types.ObjectId,
     ref: 'Enterprise',
     required: false,
+    index: true, // 🔥 importante para performance multiempresa
   })
   enterprise_id?: Types.ObjectId;
 
@@ -77,8 +112,23 @@ export class User {
   @Prop({ default: true })
   active: boolean;
 
-
-
+  @Prop({ type: String, default: null }) no_licencia_conduccion?: string;
+  @Prop({ type: Date, default: null })
+  vencimiento_licencia_conduccion?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
+
+
+/* ======================================================
+   ÍNDICES IMPORTANTES (MUY RECOMENDADO)
+====================================================== */
+
+// Usuario único (login)
+UserSchema.index({ 'usuario.usuario': 1 }, { unique: true });
+
+// Búsqueda rápida por enterprise
+UserSchema.index({ enterprise_id: 1 });
+
+// Filtro común SaaS
+UserSchema.index({ enterprise_id: 1, roleType: 1, active: 1 });

@@ -58,6 +58,9 @@ export class CorrectiveDetail {
   // 🔥 FECHA REAL DEL EVENTO (derivada, NO required)
   @Prop({ type: Date, index: true })
   occurredAt?: Date;
+
+  @Prop({ type: String, default: null })
+  evidencia_foto?: string;
 }
 
 export const CorrectiveDetailSchema =

@@ -11,7 +11,8 @@ export class AuthService {
 
   /** Registro: delega al UsersService con los datos del DTO completo */
   async register(userInfo: any) {
-    return this.usersService.create(userInfo);
+    //return this.usersService.create(userInfo);
+    return this.usersService.register(userInfo);
   }
 
   /** Validación de credenciales */

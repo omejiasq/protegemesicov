@@ -50,6 +50,29 @@
       <input v-model="form.phone" />
     </div>
 
+<div class="field">
+  <label>No. Licencia de Conducción *</label>
+  <input
+    v-model="form.no_licencia_conduccion"
+    :class="{ error: errors.no_licencia_conduccion }"
+  />
+  <small v-if="errors.no_licencia_conduccion" class="error-text">
+    {{ errors.no_licencia_conduccion }}
+  </small>
+</div>
+
+<div class="field">
+  <label>Vencimiento Licencia *</label>
+  <input
+    type="date"
+    v-model="form.vencimiento_licencia_conduccion"
+    :class="{ error: errors.vencimiento_licencia_conduccion }"
+  />
+  <small v-if="errors.vencimiento_licencia_conduccion" class="error-text">
+    {{ errors.vencimiento_licencia_conduccion }}
+  </small>
+</div>
+
     <div class="field full">
       <label>Email</label>
       <input v-model="form.email" type="email" />
@@ -125,6 +148,8 @@ const form = ref({
   email: '',
   documentType: null as number | null,
   documentNumber: '',
+  no_licencia_conduccion: '',
+  vencimiento_licencia_conduccion: '',
 })
 
 /* ================== SUBMIT ================== */

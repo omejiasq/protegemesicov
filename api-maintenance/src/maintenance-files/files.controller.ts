@@ -42,7 +42,12 @@ export class FileController {
     @Req() req: any,
   ) {
     const vigiladoId = req.user?.vigiladoId
-    return this.svc.saveFile({ vigiladoId: Number(vigiladoId), file, user: req.user });
+    //return this.svc.saveFile({ vigiladoId: Number(vigiladoId), file, user: req.user });
+    return this.svc.saveFile({ 
+      vigiladoId: Number(vigiladoId) || 0,  // ← fallback a 0 si es NaN
+      file, 
+      user: req.user 
+    });
   }
 
   @Get('base64')

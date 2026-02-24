@@ -351,20 +351,18 @@ export class AlistamientoService {
     doc.pipe(res);
   
     // ================= ENCABEZADO =================
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(12)
-      .text(e.enterprise.name+ ' NIT:'+e.enterprise.vigiladoId  , { align: 'center' });
+    doc.font('Helvetica-Bold')
+       .fontSize(11)
+       .text(`${e.enterprise.name}  NIT: ${e.enterprise.vigiladoId}`, { align: 'center' });
   
     doc.moveDown(0.3);
   
-    doc
-      .font('Helvetica')
-      .fontSize(9)
-      .text(
-        'Documento generado a través de la plataforma tecnológica de Itfusion SAS, aliado tecnológico autorizado por la Superintendencia de Transporte.',
-        { align: 'center' },
-      );
+    doc.font('Helvetica')
+       .fontSize(8)
+       .text(
+         'Documento generado a través de la plataforma tecnológica de Itfusion SAS. NIT: 900416316, avalada por la Superintendecia de Transporte.',
+         { align: 'center' },
+       );
   
     doc.moveDown(1);
   
@@ -372,7 +370,8 @@ export class AlistamientoService {
     doc.font('Helvetica-Bold').fontSize(9).text('DATOS DEL VEHÍCULO');
     doc.moveDown(0.3);
   
-    doc.font('Helvetica').text(`Placa: ${e.placa}`);
+    doc.font('Helvetica').fontSize(8);
+    doc.text(`Placa: ${e.placa}`);
     doc.text(`Fecha: ${moment(e.createdAt).format('YYYY/MM/DD')}`);
   
     doc.moveDown(1);
@@ -381,9 +380,8 @@ export class AlistamientoService {
     doc.font('Helvetica-Bold').text('CONDUCTOR');
     doc.moveDown(0.3);
   
-    doc.font('Helvetica').text(
-      `Documento: ${e.numeroIdentificacionConductor || '—'}`,
-    );
+    doc.font('Helvetica').fontSize(8);
+    doc.text(`Documento: ${e.numeroIdentificacionConductor || '—'}`);
     doc.text(`Nombre: ${e.nombresConductor || '—'}`);
   
     doc.moveDown(1);
@@ -392,81 +390,79 @@ export class AlistamientoService {
     doc.font('Helvetica-Bold').text('RESPONSABLE');
     doc.moveDown(0.3);
   
-    doc.font('Helvetica').text(`Documento: ${e.numeroIdentificacion}`);
+    doc.font('Helvetica').fontSize(8);
+    doc.text(`Documento: ${e.numeroIdentificacion}`);
     doc.text(`Nombre: ${e.nombresResponsable}`);
   
+    doc.moveDown(1);
   
-    // ================= ACTIVIDADES =================
+    // ================= CHECKLIST =================
+    doc.font('Helvetica-Bold')
+       .fontSize(9)
+       .text('LISTA DE VERIFICACIÓN');
+    doc.moveDown(0.5);
+  
     const actividadesIds: number[] = Array.isArray(e.actividades)
       ? e.actividades.map((id: any) => Number(id)).filter(Boolean)
       : [];
-
-    // Todas las actividades del catálogo
+  
     const todasLasActividades = Object.entries(ACTIVIDADES_MAP).map(
       ([id, nombre]) => ({
         id: Number(id),
         nombre,
       }),
     );
-
-    // Actividades chequeadas
-    const actividadesChequeadas = todasLasActividades.filter((a) =>
-      actividadesIds.includes(a.id),
-    );
-
-    // Actividades no chequeadas
-    const actividadesNoChequeadas = todasLasActividades.filter(
-      (a) => !actividadesIds.includes(a.id),
-    );
-
-    // ===== ACTIVIDADES CHEQUEADAS =====
-    doc.moveDown(1);
-    doc.font('Helvetica-Bold').fontSize(9).text('ACTIVIDADES CHEQUEADAS');
-    doc.moveDown(0.3);
-
-    if (!actividadesChequeadas.length) {
-      doc.font('Helvetica').fontSize(8).text('— Sin actividades registradas —');
-    } else {
-      doc.font('Helvetica').fontSize(8);
-      actividadesChequeadas.forEach((actividad, index) => {
-        doc.text(`${index + 1}. ${actividad.nombre}`);
+  
+    const margenIzq = 12;
+    const anchoTexto = 160;
+    const sizeBox = 8;
+  
+    doc.font('Helvetica').fontSize(8);
+  
+    todasLasActividades.forEach((actividad) => {
+  
+      const chequeado = actividadesIds.includes(actividad.id);
+  
+      let nombre = actividad.nombre.trim();
+      if (nombre.length > 40) {
+        nombre = nombre.substring(0, 37) + '...';
+      }
+  
+      const y = doc.y;
+  
+      // Dibujar casilla
+      doc.rect(margenIzq, y, sizeBox, sizeBox).stroke();
+  
+      // Si está chequeado, dibujar marca sólida tipo checklist real
+      if (chequeado) {
+        doc.moveTo(margenIzq + 2, y + sizeBox / 2)
+           .lineTo(margenIzq + sizeBox / 2, y + sizeBox - 2)
+           .lineTo(margenIzq + sizeBox - 2, y + 2)
+           .stroke();
+      }
+  
+      // Texto actividad
+      doc.text(nombre, margenIzq + 14, y, {
+        width: anchoTexto,
+        lineBreak: false,
       });
-    }
-
-    // ===== ACTIVIDADES NO CHEQUEADAS =====
-    doc.moveDown(0.8);
-    doc.font('Helvetica-Bold').fontSize(9).text('ACTIVIDADES NO CHEQUEADAS');
-    doc.moveDown(0.3);
-
-    if (!actividadesNoChequeadas.length) {
-      doc.font('Helvetica').fontSize(8).text('— Todas las actividades fueron chequeadas —');
-    } else {
-      doc.font('Helvetica').fontSize(8);
-      actividadesNoChequeadas.forEach((actividad, index) => {
-        doc.text(`${index + 1}. ${actividad.nombre}`);
-      });
-    }
-
+  
+      doc.moveDown(0.8);
+    });
+  
     doc.moveDown(1);
-
-
+  
     // ================= TEXTO LEGAL =================
-    doc
-      .fontSize(8)
-      .text(
-        'Este documento certifica que el vehículo fue\ninspeccionado y se encuentra apto para la operación\nsegún los lineamientos vigentes.',
-        {
-          align: 'center',
-        },
-      );
-  
+    /*doc.fontSize(8)
+       .text(
+         'Este documento certifica que el vehículo fue inspeccionado y se encuentra apto para la operación según los lineamientos vigentes.',
+         { align: 'center' },
+       );
+  */
     doc.moveDown(1);
   
-    doc
-      .fontSize(7)
-      .text('Documento generado automáticamente', {
-        align: 'center',
-      });
+    doc.fontSize(7)
+       .text('Documento generado automáticamente', { align: 'center' });
   
     doc.end();
   }

@@ -6,6 +6,7 @@ import {
   Param,
   UseGuards,
   BadRequestException,
+  Query
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -21,10 +22,12 @@ export class UsersController {
    */
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() dto: CreateUserDto) {
-    return this.usersService.create(dto);
+  create(
+    @Body() createUserDto: CreateUserDto,
+    @Req() req,
+  ) {
+    return this.usersService.create(createUserDto, req.user);
   }
-  
 
   /**
    * Actualizar contraseña por ID
@@ -44,8 +47,14 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Get('drivers')
-  findDrivers(@Req() req) {
-    return this.usersService.findDriversByEnterprise(req.user);
+  findDrivers(
+    @Req() req,
+    @Query() query: any
+  ) {
+    return this.usersService.findDriversByEnterprise(
+      req.user,
+      query
+    );
   }
   
 

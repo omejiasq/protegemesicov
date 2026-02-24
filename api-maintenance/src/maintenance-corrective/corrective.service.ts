@@ -133,6 +133,7 @@ export class CorrectiveService {
       numeroIdentificacion: dto.numeroIdentificacion,
       nombresResponsable: dto.nombresResponsable,
       detalleActividades: dto.detalleActividades,
+      evidencia_foto: dto.evidencia_foto ?? null,  // 🔥 agregar esta línea
       estado: true,
     });
 
@@ -602,6 +603,7 @@ async getFullReportByCorrectiveId(
       numeroIdentificacion: corrective.numeroIdentificacion,
       nombresResponsable: corrective.nombresResponsable,
       detalleActividades: corrective.detalleActividades,
+      evidencia_foto: corrective.evidencia_foto ?? null,  // 🔥 agregar esta línea
       estado: corrective.estado,
       occurredAt: corrective.occurredAt,
     },
