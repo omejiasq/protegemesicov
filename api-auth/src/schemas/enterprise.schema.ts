@@ -84,6 +84,15 @@ export class Enterprise {
   @Prop({ trim: true })
   specialized_center_document_number?: string;
 
+  // ───────────── Formatos PDF ─────────────
+  @Prop({ type: Object, default: null })
+  formato_correctivo?: Record<string, any>;
+
+  @Prop({ type: Object, default: null })
+  formato_preventivo?: Record<string, any>;
+
+  @Prop({ type: Object, default: null })
+  formato_alistamiento?: Record<string, any>;
 }
 
 export const EnterpriseSchema = SchemaFactory.createForClass(Enterprise);

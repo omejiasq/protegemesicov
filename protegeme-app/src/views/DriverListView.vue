@@ -36,21 +36,19 @@ const pageSize = ref(10);
 ========================= */
 function refresh() {
   store.fetch({
-    page: page.value,
-    numero_items: pageSize.value,
     documentNumber: query.documento || undefined,
     active: query.estado ?? undefined
+    // sin numero_items → backend retorna todos
   });
 }
 
 function onActionComplete(e: any) {
   if (e.requestType === "paging") {
     page.value = e.currentPage;
-    pageSize.value = e.pageSize;
-    refresh();
   }
 }
 
+// 🔥 Navega a editar conductor
 function goToEdit(row: any) {
   router.push({
     name: "driver-edit",
@@ -63,11 +61,14 @@ const goToCreateDriver = () => {
 };
 
 /* =========================
-   ACCESSORS
+   ACCESSORS — basados en estructura real: data.usuario.nombre
 ========================= */
-
 const nombreAccessor = (_field: string, data: any) => {
-  return `${data?.nombres ?? ""} ${data?.apellidos ?? ""}`.trim();
+  return data?.usuario?.nombre?.trim() ?? "";
+};
+
+const documentoAccessor = (_field: string, data: any) => {
+  return data?.usuario?.documentNumber ?? "";
 };
 
 const estadoAccessor = (_field: string, data: any) => {
@@ -77,7 +78,6 @@ const estadoAccessor = (_field: string, data: any) => {
 /* =========================
    LIFECYCLE
 ========================= */
-
 onMounted(refresh);
 </script>
 
@@ -158,23 +158,23 @@ onMounted(refresh);
         :allowPaging="true"
         :allowSorting="true"
         :pageSettings="{
-          currentPage: page,
           pageSize: pageSize,
-          totalRecordsCount: store.total
         }"
         @actionComplete="onActionComplete"
       >
 
         <e-columns>
 
+          <!-- 🔥 field apunta a ruta real en el objeto -->
           <e-column
-            field="documento"
+            field="usuario.documentNumber"
             headerText="Documento"
             width="150"
+            :valueAccessor="documentoAccessor"
           />
 
           <e-column
-            field="nombres"
+            field="usuario.nombre"
             headerText="Nombre"
             width="200"
             :valueAccessor="nombreAccessor"
@@ -198,7 +198,7 @@ onMounted(refresh);
 
         </e-columns>
 
-        <!-- SLOT DE ACCIONES -->
+        <!-- 🔥 SLOT DE ACCIONES con botón lápiz que navega a editar -->
         <template #actionTemplate="{ data }">
           <Button
             icon="pi pi-pencil"

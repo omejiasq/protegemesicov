@@ -280,54 +280,46 @@ export class UsersService {
     },
   ) {
     if (!user?.enterprise_id) {
-      throw new BadRequestException(
-        'enterprise_id no presente en el token',
-      );
+      throw new BadRequestException('enterprise_id no presente en el token');
     }
-
-    const enterpriseId = new Types.ObjectId(
-      user.enterprise_id,
-    );
-
-    const page = Number(query.page) || 1;
-    const limit = Number(query.numero_items) || 10;
-    const skip = (page - 1) * limit;
-
+  
+    const enterpriseId = new Types.ObjectId(user.enterprise_id);
+  
     const filters: any = {
       enterprise_id: enterpriseId,
       roleType: 'driver',
     };
-
+  
     if (query.documentNumber) {
       filters['usuario.documentNumber'] = {
         $regex: query.documentNumber,
         $options: 'i',
       };
     }
-
+  
     if (query.active !== undefined) {
       filters.active = query.active;
     }
-
-    const sortField =
-      query.sortField || 'usuario.nombre';
-    const sortOrder =
-      query.sortOrder === 'desc' ? -1 : 1;
-
-    const total =
-      await this.userModel.countDocuments(filters);
-
+  
+    const sortField = query.sortField || 'usuario.nombre';
+    const sortOrder = query.sortOrder === 'desc' ? -1 : 1;
+  
+    const total = await this.userModel.countDocuments(filters);
+  
+    // 🔥 Si no se envía numero_items, retorna todos
+    const page = Number(query.page) || 1;
+    const limit = Number(query.numero_items) || total;
+    const skip = (page - 1) * limit;
+  
     const drivers = await this.userModel
       .find(filters)
       .sort({ [sortField]: sortOrder })
       .skip(skip)
       .limit(limit)
       .lean();
-
+  
     return {
-      data: drivers.map((u) =>
-        this.sanitize(u),
-      ),
+      data: drivers.map((u) => this.sanitize(u)),
       total,
       page,
       numero_items: limit,

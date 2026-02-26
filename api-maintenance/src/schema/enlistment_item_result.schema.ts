@@ -3,6 +3,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 
+import { TipoVehiculoTipoInspeccion } from '../schema/tipos-vehiculos-tipos-inspecciones.schema';
+
 export type EnlistmentItemResultDocument =
   HydratedDocument<EnlistmentItemResult>;
 
@@ -13,8 +15,9 @@ export class EnlistmentItemResult {
 
   @Prop({
     type: Types.ObjectId,
-    ref: 'TiposVehiculosTiposInspecciones',
+    ref: TipoVehiculoTipoInspeccion.name, // ✅ igual que correctivo/preventivo
     required: true,
+    index: true,
   })
   itemId!: Types.ObjectId;
 

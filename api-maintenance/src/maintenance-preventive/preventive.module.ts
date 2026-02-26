@@ -25,6 +25,11 @@ import {
   PreventiveItemResultSchema,
 } from '../schema/preventive_item_result.schema';
 
+import {
+  TipoVehiculoTipoMantenimiento,
+  TipoVehiculoTipoMantenimientoSchema,
+} from '../schema/tipos-vehiculos-tipos-mantenimientos.schema';
+
 
 @Module({
   imports: [
@@ -41,6 +46,10 @@ import {
       {
         name: PreventiveItemResult.name,
         schema: PreventiveItemResultSchema,
+      },
+      {
+        name: TipoVehiculoTipoMantenimiento.name,
+        schema: TipoVehiculoTipoMantenimientoSchema,
       },
     ]),
     AuditModule,

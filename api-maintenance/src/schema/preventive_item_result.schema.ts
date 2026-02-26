@@ -1,6 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 
+import {
+  TipoVehiculoTipoMantenimiento,
+} from '../schema/tipos-vehiculos-tipos-mantenimientos.schema';
+
 export type PreventiveItemResultDocument =
   HydratedDocument<PreventiveItemResult>;
 
@@ -11,7 +15,7 @@ export class PreventiveItemResult {
 
   @Prop({
     type: Types.ObjectId,
-    ref: 'tipos_vehiculos_tipos_mantenimientos',
+    ref: TipoVehiculoTipoMantenimiento.name, // ✅ igual que el correctivo
     required: true,
     index: true,
   })

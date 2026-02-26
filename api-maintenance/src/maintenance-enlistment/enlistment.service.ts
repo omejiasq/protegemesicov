@@ -198,6 +198,9 @@ export class AlistamientoService {
       detalleActividades: dto.detalleActividades ?? '',
       actividades: actividadesFinales,
 
+      firma_conductor_foto: dto.firma_conductor_foto ?? null,   // ✅ agregar
+      firma_inspector_foto: dto.firma_inspector_foto ?? null,   // ✅ agregar
+      
       estado: true,
     });
 
@@ -488,4 +491,67 @@ export class AlistamientoService {
     await item.save();
     return item;
   }
+
+  async getFullReportByEnlistmentId(
+    id: string,
+    user?: { enterprise_id?: string },
+  ) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('ID inválido');
+    }
+  
+    const enlistment = await this.model
+      .findOne({
+        _id: new Types.ObjectId(id),
+        enterprise_id: user?.enterprise_id,
+      })
+      .lean();
+  
+    if (!enlistment) {
+      throw new NotFoundException('Alistamiento no encontrado');
+    }
+  
+    const mantenimientoId = enlistment.mantenimientoId;
+  
+    if (!mantenimientoId) {
+      throw new NotFoundException(
+        'El alistamiento no tiene mantenimiento asociado',
+      );
+    }
+  
+    const [dailySnapshot, itemResults] = await Promise.all([
+      this.snapshotModel.findOne({ mantenimientoId }).lean(),
+  
+      this.itemResultModel
+        .find({ mantenimientoId })
+        .populate({
+          path: 'itemId',
+          select: 'tipo_parte dispositivo',
+        })
+        .lean(),
+    ]);
+  
+    return {
+      enlistment: {
+        _id: enlistment._id,
+        placa: enlistment.placa,
+        mantenimientoId: enlistment.mantenimientoId,
+        tipoIdentificacion: enlistment.tipoIdentificacion,
+        numeroIdentificacion: enlistment.numeroIdentificacion,
+        nombresResponsable: enlistment.nombresResponsable,
+        tipoIdentificacionConductor: enlistment.tipoIdentificacionConductor,
+        numeroIdentificacionConductor: enlistment.numeroIdentificacionConductor,
+        nombresConductor: enlistment.nombresConductor,
+        detalleActividades: enlistment.detalleActividades,
+        actividades: enlistment.actividades ?? [],
+        firma_conductor_foto: (enlistment as any).firma_conductor_foto ?? null,
+        firma_inspector_foto: (enlistment as any).firma_inspector_foto ?? null,
+        estado: enlistment.estado,
+        createdAt: (enlistment as any).createdAt ?? null,
+      },
+      dailySnapshot: dailySnapshot ?? null,
+      items: itemResults ?? [],
+    };
+  }
+
 }

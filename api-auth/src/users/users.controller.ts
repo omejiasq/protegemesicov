@@ -11,7 +11,8 @@ import {
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { Get, Req } from '@nestjs/common';
+//import { Get, Req } from '@nestjs/common';
+import {  Get, Req , Put, NotFoundException } from '@nestjs/common';
 
 @Controller('users')
 export class UsersController {
@@ -57,6 +58,20 @@ export class UsersController {
     );
   }
   
+@Get('drivers/:id')
+@UseGuards(JwtAuthGuard)
+async getDriverById(@Param('id') id: string) {
+  const driver = await this.usersService.findById(id);
+  if (!driver) throw new NotFoundException('Conductor no encontrado');
+  return driver;
+}
+
+@Put(':id')
+@UseGuards(JwtAuthGuard)
+async updateUser(@Param('id') id: string, @Body() body: any) {
+  return this.usersService.update(id, body);
+}
+
 
 }
 

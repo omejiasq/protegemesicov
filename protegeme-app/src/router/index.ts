@@ -111,6 +111,11 @@ const routes: RouteRecordRaw[] = [
         name: "corrective-report",
         component: () => import('../views/maintenance/CorrectiveDetail.vue'),
         props: true
+      },
+      {
+        path: '/drivers/:id/edit',
+        name: 'driver-edit',
+        component: () => import('../views/DriverEdit.vue')
       }
 
     ],

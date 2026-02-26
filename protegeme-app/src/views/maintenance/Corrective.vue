@@ -134,7 +134,6 @@
     />
   </div>
   
-  <p>tableData:{{tableData}}:</p>
 
 </template>
 

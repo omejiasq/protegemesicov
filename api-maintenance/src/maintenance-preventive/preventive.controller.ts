@@ -98,4 +98,15 @@ export class PreventiveController {
     return this.svc.listByUser(q, req.user);
   }
   
+  @Get(':id/report')
+  async getReport(
+    @Param('id') id: string,
+    @Req() req: any,
+  ) {
+    const user = req.user as JwtUser;
+    return this.svc.getFullReportByPreventiveId(id, {
+      enterprise_id: user.enterprise_id,
+    });
+  }
+
 }

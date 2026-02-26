@@ -31,6 +31,11 @@ export class EnlistmentDetail {
   @Prop({ type: [String], default: [] })
   actividades?: string[];
 
+  @Prop({ type: String, default: null })
+  firma_conductor_foto?: string;
+
+  @Prop({ type: String, default: null })
+  firma_inspector_foto?: string;
 
 }
 export const EnlistmentDetailSchema =

@@ -70,4 +70,15 @@ export class EnlistmentController {
   toggle(@Param('id') id: string, @Req() req: any) {
     return this.svc.toggle(id, req.user);
   }
+
+  @Get(':id/report')
+  async getReport(
+    @Param('id') id: string,
+    @Req() req: any,
+  ) {
+    return this.svc.getFullReportByEnlistmentId(id, {
+      enterprise_id: req.user?.enterprise_id,
+    });
+  }
+    
 }

@@ -60,6 +60,9 @@ export class PreventiveDetail {
 
   @Prop({ type: Date, index: true })
   dueDate!: Date;       // Vencimiento
+
+  @Prop({ type: String, default: null })
+  evidencia_foto?: string;
 }
 
 export const PreventiveDetailSchema =

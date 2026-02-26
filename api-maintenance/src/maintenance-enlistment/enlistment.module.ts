@@ -22,6 +22,11 @@ import { MaintenanceExternalApiService } from 'src/libs/external-api';
 import { AuditModule } from 'src/libs/audit/audit.module';
 import { MaintenanceModule } from 'src/maintenance/maintenance.module';
 
+import {
+  TipoVehiculoTipoInspeccion,
+  TipoVehiculoTipoInspeccionSchema,
+} from '../schema/tipos-vehiculos-tipos-inspecciones.schema';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -30,6 +35,11 @@ import { MaintenanceModule } from 'src/maintenance/maintenance.module';
 
       { name: EnlistmentDailySnapshot.name, schema: EnlistmentDailySnapshotSchema },
       { name: EnlistmentItemResult.name, schema: EnlistmentItemResultSchema },
+
+      {
+        name: TipoVehiculoTipoInspeccion.name,
+        schema: TipoVehiculoTipoInspeccionSchema,
+      },
     ]),
     AuditModule,
     MaintenanceModule

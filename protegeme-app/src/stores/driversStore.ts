@@ -2,29 +2,23 @@ import { defineStore } from 'pinia';
 import { DriversserviceApi } from '../api/drivers.service';
 
 export type Driver = {
-  licenciaVencimiento: any;
-  licenciaConduccion: string;
-  primerApellidoPrincipal: string;
-  primerNombrePrincipal: string;
-  numeroIdentificacion: string;
-  tipoIdentificacionPrincipal: any;
-  idDespacho: string;
   _id: string;
-  documento?: string;
-  nombres?: string;
-  apellidos?: string;
-  telefono?: string | null;
-  correo?: string | null;
-  estado?: boolean;
-
-  // ✅ NUEVOS CAMPOS
+  usuario: {
+    usuario: string;
+    nombre: string;
+    apellido: string;
+    telefono: string;
+    correo: string;
+    document_type: number;
+    documentNumber: string;
+  };
+  roleType: string;
+  enterprise_id: string;
+  active: boolean;
   no_licencia_conduccion?: string | null;
   vencimiento_licencia_conduccion?: string | null;
-
-  licencia?: { numero?: string; categoria?: string; fechaVencimiento?: string };
-  alcoholimetria?: { fecha?: string; resultado?: string };
-  examenMedico?: { fecha?: string; apto?: boolean };
-  observaciones?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export const useDriversStore = defineStore('drivers', {
@@ -46,24 +40,11 @@ export const useDriversStore = defineStore('drivers', {
     
         const rawItems = Array.isArray(data) ? data : data?.data ?? [];
     
-        const mapped = rawItems.map((d: any) => ({
-          _id: d._id,
-          documento: d.usuario?.documentNumber,
-          nombres: d.usuario?.nombre,
-          apellidos: d.usuario?.apellido,
-          telefono: d.usuario?.telefono,
-          correo: d.usuario?.correo,
-          active: d.active,
-        
-          // ✅ NUEVOS CAMPOS
-          no_licencia_conduccion: d.no_licencia_conduccion ?? null,
-          vencimiento_licencia_conduccion: d.vencimiento_licencia_conduccion ?? null,
-        }));
+        // 🔥 Sin mapeo — guardamos el objeto tal como viene del backend
+        this.items = rawItems;
+        this.total = data?.total ?? rawItems.length;
     
-        this.items = mapped;
-        this.total = data?.total ?? mapped.length;
-    
-        return { items: mapped, total: this.total };
+        return { items: rawItems, total: this.total };
     
       } catch (e: any) {
         this.error =

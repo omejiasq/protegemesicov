@@ -142,6 +142,8 @@ async create(
     numeroIdentificacion: dto.numeroIdentificacion,
     nombresResponsable: dto.nombresResponsable,
     detalleActividades: dto.detalleActividades,
+    
+    evidencia_foto: dto.evidencia_foto ?? null,
 
     estado: true,
   });
@@ -581,5 +583,87 @@ async getVehicleByPlate(placa: string, jwt: string) {
       numero_items: limit,
     };
   }
+
+  // ======================================================
+// FULL REPORT
+// ======================================================
+async getFullReportByPreventiveId(
+  id: string,
+  user?: { enterprise_id?: string },
+) {
+  if (!Types.ObjectId.isValid(id)) {
+    throw new NotFoundException('ID inválido');
+  }
+
+  // 1️⃣ Buscar preventivo base
+  const preventive = await this.model
+    .findOne({
+      _id: new Types.ObjectId(id),
+      enterprise_id: user?.enterprise_id,
+    })
+    .lean();
+
+  if (!preventive) {
+    throw new NotFoundException('Preventivo no encontrado');
+  }
+
+  const mantenimientoId = preventive.mantenimientoId;
+
+  if (!mantenimientoId) {
+    throw new NotFoundException(
+      'El preventivo no tiene mantenimiento asociado',
+    );
+  }
+
+  // 2️⃣ Consultar snapshots en paralelo
+  const [vehicleSnapshot, peopleSnapshot, itemResults] =
+    await Promise.all([
+      this.vehicleSnap
+        .findOne({ mantenimientoId })
+        .lean(),
+
+      this.peopleSnap
+        .findOne({ mantenimientoId })
+        .lean(),
+
+      this.itemResult
+        .find({ mantenimientoId })
+        .populate({
+          path: 'itemId',
+          select: 'tipo_parte dispositivo',
+        })
+        .lean(),
+    ]);
+
+  // 3️⃣ Construir JSON consolidado
+  const report = {
+    preventive: {
+      _id: preventive._id,
+      placa: preventive.placa,
+      fecha: preventive.fecha,
+      hora: preventive.hora,
+      nit: preventive.nit,
+      razonSocial: preventive.razonSocial,
+      tipoIdentificacion: preventive.tipoIdentificacion,
+      numeroIdentificacion: preventive.numeroIdentificacion,
+      nombresResponsable: preventive.nombresResponsable,
+      detalleActividades: preventive.detalleActividades,
+      evidencia_foto: (preventive as any).evidencia_foto ?? null,
+      estado: preventive.estado,
+
+      scheduledAt: preventive.scheduledAt ?? null,
+      executedAt: preventive.executedAt ?? null,
+      dueDate: preventive.dueDate ?? null,
+    },
+
+    vehicle: vehicleSnapshot ?? null,
+
+    people: peopleSnapshot ?? null,
+
+    items: itemResults ?? [],
+  };
+
+  return report;
+}
   
 }
