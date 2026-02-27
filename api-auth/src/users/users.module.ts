@@ -6,11 +6,14 @@ import { UsersController } from './users.controller';
 import { User, UserSchema } from '../schemas/user.schema';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { Enterprise, EnterpriseSchema } from '../schemas/enterprise.schema'; // ← ajuste la ruta si es diferente
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
-    // Importar JwtModule aquí para que JwtService esté disponible en este módulo
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      { name: Enterprise.name, schema: EnterpriseSchema }, // ✅ agregar esto
+    ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

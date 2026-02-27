@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId } from 'mongoose';
@@ -61,5 +62,52 @@ export class EnterpriseService {
   // ✅ LISTAR todas
   async findAll() {
     return this.enterpriseModel.find().lean();
+  }
+
+  // ✅ ACTIVAR / DESACTIVAR empresa
+  async toggleActive(
+    id: string,
+    dto: { active: boolean; reason?: string },
+  ) {
+    if (!isValidObjectId(id)) {
+      throw new BadRequestException('Invalid enterprise id');
+    }
+
+    const enterprise = await this.enterpriseModel.findById(id);
+
+    if (!enterprise) {
+      throw new NotFoundException('Enterprise not found');
+    }
+
+    // Evitar operación redundante
+    if (enterprise.active === dto.active) {
+      throw new BadRequestException(
+        dto.active
+          ? 'La empresa ya está activa'
+          : 'La empresa ya está desactivada',
+      );
+    }
+
+    const update: Record<string, any> = {
+      active: dto.active,
+    };
+
+    if (dto.active) {
+      // Al activar: registrar fecha y limpiar razón
+      update.activatedAt = new Date();
+      update.deactivationReason = null;
+    } else {
+      // Al desactivar: registrar fecha y razón
+      update.deactivatedAt = new Date();
+      update.deactivationReason = dto.reason ?? 'Sin motivo especificado';
+    }
+
+    const updated = await this.enterpriseModel.findByIdAndUpdate(
+      id,
+      { $set: update },
+      { new: true },
+    );
+
+    return updated;
   }
 }

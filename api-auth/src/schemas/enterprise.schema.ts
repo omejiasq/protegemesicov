@@ -49,19 +49,12 @@ export class Enterprise {
   @Prop({ trim: true })
   vigiladoToken?: string;
 
-  // ───────────── Estado ─────────────
-  @Prop({ default: true })
-  active: boolean;
 
   @Prop({ trim: true })
   packageType?: string;  //basic, enterprise
 
-  @Prop({ required: false, trim: true })
-  mechanic_document_type: { 
-    type: Number,
-    enum: [1,2,3,4,5,6,7,8,9],
-    default: 1,
-  };
+  @Prop({ type: Number, enum: [1,2,3,4,5,6,7,8,9], default: 1 })
+  mechanic_document_type?: number;
 
   @Prop({ trim: true })
   mechanic_document_number?: string;
@@ -75,12 +68,10 @@ export class Enterprise {
 
   @Prop({ trim: true })
   specialized_center_name?: string;
-  @Prop({ required: false, trim: true })
-  specialized_center_document_type: { 
-    type: Number,
-    enum: [12], //NIT
-    default: 12,
-  };
+
+  @Prop({ type: Number, enum: [12], default: 12 })
+  specialized_center_document_type?: number;
+
   @Prop({ trim: true })
   specialized_center_document_number?: string;
 
@@ -93,6 +84,20 @@ export class Enterprise {
 
   @Prop({ type: Object, default: null })
   formato_alistamiento?: Record<string, any>;
+
+  // ───────────── Control de acceso / Suscripción ─────────────
+  @Prop({ default: true })
+  active: boolean; // ya lo tiene, solo confirme que está
+
+  // ───────────── Control de acceso ─────────────
+  @Prop({ type: Date, default: null })
+  activatedAt?: Date;
+
+  @Prop({ type: Date, default: null })
+  deactivatedAt?: Date;
+
+  @Prop({ type: String, default: null, trim: true })
+  deactivationReason?: string | null;
 }
 
 export const EnterpriseSchema = SchemaFactory.createForClass(Enterprise);

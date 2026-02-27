@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Patch } from '@nestjs/common';
 import { EnterpriseService } from './enterprise.service';
 import { CreateEnterpriseDto } from './dto/create-enterprise.dto';
 
@@ -28,4 +28,15 @@ export class EnterpriseController {
   list() {
     return this.enterpriseService.findAll();
   }
+
+  // enterprise.controller.ts
+  @Patch(':id/toggle-active')
+  // @Roles('superadmin') // descomente cuando tenga el guard de roles
+  async toggleActive(
+    @Param('id') id: string,
+    @Body() dto: { active: boolean; reason?: string },
+  ) {
+    return this.enterpriseService.toggleActive(id, dto);
+  }
+
 }
