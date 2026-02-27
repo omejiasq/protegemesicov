@@ -116,7 +116,25 @@ const routes: RouteRecordRaw[] = [
         path: '/drivers/:id/edit',
         name: 'driver-edit',
         component: () => import('../views/DriverEdit.vue')
-      }
+      },
+
+      // ─── STAFF (admin, operator, viewer) ───
+      {
+        path: "staff",
+        name: "staff",
+        component: () => import("../views/StaffList.vue"),
+      },
+      {
+        path: "staff/create",
+        name: "staff-create",
+        component: () => import("../views/StaffCreate.vue"),
+      },
+      {
+        path: "staff/:id/edit",
+        name: "staff-edit",
+        component: () => import("../views/StaffEdit.vue"),
+        props: true,
+      },
 
     ],
   },

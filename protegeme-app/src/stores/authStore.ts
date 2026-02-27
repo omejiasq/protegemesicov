@@ -5,11 +5,17 @@ import {http} from '../api/http';
 
 type User = {
   _id: string;
-  usuario: string;
-  nombre: string;
+  username: string | null;
+  firstName?: string | null;   // ✅ agregar
+  lastName?: string | null;    // ✅ agregar
+  usuario?: string;
+  nombre?: string | null;
   apellido?: string | null;
   telefono?: string | null;
-  correo: string;
+  phone?: string | null;       // ✅ agregar
+  correo?: string | null;
+  email?: string | null;
+  roleType: string;
 };
 
 type Role = {
@@ -24,7 +30,8 @@ type LoginPayload = {
 };
 
 type LoginResponse = {
-  usuario: User;
+  user?: User;      // ✅ añadir
+  usuario?: User;   // mantener por compatibilidad
   token: string;
   rol?: Role;
   enterprise_id?: string;
@@ -61,7 +68,14 @@ export const useAuthStore = defineStore('auth', {
 
   getters: {
     isAuthenticated: (s) => Boolean(s.token),
-    profileName: (s) => s.user?.nombre || s.user?.usuario || 'Usuario',
+    //profileName: (s) => s.user?.nombre || s.user?.usuario || 'Usuario',
+    profileName: (s) =>
+      s.user?.firstName ||
+      s.user?.nombre ||
+      s.user?.username ||
+      s.user?.usuario ||
+      'Usuario',
+
   },
 
   actions: {
@@ -130,14 +144,14 @@ export const useAuthStore = defineStore('auth', {
       this.error = '';
       try {
         const { data } = (await AuthserviceApi.login(payload)) as { data: LoginResponse };
-
+    
         if (!data?.token) throw new Error('No se recibió token');
-
-        this.user = data.usuario;
+    
+        this.user = data.user ?? data.usuario;  // ✅ soporta ambos
         this.token = data.token;
         this.role = data.rol ?? null;
         this.enterpriseId = data.enterprise_id ?? null;
-
+    
         this.persistSession();
         return data;
       } catch (e: any) {

@@ -29,17 +29,20 @@ export class AuthService {
   async login(user: any) {
     if (!user) return null;
 
-    // 1️⃣ Verificar que el usuario esté activo
     if (user.active === false) {
       throw new ForbiddenException('Su usuario está desactivado');
     }
 
-    // 2️⃣ Verificar que la empresa esté activa (si tiene enterprise_id)
+    let vigiladoId = user.vigiladoId ?? null;
+    let vigiladoToken = user.vigiladoToken ?? null;
+
     if (user.enterprise_id) {
       const enterprise = await this.enterpriseModel
         .findById(user.enterprise_id, {
           active: 1,
           deactivationReason: 1,
+          vigiladoId: 1,
+          vigiladoToken: 1,
         })
         .lean();
 
@@ -54,18 +57,21 @@ export class AuthService {
             : 'Su empresa no tiene acceso activo a la plataforma',
         );
       }
+
+      vigiladoId = enterprise.vigiladoId ?? vigiladoId;
+      vigiladoToken = enterprise.vigiladoToken ?? vigiladoToken;
     }
 
-    // 3️⃣ Generar token solo si todo está OK
-    const info = user.userInfo ?? {};
+    // ✅ Los datos del usuario están en el subdocumento "usuario"
+    const info = user.usuario ?? {};
 
     const payload = {
       sub: String(user._id),
-      username: info.usuario,
+      username: info.usuario ?? null,
       role: user.roleType,
       enterprise_id: user.enterprise_id ?? null,
-      vigiladoId: user.vigiladoId ?? null,
-      vigiladoToken: user.vigiladoToken ?? null,
+      vigiladoId,
+      vigiladoToken,
     };
 
     const token = this.jwtService.sign(payload);
@@ -73,12 +79,12 @@ export class AuthService {
     return {
       user: {
         _id: user._id,
-        username: info.usuario ?? null,
-        email: info.email ?? null,
-        firstName: info.firstName ?? null,
-        lastName: info.lastName ?? null,
-        phone: info.phone ?? null,
-        documentType: info.documentType ?? null,
+        username: info.usuario ?? null,           // "cooperstram"
+        email: info.correo ?? null,               // ✅ campo real en BD
+        firstName: info.nombre ?? null,           // ✅ campo real en BD
+        lastName: info.apellido ?? null,          // ✅ campo real en BD
+        phone: info.telefono ?? null,             // ✅ campo real en BD
+        documentType: info.document_type ?? null, // ✅ campo real en BD
         documentNumber: info.documentNumber ?? null,
         roleType: user.roleType,
       },

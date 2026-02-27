@@ -325,4 +325,139 @@ export class UsersService {
       numero_items: limit,
     };
   }
+
+
+//-----------------------------------------------------
+// CREATE STAFF (admin, operator, viewer)
+//-----------------------------------------------------
+async createStaff(createUserDto: CreateUserDto, currentUser: any) {
+  if (!currentUser?.enterprise_id) {
+    throw new BadRequestException('enterprise_id no presente en el token');
+  }
+
+  const allowedRoles = ['admin', 'operator', 'viewer'];
+  const role = createUserDto.roleType ?? 'operator';
+
+  if (!allowedRoles.includes(role)) {
+    throw new BadRequestException(
+      `Rol no permitido. Use: ${allowedRoles.join(', ')}`,
+    );
+  }
+
+  const exists = await this.userModel.findOne({
+    'usuario.usuario': createUserDto.usuario,
+  });
+  if (exists) {
+    throw new BadRequestException('El nombre de usuario ya existe');
+  }
+
+  const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+
+  const newUser = await this.userModel.create({
+    usuario: {
+      usuario: createUserDto.usuario,
+      nombre: createUserDto.firstName ?? undefined,
+      apellido: createUserDto.lastName ?? undefined,
+      telefono: createUserDto.phone ?? undefined,
+      correo: createUserDto.email ?? undefined,
+      document_type: createUserDto.documentType ?? 1,
+      documentNumber: createUserDto.documentNumber ?? undefined,
+    },
+    password: hashedPassword,
+    roleType: role,
+    enterprise_id: new Types.ObjectId(currentUser.enterprise_id),
+    active: true,
+  });
+
+  return this.sanitize(newUser.toObject());
+}
+
+//-----------------------------------------------------
+// LIST STAFF (admin, operator, viewer)
+//-----------------------------------------------------
+async findStaffByEnterprise(
+  currentUser: any,
+  query: {
+    page?: number;
+    numero_items?: number;
+    search?: string;
+    roleType?: string;
+    active?: boolean;
+    sortField?: string;
+    sortOrder?: 'asc' | 'desc';
+  },
+) {
+  if (!currentUser?.enterprise_id) {
+    throw new BadRequestException('enterprise_id no presente en el token');
+  }
+
+  const filters: any = {
+    enterprise_id: new Types.ObjectId(currentUser.enterprise_id),
+    roleType: { $in: ['admin', 'operator', 'viewer'] },
+  };
+
+  if (query.roleType && ['admin', 'operator', 'viewer'].includes(query.roleType)) {
+    filters.roleType = query.roleType;
+  }
+
+  if (query.search) {
+    filters.$or = [
+      { 'usuario.usuario':  { $regex: query.search, $options: 'i' } },
+      { 'usuario.nombre':   { $regex: query.search, $options: 'i' } },
+      { 'usuario.apellido': { $regex: query.search, $options: 'i' } },
+      { 'usuario.correo':   { $regex: query.search, $options: 'i' } },
+    ];
+  }
+
+  if (query.active !== undefined) {
+    filters.active = query.active;
+  }
+
+  const sortField = query.sortField || 'createdAt';
+  const sortOrder = query.sortOrder === 'asc' ? 1 : -1;
+  const total     = await this.userModel.countDocuments(filters);
+  const page      = Number(query.page) || 1;
+  const limit     = Number(query.numero_items) || total;
+  const skip      = (page - 1) * limit;
+
+  const staff = await this.userModel
+    .find(filters)
+    .sort({ [sortField]: sortOrder })
+    .skip(skip)
+    .limit(limit)
+    .lean();
+
+  return {
+    data: staff.map((u) => this.sanitize(u)),
+    total,
+    page,
+    numero_items: limit,
+  };
+}
+
+//-----------------------------------------------------
+// TOGGLE ACTIVE USUARIO
+//-----------------------------------------------------
+async toggleActiveUser(id: string, currentUser: any) {
+  if (!Types.ObjectId.isValid(id)) {
+    throw new BadRequestException('ID de usuario inválido');
+  }
+
+  const user = await this.userModel.findOne({
+    _id: id,
+    enterprise_id: new Types.ObjectId(currentUser.enterprise_id),
+  });
+
+  if (!user) throw new NotFoundException('Usuario no encontrado');
+
+  if (String(user._id) === String(currentUser.sub)) {
+    throw new BadRequestException('No puede desactivar su propio usuario');
+  }
+
+  user.active = !user.active;
+  await user.save();
+
+  return this.sanitize(user.toObject());
+}
+
 }

@@ -72,6 +72,44 @@ async updateUser(@Param('id') id: string, @Body() body: any) {
   return this.usersService.update(id, body);
 }
 
+// POST /users/staff
+@Post('staff')
+@UseGuards(JwtAuthGuard)
+createStaff(@Body() dto: CreateUserDto, @Req() req: any) {
+  return this.usersService.createStaff(dto, req.user);
+}
+
+
+// GET /users/staff?search=&roleType=&active=&page=&numero_items=
+@Get('staff')
+@UseGuards(JwtAuthGuard)
+findStaff(@Query() query: any, @Req() req: any) {
+  return this.usersService.findStaffByEnterprise(req.user, {
+    page: query.page,
+    numero_items: query.numero_items,
+    search: query.search,
+    roleType: query.roleType,
+    active: query.active !== undefined ? query.active === 'true' : undefined,
+    sortField: query.sortField,
+    sortOrder: query.sortOrder,
+  });
+}
+
+// PATCH /users/:id/toggle-active  → activar/desactivar
+@Patch(':id/toggle-active')
+@UseGuards(JwtAuthGuard)
+toggleActive(@Param('id') id: string, @Req() req: any) {
+  return this.usersService.toggleActiveUser(id, req.user);
+}
+
+// GET /users/:id  → obtener cualquier usuario por ID
+@Get(':id')
+@UseGuards(JwtAuthGuard)
+async getUserById(@Param('id') id: string) {
+  const user = await this.usersService.findById(id);
+  if (!user) throw new NotFoundException('Usuario no encontrado');
+  return user;
+}
 
 }
 
