@@ -101,7 +101,7 @@
       >
         <Column field="placa" header="Placa" sortable />
         <Column field="nombresConductor" header="Conductor" sortable />
-        <Column field="numeroIdentificacion" header="Documento" sortable />
+        <Column field="nombresResponsable" header="Responsable" sortable />
         <Column header="Fecha" sortable>
           <template #body="{ data }">{{ fmtDate(data.createdAt) }}</template>
         </Column>
@@ -277,6 +277,7 @@
           icon="pi pi-save"
           class="btn-dark-green"
           :loading="saving"
+          :disabled="saving"
           @click="save"
         />
       </template>

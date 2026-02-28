@@ -282,6 +282,7 @@ function formatDateTimeLocal(value?: string | Date) {
         //Fecha: toYMD(item.fecha), // 👈 YA FORMATEADA
         Fecha_ejecutada: formatDateTimeLocal(item.executedAt || item.executedAt),
         Fecha_vencimiento: formatDateTimeLocal(item.dueDate || item.dueDate),
+        Fecha_creacion: formatDateTimeLocal(item.createdAt || item.createdAt),
 
         Taller: item.taller || item.razonSocial || "",
         Mecanico: item.mecanico || item.nombresResponsable || "",

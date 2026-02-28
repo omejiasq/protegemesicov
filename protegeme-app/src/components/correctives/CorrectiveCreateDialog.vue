@@ -38,7 +38,15 @@
       <!-- FILA 2 -->
       <div class="field col-12 sm:col-4">
         <label>NIT - Centro especializado</label>
-        <InputText v-model="form.nit" class="w-full" :disabled="saving" />
+        <InputText
+          v-model="form.nit"
+          class="w-full"
+          :disabled="saving"
+          inputmode="numeric"
+          maxlength="15"
+          placeholder="Ej: 900416316"
+          @input="form.nit = form.nit.replace(/\D/g, '')"
+        />
       </div>
 
       <div class="field col-12 sm:col-8">
@@ -91,6 +99,7 @@
         icon="pi pi-save"
         class="btn-dark-green"
         :loading="saving"
+        :disabled="saving"
         @click="onSave"
       />
     </template>
@@ -116,6 +125,29 @@ const dialogVisible = computed({
   get: () => props.visible,
   set: (val: boolean) => emit("update:visible", val),
 });
+
+function validateForm(): boolean {
+  const required: { field: keyof typeof form; label: string }[] = [
+    { field: 'placa', label: 'Placa' },
+    { field: 'fecha', label: 'Fecha' },
+    { field: 'hora', label: 'Hora' },
+    { field: 'nit', label: 'NIT' },
+    { field: 'razonSocial', label: 'Razón Social' },
+    { field: 'tipoIdentificacion', label: 'Tipo de identificación' },
+    { field: 'numeroIdentificacion', label: 'Número de identificación' },
+    { field: 'nombresResponsable', label: 'Nombres y apellidos' },
+    { field: 'detalleActividades', label: 'Detalle de actividades' },
+  ]
+
+  for (const { field, label } of required) {
+    const val = form[field]
+    if (val === null || val === undefined || String(val).trim() === '') {
+      alert(`El campo "${label}" es obligatorio`)
+      return false
+    }
+  }
+  return true
+}
 
 async function buscarVehiculoPorPlaca() {
   if (!form.placa) return;
@@ -225,6 +257,8 @@ function closeDialog() {
 }
 
 async function onSave() {
+  if (!validateForm()) return   // ✅ detiene si hay campos vacíos
+
   saving.value = true;
 
   // 👉 El padre maneja el guardado real
