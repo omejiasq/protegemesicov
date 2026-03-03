@@ -81,12 +81,38 @@
     >
       <e-columns>
 
+        <e-column field="Placa" headerText="Placa" width="25" />
+        <e-column field="Fecha_ejecutada" headerText="Fecha ejecución" width="30" />
+        <e-column field="Fecha_vencimiento" headerText="Fecha vencimiento" width="30" />
+        <e-column field="Fecha_creacion" headerText="Fecha creación" width="30" />
+        
 
         <e-column field="Taller" headerText="Taller" width="20" />
         <e-column field="Mecanico" headerText="Mecánico" width="20" />
         <e-column field="Estado" headerText="Estado" width="20" />
+        <e-column
+          headerText="Reporte"
+          width="30"
+          textAlign="Center"
+          :allowSorting="false"
+          :allowFiltering="false"
+          :allowGrouping="false"
+          :allowResizing="false"
+          :allowEditing="false"
+          template="reportTemplate"
+        />
 
       </e-columns>
+
+   <!-- ✅ SLOT VA AQUÍ DENTRO -->
+    <template #reportTemplate="{ data }">
+      <Button
+        icon="pi pi-file-pdf"
+        class="p-button-text p-button-info p-button-sm"
+        @click="goToReport(data)"
+      />
+    </template>
+
     </EjsGrid>
 
     <!-- ================= MODAL DETALLE ================= -->
@@ -120,6 +146,8 @@ import Button from "primevue/button";
 /* ===== Syncfusion ===== */
 import {
   GridComponent,
+  ColumnsDirective,  // ← ESTA AQUÍ
+  ColumnDirective,   // ← ESTA AQUÍ
   Page,
   Sort,
   Toolbar,
@@ -129,20 +157,25 @@ import {
 
 /* ===== Store ===== */
 import { useMaintenanceStore } from "../../stores/maintenanceStore";
-import CorrectiveCreateDialog from "../../components/preventives/PreventiveCreateDialog.vue";
+import PreventiveCreateDialog from "../../components/preventives/PreventiveCreateDialog.vue";
 
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
+import { useRouter } from "vue-router";
+
+
 export default {
-  name: "CorrectiveMaintenance",
+  name: "PreventiveMaintenance",
 
   components: {
     EjsGrid: GridComponent,
+    EColumns: ColumnsDirective,    // ← REGISTRADO
+    EColumn: ColumnDirective,      // ← REGISTRADO
     Button,
-    CorrectiveCreateDialog,
-    "e-columns": { template: "<slot />" },
-    "e-column": { template: "<slot />" }
+    PreventiveCreateDialog,
+    //"e-columns": { template: "<slot />" },
+    //"e-column": { template: "<slot />" },
   },
 
   setup() {
@@ -154,6 +187,16 @@ export default {
     const showDetail = ref(false);
     const showCreate = ref(false);
     const selected = ref<any>(null);
+
+    const router = useRouter();
+
+    const goToReport = (row: any) => {
+          router.push({
+            name: "preventive-report",
+            params: { id: row._id }
+          });
+    };
+
 
     const filters = ref({
       placa: "",
@@ -278,6 +321,7 @@ function formatDateTimeLocal(value?: string | Date) {
 
     tableData.value = store.preventiveList.items.map((item: any) => {
       return {
+        _id: item._id,  // ← AGREGAR ESTO
         Placa: item.placa,
         //Fecha: toYMD(item.fecha), // 👈 YA FORMATEADA
         Fecha_ejecutada: formatDateTimeLocal(item.executedAt || item.executedAt),
@@ -313,7 +357,8 @@ function formatDateTimeLocal(value?: string | Date) {
       fetchData,
       exportExcel,
       saveFromDialog,
-      formatDate
+      formatDate,
+      goToReport
     };
   }
 };

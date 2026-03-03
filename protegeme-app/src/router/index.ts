@@ -136,6 +136,13 @@ const routes: RouteRecordRaw[] = [
         props: true,
       },
 
+      {
+        path: "/preventive-report/:id",
+        name: "preventive-report",
+        component: () => import('../views/maintenance/PreventiveDetail.vue'),
+        props: true
+      },
+
     ],
   },
 
