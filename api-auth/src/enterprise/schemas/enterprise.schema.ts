@@ -61,6 +61,26 @@ export class Enterprise {
   @Prop({ type: String, default: 'Basic'}) //Basic, Enterprise, Test
   package_type?: string | null;
 
+  // ── Centro especializado ──────────────────────────────
+  @Prop({ type: String, default: '' })
+  specialized_center_name?: string;
+
+  @Prop({ type: Number, default: 12 }) // 12 = NIT
+  specialized_center_document_type?: number;
+
+  @Prop({ type: String, default: '' })
+  specialized_center_document_number?: string;
+
+  // ── Ingeniero mecánico ────────────────────────────────
+  @Prop({ type: Number, default: null })
+  mechanic_document_type?: number | null;
+
+  @Prop({ type: String, default: '' })
+  mechanic_document_number?: string;
+
+  @Prop({ type: String, default: '' })
+  mechanic_name?: string;
+
 }
 
 export const EnterpriseSchema = SchemaFactory.createForClass(Enterprise);

@@ -132,7 +132,8 @@
     </p-dialog>
 
     <!-- ================= MODAL NUEVO ================= -->
-    <CorrectiveCreateDialog
+    <!-- ✅ CORRECTO -->
+    <PreventiveCreateDialog
       v-model:visible="showCreate"
       @save="saveFromDialog"
     />

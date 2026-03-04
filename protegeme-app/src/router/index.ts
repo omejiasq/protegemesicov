@@ -143,6 +143,24 @@ const routes: RouteRecordRaw[] = [
         props: true
       },
 
+      {
+        path: "enterprise/settings",
+        name: "enterprise-settings",
+        component: () => import("../views/EnterpriseSettings.vue"),
+      },
+
+      {
+        path: "maintenance/types",
+        name: "maintenance/types",
+        component: () => import("../views/maintenance/MaintenanceTypes.vue"),
+      },
+
+      {
+        path: "maintenance/inspection-types",
+        name: "maintenance/inspection-types",
+        component: () => import("../views/maintenance/InspectionTypes.vue"),
+      },
+
     ],
   },
 

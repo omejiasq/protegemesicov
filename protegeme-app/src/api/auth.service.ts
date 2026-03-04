@@ -6,4 +6,6 @@ export const AuthserviceApi = {
   register: (data: any) => http.post(`${baseURL}/auth/register`, data),
   createEnterprise: (data: any) => http.post(`${baseURL}/enterprise/create`, data),
   getAllEnterprises: (params?: Record<string, any>) => http.get(`${baseURL}/enterprise/getAll`, { params }),
+  getEnterprise: (id: string) => http.get(`${baseURL}/enterprise/${id}`),
+  updateEnterprise: (id: string, data: any) => http.put(`${baseURL}/enterprise/${id}`, data),
 };

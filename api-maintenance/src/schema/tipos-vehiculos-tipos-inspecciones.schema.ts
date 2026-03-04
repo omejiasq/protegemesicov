@@ -30,18 +30,17 @@ export class TipoVehiculoTipoInspeccion {
   @Prop({ required: false, trim: true, index: true })
   nombre_compania!: string;
 
-  @Prop({ required: false, trim: true, index: true })
-  codigo_externo!: number;
+  /** Códigos SICOV (Supertransporte) que representa este ítem. Ej: [4, 5] */
+  @Prop({ type: [Number], default: [] })
+  codigos_sicov!: number[];
 
+  @Prop({ type: Number, default: 0, index: true })
+  orden?: number;
 }
 
 export const TipoVehiculoTipoInspeccionSchema =
   SchemaFactory.createForClass(TipoVehiculoTipoInspeccion);
 
-/**
- * Índice recomendado para evitar duplicados
- * por empresa + clase + dispositivo
- */
 TipoVehiculoTipoInspeccionSchema.index(
   { company: 1, clase_vehiculo: 1, dispositivo: 1 },
   { unique: true },

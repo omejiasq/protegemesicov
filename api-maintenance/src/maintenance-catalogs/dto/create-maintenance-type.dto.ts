@@ -1,12 +1,16 @@
-import { IsBoolean, IsMongoId, IsNotEmpty, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateMaintenanceTypeDto {
-  @IsMongoId()
-  company: string;
-
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  clase_vehiculo: string;
+  clase_vehiculo?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -16,6 +20,11 @@ export class CreateMaintenanceTypeDto {
   @IsNotEmpty()
   tipo_parte: string;
 
+  @IsOptional()
   @IsBoolean()
   enabled?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  orden?: number;
 }

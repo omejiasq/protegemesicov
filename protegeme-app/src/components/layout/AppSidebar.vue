@@ -88,6 +88,28 @@
                         <span class="layout-menuitem-text">Calendario</span>
                       </router-link>
                     </li>
+
+                    <li>
+                      <router-link
+                        to="/maintenance/types"
+                        class="layout-menuitem-link"
+                        :class="{ 'active-menuitem': $route.path === '/maintenance/types' }"
+                      >
+                        <i class="pi pi-list layout-menuitem-icon"></i>
+                        <span class="layout-menuitem-text">Partes mant.</span>
+                      </router-link>
+                    </li>
+
+                    <li>
+                      <router-link
+                        to="/maintenance/inspection-types"
+                        class="layout-menuitem-link"
+                        :class="{ 'active-menuitem': $route.path.includes('/maintenance/inspection-types') }"
+                      >
+                        <i class="pi pi-clipboard layout-menuitem-icon"></i>
+                        <span class="layout-menuitem-text">Partes alist.</span>
+                      </router-link>
+                    </li>
                   </template>
 
                 </ul>
@@ -128,6 +150,17 @@
                       >
                         <i class="pi pi-id-card layout-menuitem-icon"></i>
                         <span class="layout-menuitem-text">Usuarios</span>
+                      </router-link>
+                    </li>
+
+                    <li>
+                      <router-link
+                        to="/enterprise/settings"
+                        class="layout-menuitem-link"
+                        :class="{ 'active-menuitem': $route.path.includes('/enterprise/settings') }"
+                      >
+                        <i class="pi pi-building layout-menuitem-icon"></i>
+                        <span class="layout-menuitem-text">Mi Empresa</span>
                       </router-link>
                     </li>
                   </ul>

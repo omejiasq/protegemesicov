@@ -23,6 +23,9 @@ export class TipoVehiculoTipoMantenimiento {
 
   @Prop({ default: true, index: true })
   enabled!: boolean;
+
+  @Prop({ type: Number, default: 0, index: true })
+  orden?: number;
 }
 
 export const TipoVehiculoTipoMantenimientoSchema =

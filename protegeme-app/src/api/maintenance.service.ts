@@ -75,7 +75,24 @@ export const MaintenanceserviceApi = {
         responseType: "blob",
       }
     );
-  }
-  
+  },
+
+  listAllMaintenanceTypes: () =>
+    http.get(`${baseURL}/maintenance-types/all`),
+  createMaintenanceType: (data: any) =>
+    http.post(`${baseURL}/maintenance-types`, data),
+  updateMaintenanceType: (id: string, data: any) =>
+    http.patch(`${baseURL}/maintenance-types/${id}`, data),
+  toggleMaintenanceType: (id: string) =>
+    http.patch(`${baseURL}/maintenance-types/${id}/toggle`, {}),
+
+  listAllInspectionTypes: () =>
+    http.get(`${baseURL}/inspection-types/all`),
+  createInspectionType: (data: any) =>
+    http.post(`${baseURL}/inspection-types`, data),
+  updateInspectionType: (id: string, data: any) =>
+    http.patch(`${baseURL}/inspection-types/${id}`, data),
+  toggleInspectionType: (id: string) =>
+    http.patch(`${baseURL}/inspection-types/${id}/toggle`, {}),
 
 };

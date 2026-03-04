@@ -75,6 +75,9 @@ services:
     restart: unless-stopped
     networks:
       - protegeme-net
+    depends_on:
+      minio:
+        condition: service_healthy
     volumes:
       - ./data/uploads/maintenance:/app/uploads
       - ./data/logs/api-maintenance:/app/logs
@@ -161,11 +164,11 @@ services:
     networks:
       - protegeme-net
     healthcheck:
-      test: ["CMD", "sh", "-c", "mc alias set local http://127.0.0.1:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} >/dev/null 2>&1 || true; exit 0"]
-      interval: 30s
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:9000/minio/health/live || exit 1"]
+      interval: 15s
       timeout: 5s
-      retries: 3
-      start_period: 15s
+      retries: 5
+      start_period: 30s
 
   # init de bucket (one-shot)
   minio-mc:

@@ -10,19 +10,16 @@ import {
   IsString,
 } from 'class-validator';
 
-export class CreateInspectionTypeDto {
+export class UpdateInspectionTypeDto {
   @IsOptional()
   @IsString()
   @IsNotEmpty()
-  clase_vehiculo?: string;
+  tipo_parte?: string;
 
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  dispositivo: string;
-
-  @IsString()
-  @IsNotEmpty()
-  tipo_parte: string;
+  dispositivo?: string;
 
   @IsOptional()
   @IsBoolean()
