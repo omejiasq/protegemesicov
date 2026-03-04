@@ -18,7 +18,7 @@ import { Enterprise, EnterpriseSchema } from '../schemas/enterprise.schema'; // 
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'default_jwt_secret',
+        secret: configService.getOrThrow<string>('JWT_SECRET'),
         signOptions: { expiresIn: '12h' },
       }),
     }),

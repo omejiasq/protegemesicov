@@ -74,6 +74,9 @@ CorrectiveDetailSchema.index(
   { unique: true },
 );
 
+// Búsquedas por placa dentro de una empresa
+CorrectiveDetailSchema.index({ enterprise_id: 1, placa: 1 });
+
 CorrectiveDetailSchema.index({
   enterprise_id: 1,
   occurredAt: -1,

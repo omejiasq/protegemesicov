@@ -73,6 +73,11 @@ PreventiveDetailSchema.index(
   { unique: true },
 );
 
+// Búsquedas por placa dentro de una empresa (listados y updateMany en create)
+PreventiveDetailSchema.index({ enterprise_id: 1, placa: 1, estado: 1 });
+// Listado general por empresa ordenado por fecha
+PreventiveDetailSchema.index({ enterprise_id: 1, createdAt: -1 });
+
 //
 // 🔥 AUTO-CONSTRUCCIÓN ROBUSTA
 //

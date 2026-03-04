@@ -45,3 +45,8 @@ EnlistmentDetailSchema.index(
   { enterprise_id: 1, mantenimientoId: 1 },
   { unique: true },
 );
+
+// Búsquedas por placa dentro de una empresa
+EnlistmentDetailSchema.index({ enterprise_id: 1, placa: 1 });
+// Listado por empresa ordenado por fecha
+EnlistmentDetailSchema.index({ enterprise_id: 1, createdAt: -1 });

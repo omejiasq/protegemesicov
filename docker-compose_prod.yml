@@ -18,7 +18,7 @@ services:
     volumes:
       - ./data/logs/api-auth:/app/logs
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4001/health" ]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4001/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -38,7 +38,7 @@ services:
     volumes:
       - ./data/logs/api-incidents:/app/logs
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4002/health" ]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4002/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -58,7 +58,7 @@ services:
     volumes:
       - ./data/logs/api-authorizations:/app/logs
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4003/health" ]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4003/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -79,7 +79,7 @@ services:
       - ./data/uploads/maintenance:/app/uploads
       - ./data/logs/api-maintenance:/app/logs
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4004/health" ]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4004/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -100,7 +100,7 @@ services:
       - ./data/uploads/vehicle:/app/uploads
       - ./data/logs/api-vehicle:/app/logs
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4005/health" ]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4005/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -120,7 +120,7 @@ services:
     volumes:
       - ./data/logs/api-drivers:/app/logs
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4006/health" ]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4006/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -131,7 +131,7 @@ services:
       context: ./protegeme-app
       dockerfile: Dockerfile
     ports:
-      - "5173:80"  
+      - "127.0.0.1:5173:80"
     #image: repo/protegeme/web:20251130
     env_file:
       - ./protegeme-app/.env
@@ -141,7 +141,7 @@ services:
     networks:
       - protegeme-net
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -186,7 +186,7 @@ services:
     container_name: protegeme-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     networks: [protegeme-net]
 
 networks:
