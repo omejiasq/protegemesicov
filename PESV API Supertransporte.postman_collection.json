@@ -1,0 +1,591 @@
+{
+  "info": {
+    "_postman_id": "7e69fdc6-b315-41de-bdb4-858fe1b39c51",
+    "name": "PESV API Supertransporte",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "1759314"
+  },
+  "item": [
+    {
+      "name": "0. inicio Empresa tecnologica",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();\r",
+              "pm.environment.set(\"AUTH_TOKEN\", jsonData.token);"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"usuario\": \"199199199\",\r\n    \"contrasena\": \"Super23+\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{url}}/autenticacion/inicio-sesion",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "autenticacion",
+            "inicio-sesion"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "1. Clasificación",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{AUTH_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkb2N1bWVudG8iOiIxOTkxOTkxOTkiLCJpZFJvbCI6IjAwNyIsImlhdCI6MTc1NjkxODcyOCwiZXhwIjoxNzU3MDA1MTI4fQ.vReTdzRm5yPgrVUWn8pH4w9W3f0zjJMMQw1ppMGgY8A",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{url}}/modalidad/filtrar?idVigilado=71782901&token=b6168d3e-c02b-4fe7-a6e0-1000d9447f49",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "modalidad",
+            "filtrar"
+          ],
+          "query": [
+            {
+              "key": "idVigilado",
+              "value": "71782901"
+            },
+            {
+              "key": "token",
+              "value": "b6168d3e-c02b-4fe7-a6e0-1000d9447f49"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "1.1 listar modalidades",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{AUTH_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{url}}/modalidad",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "modalidad"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "1.2 listar radios",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{AUTH_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{url}}/radio?modalidad=1",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "radio"
+          ],
+          "query": [
+            {
+              "key": "modalidad",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2. guardar clasificacion",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{AUTH_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"idVigilado\":\"72175360\",\r\n  \"token\":\"b277c5fe-3969-4a06-824d-4d0d3b723b71\",\r\n  \"datos\": [\r\n    {\r\n      \"idColumna\": 100,\r\n      \"idFila\": 1,\r\n      \"valor\": \"pruxx\",\r\n      \"estado\": \"pru\"\r\n    },\r\n    {\r\n      \"idColumna\": 1,\r\n      \"idFila\": 2,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 1,\r\n      \"idFila\": 3,\r\n      \"valor\": \"20\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 1,\r\n      \"idFila\": 4,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 1,\r\n      \"idFila\": 5,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 2,\r\n      \"idFila\": 6,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 3,\r\n      \"idFila\": 6,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 4,\r\n      \"idFila\": 6,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 5,\r\n      \"idFila\": 6,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 6,\r\n      \"idFila\": 6,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 7,\r\n      \"idFila\": 6,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 2,\r\n      \"idFila\": 7,\r\n      \"valor\": \"20\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 3,\r\n      \"idFila\": 7,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 4,\r\n      \"idFila\": 7,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 5,\r\n      \"idFila\": 7,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 6,\r\n      \"idFila\": 7,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 7,\r\n      \"idFila\": 7,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 2,\r\n      \"idFila\": 8,\r\n      \"valor\": \"10\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 3,\r\n      \"idFila\": 8,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 4,\r\n      \"idFila\": 8,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 5,\r\n      \"idFila\": 8,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 6,\r\n      \"idFila\": 8,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 7,\r\n      \"idFila\": 8,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 2,\r\n      \"idFila\": 9,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 3,\r\n      \"idFila\": 9,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 4,\r\n      \"idFila\": 9,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 5,\r\n      \"idFila\": 9,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 6,\r\n      \"idFila\": 9,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 7,\r\n      \"idFila\": 9,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 2,\r\n      \"idFila\": 10,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 3,\r\n      \"idFila\": 10,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 4,\r\n      \"idFila\": 10,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 5,\r\n      \"idFila\": 10,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 6,\r\n      \"idFila\": 10,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 7,\r\n      \"idFila\": 10,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 2,\r\n      \"idFila\": 33,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 3,\r\n      \"idFila\": 33,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 4,\r\n      \"idFila\": 33,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 5,\r\n      \"idFila\": 33,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 6,\r\n      \"idFila\": 33,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 7,\r\n      \"idFila\": 33,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 2,\r\n      \"idFila\": 34,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 3,\r\n      \"idFila\": 34,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 4,\r\n      \"idFila\": 34,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 5,\r\n      \"idFila\": 34,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 6,\r\n      \"idFila\": 34,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 7,\r\n      \"idFila\": 34,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 2,\r\n      \"idFila\": 35,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 3,\r\n      \"idFila\": 35,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 4,\r\n      \"idFila\": 35,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 5,\r\n      \"idFila\": 35,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 6,\r\n      \"idFila\": 35,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 7,\r\n      \"idFila\": 35,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 2,\r\n      \"idFila\": 11,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 3,\r\n      \"idFila\": 11,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 4,\r\n      \"idFila\": 11,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 5,\r\n      \"idFila\": 11,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 6,\r\n      \"idFila\": 11,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 7,\r\n      \"idFila\": 11,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 8,\r\n      \"idFila\": 12,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 9,\r\n      \"idFila\": 12,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 8,\r\n      \"idFila\": 13,\r\n      \"valor\": \"20\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 9,\r\n      \"idFila\": 13,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 8,\r\n      \"idFila\": 14,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 9,\r\n      \"idFila\": 14,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 8,\r\n      \"idFila\": 15,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 9,\r\n      \"idFila\": 15,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 8,\r\n      \"idFila\": 16,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 9,\r\n      \"idFila\": 16,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 8,\r\n      \"idFila\": 17,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 9,\r\n      \"idFila\": 17,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 8,\r\n      \"idFila\": 18,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 9,\r\n      \"idFila\": 18,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 10,\r\n      \"idFila\": 20,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 11,\r\n      \"idFila\": 20,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 12,\r\n      \"idFila\": 20,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 10,\r\n      \"idFila\": 21,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 11,\r\n      \"idFila\": 21,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 12,\r\n      \"idFila\": 21,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 10,\r\n      \"idFila\": 22,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 11,\r\n      \"idFila\": 22,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 12,\r\n      \"idFila\": 22,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 10,\r\n      \"idFila\": 23,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 11,\r\n      \"idFila\": 23,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 12,\r\n      \"idFila\": 23,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 10,\r\n      \"idFila\": 24,\r\n      \"valor\": \"20\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 11,\r\n      \"idFila\": 24,\r\n      \"valor\": \"40\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 12,\r\n      \"idFila\": 24,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 10,\r\n      \"idFila\": 25,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 11,\r\n      \"idFila\": 25,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 12,\r\n      \"idFila\": 25,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 10,\r\n      \"idFila\": 26,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 11,\r\n      \"idFila\": 26,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 12,\r\n      \"idFila\": 26,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 10,\r\n      \"idFila\": 27,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 11,\r\n      \"idFila\": 27,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 12,\r\n      \"idFila\": 27,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 10,\r\n      \"idFila\": 28,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 11,\r\n      \"idFila\": 28,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 12,\r\n      \"idFila\": 28,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 10,\r\n      \"idFila\": 29,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 11,\r\n      \"idFila\": 29,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 12,\r\n      \"idFila\": 29,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 10,\r\n      \"idFila\": 30,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 12,\r\n      \"idFila\": 30,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 11,\r\n      \"idFila\": 30,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 12,\r\n      \"idFila\": 31,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 10,\r\n      \"idFila\": 31,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 11,\r\n      \"idFila\": 31,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 10,\r\n      \"idFila\": 32,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 12,\r\n      \"idFila\": 32,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 11,\r\n      \"idFila\": 32,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 10,\r\n      \"idFila\": 36,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 11,\r\n      \"idFila\": 36,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 12,\r\n      \"idFila\": 36,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 10,\r\n      \"idFila\": 37,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 12,\r\n      \"idFila\": 37,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 11,\r\n      \"idFila\": 37,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 12,\r\n      \"idFila\": 38,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 10,\r\n      \"idFila\": 38,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    },\r\n    {\r\n      \"idColumna\": 11,\r\n      \"idFila\": 38,\r\n      \"valor\": \"0\",\r\n      \"estado\": true\r\n    }\r\n  ],\r\n  \"modalidadesRadio\": [\r\n    {\r\n      \"idModalidad\": 7,\r\n      \"idRadio\": 5\r\n    }\r\n  ],\r\n  \"modalidadesRadioEliminar\": [],\r\n  \"totales\": {\r\n    \"conductores\": 30,\r\n    \"vehiculos\": 20\r\n  }\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{url}}/modalidad/guardar",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "modalidad",
+            "guardar"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3. listar reportadas",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{AUTH_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{url}}/encuestas/listar-reportes?pagina=1&limite=5&idVigilado=71782901&idEncuesta=1&token=b6168d3e-c02b-4fe7-a6e0-1000d9447f49",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "encuestas",
+            "listar-reportes"
+          ],
+          "query": [
+            {
+              "key": "pagina",
+              "value": "1"
+            },
+            {
+              "key": "limite",
+              "value": "5"
+            },
+            {
+              "key": "idVigilado",
+              "value": "71782901"
+            },
+            {
+              "key": "idEncuesta",
+              "value": "1"
+            },
+            {
+              "key": "token",
+              "value": "b6168d3e-c02b-4fe7-a6e0-1000d9447f49"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4. Visualizar f1",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{AUTH_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{url}}/encuestas/obtener?idVigilado=72175360&idEncuesta=1&idReporte=7071&token=b277c5fe-3969-4a06-824d-4d0d3b723b71",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "encuestas",
+            "obtener"
+          ],
+          "query": [
+            {
+              "key": "idVigilado",
+              "value": "72175360"
+            },
+            {
+              "key": "idEncuesta",
+              "value": "1"
+            },
+            {
+              "key": "idReporte",
+              "value": "7071"
+            },
+            {
+              "key": "token",
+              "value": "b277c5fe-3969-4a06-824d-4d0d3b723b71"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4.1 guardar archivos F1",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{AUTH_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "archivo",
+              "type": "file",
+              "src": "BZsI1MBO1/ArchivopruebasPESV.pdf"
+            },
+            {
+              "key": "idPregunta",
+              "value": "59900",
+              "type": "text"
+            },
+            {
+              "key": "idVigilado",
+              "value": "72175360",
+              "type": "text"
+            },
+            {
+              "key": "token",
+              "value": "b277c5fe-3969-4a06-824d-4d0d3b723b71",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{url}}/archivos",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "archivos"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "5. repuestas f1",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{AUTH_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"idVigilado\":\"72175360\",\r\n  \"token\":\"b277c5fe-3969-4a06-824d-4d0d3b723b71\",\r\n  \"respuestas\": [\r\n    {\r\n      \"preguntaId\": 3,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"1\"\r\n    },\r\n    {\r\n      \"preguntaId\": 3,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"1\"\r\n    },\r\n    {\r\n      \"preguntaId\": 4,\r\n      \"valor\": \"S\",\r\n      \"documento\": \"4_200200200_20230918101334.pdf\",\r\n      \"nombreArchivo\": \"Prueba de carga de archivos 1.pdf\",\r\n      \"ruta\": \"/pesv/200200200\",\r\n      \"observacion\": \"\"\r\n    },\r\n    {\r\n      \"preguntaId\": 4,\r\n      \"valor\": \"S\",\r\n      \"documento\": \"4_200200200_20230918101334.pdf\",\r\n      \"nombreArchivo\": \"Prueba de carga de archivos 1.pdf\",\r\n      \"ruta\": \"/pesv/200200200\",\r\n      \"observacion\": \"\"\r\n    },\r\n    {\r\n      \"preguntaId\": 5,\r\n      \"valor\": \"S\",\r\n      \"observacion\": \"\"\r\n    },\r\n    {\r\n      \"preguntaId\": 6,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"2\"\r\n    },\r\n    {\r\n      \"preguntaId\": 6,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"2\"\r\n    },\r\n    {\r\n      \"preguntaId\": 7,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"2\"\r\n    },\r\n    {\r\n      \"preguntaId\": 7,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"2\"\r\n    },\r\n    {\r\n      \"preguntaId\": 8,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"5\"\r\n    },\r\n    {\r\n      \"preguntaId\": 8,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"5\"\r\n    },\r\n    {\r\n      \"preguntaId\": 9,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"2\"\r\n    },\r\n    {\r\n      \"preguntaId\": 9,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"2\"\r\n    },\r\n    {\r\n      \"preguntaId\": 10,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"3\"\r\n    },\r\n    {\r\n      \"preguntaId\": 10,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"3\"\r\n    },\r\n    {\r\n      \"preguntaId\": 11,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 11,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 12,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 12,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 13,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"2\"\r\n    },\r\n    {\r\n      \"preguntaId\": 13,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"2\"\r\n    },\r\n    {\r\n      \"preguntaId\": 14,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"3\"\r\n    },\r\n    {\r\n      \"preguntaId\": 14,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"3\"\r\n    },\r\n    {\r\n      \"preguntaId\": 15,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"3\"\r\n    },\r\n    {\r\n      \"preguntaId\": 15,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"3\"\r\n    },\r\n    {\r\n      \"preguntaId\": 16,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 16,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 17,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 17,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 18,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 18,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 19,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 19,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 20,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"3\"\r\n    },\r\n    {\r\n      \"preguntaId\": 20,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"3\"\r\n    },\r\n    {\r\n      \"preguntaId\": 21,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"\"\r\n    },\r\n    {\r\n      \"preguntaId\": 21,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"\"\r\n    },\r\n    {\r\n      \"preguntaId\": 26,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 26,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 23,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 23,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 27,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"2\"\r\n    },\r\n    {\r\n      \"preguntaId\": 27,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"2\"\r\n    },\r\n    {\r\n      \"preguntaId\": 28,\r\n      \"valor\": \"\",\r\n      \"observacion\": \"\"\r\n    },\r\n    {\r\n      \"preguntaId\": 28,\r\n      \"valor\": \"\",\r\n      \"observacion\": \"\"\r\n    },\r\n    {\r\n      \"preguntaId\": 30,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"\"\r\n    },\r\n    {\r\n      \"preguntaId\": 31,\r\n      \"valor\": \"S\",\r\n      \"observacion\": \"\"\r\n    },\r\n    {\r\n      \"preguntaId\": 32,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 32,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 33,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"5\"\r\n    },\r\n    {\r\n      \"preguntaId\": 33,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"5\"\r\n    },\r\n    {\r\n      \"preguntaId\": 34,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 34,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 35,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"3\"\r\n    },\r\n    {\r\n      \"preguntaId\": 35,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"3\"\r\n    },\r\n    {\r\n      \"preguntaId\": 38,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"3\"\r\n    },\r\n    {\r\n      \"preguntaId\": 38,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"3\"\r\n    },\r\n    {\r\n      \"preguntaId\": 36,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"2\"\r\n    },\r\n    {\r\n      \"preguntaId\": 36,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"2\"\r\n    },\r\n    {\r\n      \"preguntaId\": 37,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"3\"\r\n    },\r\n    {\r\n      \"preguntaId\": 37,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"3\"\r\n    },\r\n    {\r\n      \"preguntaId\": 40,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 40,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 41,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"2\"\r\n    },\r\n    {\r\n      \"preguntaId\": 41,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"2\"\r\n    },\r\n    {\r\n      \"preguntaId\": 43,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 43,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 49,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 49,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 52,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 52,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 53,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"3\"\r\n    },\r\n    {\r\n      \"preguntaId\": 53,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"3\"\r\n    },\r\n    {\r\n      \"preguntaId\": 54,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 54,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 55,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    },\r\n    {\r\n      \"preguntaId\": 55,\r\n      \"valor\": \"N\",\r\n      \"observacion\": \"4\"\r\n    }\r\n  ]\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{url}}/respuestas/guardar/7071",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "respuestas",
+            "guardar",
+            "7071"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "6. enviar st f1",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{AUTH_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"idEncuesta\": \"1\",\r\n  \"idReporte\": 7071,\r\n  \"idVigilado\": \"717829010\",\r\n  \"confirmar\": false,\r\n  \"token\":\"b6168d3e-c02b-4fe7-a6e0-1000d9447f49\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{url}}/encuestas/enviar-reporte",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "encuestas",
+            "enviar-reporte"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "7. formularios f2",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{AUTH_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{url}}/inidicador/obtener-formularios?idReporte=7073&idVigilado=72175360&idMes=8&historicos=false&token=b277c5fe-3969-4a06-824d-4d0d3b723b71",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "inidicador",
+            "obtener-formularios"
+          ],
+          "query": [
+            {
+              "key": "idReporte",
+              "value": "7073"
+            },
+            {
+              "key": "idVigilado",
+              "value": "72175360"
+            },
+            {
+              "key": "idMes",
+              "value": "8"
+            },
+            {
+              "key": "historicos",
+              "value": "false"
+            },
+            {
+              "key": "token",
+              "value": "b277c5fe-3969-4a06-824d-4d0d3b723b71"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "7.1 guardar archivos F2 evidencias",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{AUTH_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "archivo",
+              "type": "file",
+              "src": "ZTItmu_Qg/ArchivopruebasPESV.pdf"
+            },
+            {
+              "key": "idVigilado",
+              "value": "72175360",
+              "type": "text"
+            },
+            {
+              "key": "extension",
+              "value": ".pdf",
+              "type": "text"
+            },
+            {
+              "key": "token",
+              "value": "b277c5fe-3969-4a06-824d-4d0d3b723b71",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{url}}/archivos/evidencias",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "archivos",
+            "evidencias"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "8. Guardar respuestas f2",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{AUTH_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"idVigilado\":\"71782901\",\r\n  \"token\":\"b6168d3e-c02b-4fe7-a6e0-1000d9447f49\",\r\n  \"reporteId\": 7073,\r\n  \"mesId\":10,\r\n  \"respuestas\": [\r\n    {\r\n      \"preguntaId\": 1577,\r\n      \"valor\": \"5\"\r\n    },\r\n    {\r\n      \"preguntaId\": 158,\r\n      \"valor\": \"2\"\r\n    },\r\n    {\r\n      \"preguntaId\": 165,\r\n      \"valor\": \"1\"\r\n    },\r\n    {\r\n      \"preguntaId\": 166,\r\n      \"valor\": \"2\"\r\n    },\r\n    {\r\n      \"preguntaId\": 159,\r\n      \"valor\": \"1\"\r\n    },\r\n    {\r\n      \"preguntaId\": 161,\r\n      \"valor\": \"2\"\r\n    },\r\n    {\r\n      \"preguntaId\": 162,\r\n      \"valor\": \"1\"\r\n    },\r\n    {\r\n      \"preguntaId\": 164,\r\n      \"valor\": \"1\"\r\n    },\r\n    {\r\n      \"preguntaId\": 167,\r\n      \"valor\": \"2\"\r\n    },\r\n    {\r\n      \"preguntaId\": 168,\r\n      \"valor\": \"1\"\r\n    }\r\n  ],\r\n  \"evidencias\": [\r\n    {\r\n      \"evidenciaId\": 35,\r\n      \"documento\": \"_200200200_20230918103032.pdf\",\r\n      \"nombreArchivo\": \"Prueba de carga de archivos 1.pdf\",\r\n      \"ruta\": \"/evidencias/200200200\",\r\n      \"valor\": \"\"\r\n    },\r\n    {\r\n      \"evidenciaId\": 47,\r\n      \"documento\": \"_200200200_20230918103034.pdf\",\r\n      \"nombreArchivo\": \"Prueba de carga de archivos 1.pdf\",\r\n      \"ruta\": \"/evidencias/200200200\",\r\n      \"valor\": \"\"\r\n    },\r\n    {\r\n      \"evidenciaId\": 125,\r\n      \"documento\": \"_200200200_20230918103040.xlsx\",\r\n      \"nombreArchivo\": \"prueba 1.xlsx\",\r\n      \"ruta\": \"/evidencias/200200200\",\r\n      \"valor\": \"\"\r\n    },\r\n    {\r\n      \"evidenciaId\": 213,\r\n      \"documento\": \"_200200200_20230918103102.xlsx\",\r\n      \"nombreArchivo\": \"prueba 1.xlsx\",\r\n      \"ruta\": \"/evidencias/200200200\",\r\n      \"valor\": \"\"\r\n    },\r\n    {\r\n      \"evidenciaId\": 149,\r\n      \"documento\": \"\",\r\n      \"nombreArchivo\": \"Cantidad de desplazamientos laborales realizados en vehículos\",\r\n      \"ruta\": \"\",\r\n      \"valor\": 1\r\n    },\r\n    {\r\n      \"evidenciaId\": 233,\r\n      \"documento\": \"\",\r\n      \"nombreArchivo\": \"Cantidad de desplazamientos laborales realizados en vehículos que fueron medidos\",\r\n      \"ruta\": \"\",\r\n      \"valor\": 1\r\n    },\r\n    {\r\n      \"evidenciaId\": 185,\r\n      \"documento\": \"_200200200_20230918103125.pdf\",\r\n      \"nombreArchivo\": \"Prueba de carga de archivos 1.pdf\",\r\n      \"ruta\": \"/evidencias/200200200\",\r\n      \"valor\": \"\"\r\n    },\r\n    {\r\n      \"evidenciaId\": 197,\r\n      \"documento\": \"\",\r\n      \"nombreArchivo\": \"Cantidad de vehículos que reportaron fallas durante el mes\",\r\n      \"ruta\": \"\",\r\n      \"valor\": 1\r\n    },\r\n    {\r\n      \"evidenciaId\": 173,\r\n      \"documento\": \"\",\r\n      \"nombreArchivo\": \"Llamados de atención dentro de las instalaciones\",\r\n      \"ruta\": \"\",\r\n      \"valor\": 1\r\n    },\r\n    {\r\n      \"evidenciaId\": 257,\r\n      \"documento\": \"_200200200_20230918103132.xlsx\",\r\n      \"nombreArchivo\": \"prueba 1.xlsx\",\r\n      \"ruta\": \"/evidencias/200200200\",\r\n      \"valor\": \"\"\r\n    }\r\n  ]\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{url}}/inidicador/guardar-respuestas",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "inidicador",
+            "guardar-respuestas"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "9. enviar st f2",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{AUTH_TOKEN}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"idEncuesta\": 2,\r\n    \"idReporte\": 7073,\r\n    \"idVigilado\":\"721753601\",\r\n    \"idMes\":10,\r\n    \"token\":\"b277c5fe-3969-4a06-824d-4d0d3b723b71\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{url}}/inidicador/enviar-reporte",
+          "host": [
+            "{{url}}"
+          ],
+          "path": [
+            "inidicador",
+            "enviar-reporte"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

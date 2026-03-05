@@ -29,6 +29,11 @@ import {
   EnlistmentItemResultDocument,
 } from '../schema/enlistment_item_result.schema';
 
+import {
+  TipoVehiculoTipoInspeccion,
+  TipoVehiculoTipoInspeccionDocument,
+} from '../schema/tipos-vehiculos-tipos-inspecciones.schema';
+
 const ACTIVIDADES_MAP: Record<number, string> = {
   1: 'Fugas del motor',
   2: 'Tensión correas',
@@ -56,6 +61,9 @@ export class AlistamientoService {
 
     @InjectModel(EnlistmentItemResult.name)
     private readonly itemResultModel: Model<EnlistmentItemResultDocument>,
+
+    @InjectModel(TipoVehiculoTipoInspeccion.name)
+    private readonly inspectionTypeModel: Model<TipoVehiculoTipoInspeccionDocument>,
 
     private readonly external: MaintenanceExternalApiService,
     private readonly maintenanceService: MaintenanceService,
@@ -106,7 +114,44 @@ export class AlistamientoService {
       );
     }
 
-    // 3️⃣ PAYLOAD SICOV (SIN FECHA / HORA)
+    // 3️⃣ DERIVAR ACTIVIDADES DESDE LA BASE DE DATOS
+    // Si vienen items (mobile), se buscan en DB los codigos_sicov de los ítems OK.
+    // Si solo vienen actividades (web), se usan directamente como fallback.
+    let actividadesFinales: number[] = [];
+
+    if (Array.isArray(dto.items) && dto.items.length > 0) {
+      const okItemIds = (dto.items as Array<{ itemId: string; valor: string }>)
+        .filter((i) => i.valor === 'OK' && Types.ObjectId.isValid(i.itemId))
+        .map((i) => new Types.ObjectId(i.itemId));
+
+      if (okItemIds.length > 0) {
+        const inspectionDocs = await this.inspectionTypeModel
+          .find({ _id: { $in: okItemIds } })
+          .select('codigos_sicov')
+          .lean();
+
+        const codigosSet = new Set<number>();
+        for (const d of inspectionDocs) {
+          if (Array.isArray(d.codigos_sicov)) {
+            d.codigos_sicov.forEach((c) => {
+              const n = Number(c);
+              if (n > 0) codigosSet.add(n);
+            });
+          }
+        }
+        actividadesFinales = [...codigosSet].sort((a, b) => a - b);
+      }
+    } else if (Array.isArray(dto.actividades) && dto.actividades.length > 0) {
+      // fallback: web envía actividades precalculadas
+      const codigosSet = new Set<number>(
+        dto.actividades.map((x: any) => Number(x)).filter((n: number) => n > 0),
+      );
+      actividadesFinales = [...codigosSet].sort((a, b) => a - b);
+    }
+
+    this.logger.log(`Actividades derivadas → ${JSON.stringify(actividadesFinales)}`);
+
+    // 4️⃣ PAYLOAD SICOV (SIN FECHA / HORA)
     const sicovPayload = {
       mantenimientoId: Number(externalId),
 
@@ -125,9 +170,7 @@ export class AlistamientoService {
 
       detalleActividades: String(dto.detalleActividades ?? ''),
 
-      actividades: Array.isArray(dto.actividades)
-        ? dto.actividades.map((x: any) => Number(x))
-        : [],
+      actividades: actividadesFinales,
 
       vigiladoId: user.vigiladoId,
       vigiladoToken: user.vigiladoToken,
@@ -135,7 +178,7 @@ export class AlistamientoService {
 
     this.logger.log(`SICOV payload → ${JSON.stringify(sicovPayload)}`);
 
-    // 4️⃣ ENVÍO A SICOV
+    // 5️⃣ ENVÍO A SICOV
     try {
       await Promise.race([
         this.external.guardarAlistamiento(sicovPayload),
@@ -161,7 +204,7 @@ export class AlistamientoService {
       );
     }
 
-    // 5️⃣ DESACTIVAR ALISTAMIENTOS ANTERIORES
+    // 6️⃣ DESACTIVAR ALISTAMIENTOS ANTERIORES
     await this.model.updateMany(
       {
         placa,
@@ -171,13 +214,7 @@ export class AlistamientoService {
       { $set: { estado: false } },
     );
 
-    // 6️⃣ GUARDAR LOCAL
-    const actividadesFinales =
-      dto.fromMobile === true
-        ? [6, 3, 8, 11, 10, 7, 1, 9, 5, 4, 2]
-        : Array.isArray(dto.actividades)
-        ? dto.actividades.map(Number)
-        : [];
+    // 7️⃣ GUARDAR LOCAL
 
     const enlistment = await this.model.create({
       enterprise_id: user.enterprise_id,
@@ -204,7 +241,7 @@ export class AlistamientoService {
       estado: true,
     });
 
-    // 7️⃣ SNAPSHOT
+    // 8️⃣ SNAPSHOT
     /*
     if (dto.dailySnapshot) {
       await this.snapshotModel.create({
@@ -214,7 +251,7 @@ export class AlistamientoService {
     }
     */
 
-    // 8️⃣ ITEMS
+    // 9️⃣ ITEMS
     if (Array.isArray(dto.items) && dto.items.length) {
       await this.itemResultModel.insertMany(
         dto.items.map((i: any) => ({
@@ -248,7 +285,7 @@ export class AlistamientoService {
         match.createdAt.$lte = new Date(`${q.fechaHasta}T23:59:59.999Z`);
     }
 
-    return this.model.find(match).sort({ createdAt: -1 }).lean();
+    return this.model.find(match).sort({ createdAt: -1 }).limit(500).lean();
   }
 
   // ======================================================

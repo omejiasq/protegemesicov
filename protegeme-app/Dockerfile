@@ -4,6 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+RUN cp .env_prod .env
 RUN npm run build
 
 # Runtime: Nginx
