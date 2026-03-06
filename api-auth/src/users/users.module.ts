@@ -6,13 +6,14 @@ import { UsersController } from './users.controller';
 import { User, UserSchema } from '../schemas/user.schema';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { Enterprise, EnterpriseSchema } from '../schemas/enterprise.schema'; // ← ajuste la ruta si es diferente
+import { Enterprise, EnterpriseSchema } from '../schemas/enterprise.schema';
+import { EmailService } from '../libs/email/email.service';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
-      { name: Enterprise.name, schema: EnterpriseSchema }, // ✅ agregar esto
+      { name: Enterprise.name, schema: EnterpriseSchema },
     ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -24,7 +25,7 @@ import { Enterprise, EnterpriseSchema } from '../schemas/enterprise.schema'; // 
     }),
   ],
   controllers: [UsersController],
-  providers: [UsersService],
-  exports: [UsersService],
+  providers: [UsersService, EmailService],
+  exports: [UsersService, EmailService],
 })
 export class UsersModule {}

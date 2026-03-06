@@ -2,11 +2,11 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId } from 'mongoose';
 import { Enterprise } from './schemas/enterprise.schema';
+import { UpsertEnterpriseAdminDto } from './dto/upsert-enterprise-admin.dto';
 
 @Injectable()
 export class EnterpriseService {
@@ -15,13 +15,60 @@ export class EnterpriseService {
     private readonly enterpriseModel: Model<Enterprise>,
   ) {}
 
-  // ✅ CREAR empresa
+  // ✅ CREAR empresa (superadmin)
+  async createAdmin(dto: UpsertEnterpriseAdminDto) {
+    const vigiladoId =
+      dto.vigiladoId !== undefined
+        ? dto.vigiladoId
+        : dto.document_number
+          ? parseInt(dto.document_number, 10) || null
+          : null;
+
+    const created = new this.enterpriseModel({
+      ...dto,
+      document_type: 'NIT',
+      admin: false,
+      vigiladoId,
+    });
+    return created.save();
+  }
+
+  // ✅ ACTUALIZAR empresa (superadmin) — nunca permite cambiar el campo admin
+  async updateAdmin(id: string, dto: Partial<UpsertEnterpriseAdminDto>) {
+    if (!isValidObjectId(id)) {
+      throw new BadRequestException('Invalid enterprise id');
+    }
+
+    const update: Record<string, any> = { ...dto };
+
+    // Auto-update vigiladoId si cambia document_number y no se envió vigiladoId
+    if (dto.document_number !== undefined && dto.vigiladoId === undefined) {
+      update.vigiladoId = parseInt(dto.document_number, 10) || null;
+    }
+
+    // Nunca permitir cambiar admin a true
+    delete update.admin;
+
+    const updated = await this.enterpriseModel.findByIdAndUpdate(
+      id,
+      { $set: update },
+      { new: true, runValidators: true },
+    );
+
+    if (!updated) {
+      throw new NotFoundException('Enterprise not found');
+    }
+
+    return updated;
+  }
+
+  // ✅ CREAR empresa (uso interno legado)
   async create(data: Partial<Enterprise>) {
     const created = new this.enterpriseModel(data);
     return created.save();
   }
 
-  // ✅ ACTUALIZAR empresa (todos los campos)
+  // ✅ ACTUALIZAR empresa (uso interno legado)
   async update(id: string, data: Partial<Enterprise>) {
     if (!isValidObjectId(id)) {
       throw new BadRequestException('Invalid enterprise id');
@@ -41,6 +88,27 @@ export class EnterpriseService {
       throw new NotFoundException('Enterprise not found');
     }
 
+    return updated;
+  }
+
+  // ✅ ACTUALIZAR campos propios (admin de empresa sobre su propia empresa)
+  async updateOwn(id: string, dto: {
+    logo?: string;
+    specialized_center_name?: string;
+    specialized_center_document_number?: string;
+    mechanic_document_type?: number;
+    mechanic_document_number?: string;
+    mechanic_name?: string;
+  }) {
+    if (!isValidObjectId(id)) {
+      throw new BadRequestException('Invalid enterprise id');
+    }
+    const updated = await this.enterpriseModel.findByIdAndUpdate(
+      id,
+      { $set: dto },
+      { new: true, runValidators: true },
+    );
+    if (!updated) throw new NotFoundException('Enterprise not found');
     return updated;
   }
 

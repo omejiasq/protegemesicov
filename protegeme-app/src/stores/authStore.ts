@@ -6,16 +6,17 @@ import {http} from '../api/http';
 type User = {
   _id: string;
   username: string | null;
-  firstName?: string | null;   // ✅ agregar
-  lastName?: string | null;    // ✅ agregar
+  firstName?: string | null;
+  lastName?: string | null;
   usuario?: string;
   nombre?: string | null;
   apellido?: string | null;
   telefono?: string | null;
-  phone?: string | null;       // ✅ agregar
+  phone?: string | null;
   correo?: string | null;
   email?: string | null;
   roleType: string;
+  must_change_password?: boolean;
 };
 
 type Role = {
@@ -68,14 +69,13 @@ export const useAuthStore = defineStore('auth', {
 
   getters: {
     isAuthenticated: (s) => Boolean(s.token),
-    //profileName: (s) => s.user?.nombre || s.user?.usuario || 'Usuario',
     profileName: (s) =>
       s.user?.firstName ||
       s.user?.nombre ||
       s.user?.username ||
       s.user?.usuario ||
       'Usuario',
-
+    isSuperAdmin: (s) => s.user?.roleType === 'superadmin',
   },
 
   actions: {
@@ -180,6 +180,14 @@ export const useAuthStore = defineStore('auth', {
     selectEnterprise(id: string) {
       this.enterpriseId = id;
       this.persistSession();
+    },
+
+    /** Llama al cambiar la contraseña exitosamente para desactivar la bandera */
+    clearMustChangePassword() {
+      if (this.user) {
+        this.user.must_change_password = false;
+        this.persistSession();
+      }
     },
 
     logout() {

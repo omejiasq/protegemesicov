@@ -209,7 +209,7 @@ async function uploadLogo() {
     const logoUrl: string = data.ruta
     const id = authStore.enterpriseId
     if (!id) throw new Error('No hay empresa activa')
-    await AuthserviceApi.updateEnterprise(id, { logo: logoUrl })
+    await AuthserviceApi.updateEnterpriseProfile(id, { logo: logoUrl })
     pendingLogoFile.value = null
     alert('Logo actualizado correctamente')
   } catch (e: any) {
@@ -288,7 +288,7 @@ async function onSubmit() {
   try {
     const id = authStore.enterpriseId
     if (!id) throw new Error('No hay empresa activa en sesión')
-    await AuthserviceApi.updateEnterprise(id, {
+    await AuthserviceApi.updateEnterpriseProfile(id, {
       specialized_center_name:            form.value.specialized_center_name,
       specialized_center_document_type:   12,
       specialized_center_document_number: form.value.specialized_center_document_number,

@@ -115,6 +115,10 @@ export class User {
   @Prop({ type: String, default: null }) no_licencia_conduccion?: string;
   @Prop({ type: Date, default: null })
   vencimiento_licencia_conduccion?: Date;
+
+  /** Obliga al usuario a cambiar su contraseña en el próximo inicio de sesión */
+  @Prop({ type: Boolean, default: false })
+  must_change_password: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

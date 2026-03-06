@@ -170,6 +170,25 @@
             </ul>
           </li>
 
+          <!-- ═══════════════ SUPERADMIN ═══════════════ -->
+          <template v-if="isSuperAdmin">
+            <li class="layout-menuitem-category">
+              <div class="layout-menuitem-root-text">ADMINISTRACIÓN</div>
+              <ul>
+                <li>
+                  <router-link
+                    to="/admin/enterprises"
+                    class="layout-menuitem-link"
+                    :class="{ 'active-menuitem': $route.path.includes('/admin/enterprises') }"
+                  >
+                    <i class="pi pi-building layout-menuitem-icon"></i>
+                    <span class="layout-menuitem-text">Empresas</span>
+                  </router-link>
+                </li>
+              </ul>
+            </li>
+          </template>
+
         </ul>
       </div>
     </div>
@@ -186,11 +205,11 @@ const emit = defineEmits<{ hide: [] }>();
 
 const authStore = useAuthStore();
 
-// ✅ Roles que ven todo
-// Después — solo admin/superadmin ven el menú completo
 const isAdmin = computed(() =>
   ['admin', 'superadmin'].includes(authStore.user?.roleType ?? '')
 );
+
+const isSuperAdmin = computed(() => authStore.user?.roleType === 'superadmin');
 
 const visible = computed({
   get: () => props.visible,

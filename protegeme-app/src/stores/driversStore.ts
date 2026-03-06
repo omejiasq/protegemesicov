@@ -62,7 +62,7 @@ async list(params: Record<string, any> = {}) {
   this.error = '';
   try {
     const { data } = await DriversserviceApi.list(params); // 👈 reenvía params
-    const items = data?.items ?? (Array.isArray(data) ? data : []);
+    const items = data?.data ?? data?.items ?? (Array.isArray(data) ? data : []);
     const total = data?.total ?? items.length ?? 0;
     this.items = items;
     this.total = total;

@@ -2,15 +2,22 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Vehicle, VehicleDocument } from '../schema/vehicle.schema';
+import { VehicleContract, VehicleContractDocument } from '../schema/vehicle-contract.schema';
+import { UserRef, UserRefDocument } from '../schema/user-ref.schema';
+import { Audit, AuditDocument } from '../libs/audit/audit.schema';
 import { BadRequestException } from '@nestjs/common';
+import { EmailService } from '../libs/email/email.service';
 
 type UserCtx = {
   enterprise_id: string;
   sub?: string;
+  username?: string;
+  role?: string;
 };
 
 @Injectable()
@@ -18,6 +25,17 @@ export class VehiclesService {
   constructor(
     @InjectModel(Vehicle.name)
     private readonly vehicleModel: Model<VehicleDocument>,
+
+    @InjectModel(VehicleContract.name)
+    private readonly contractModel: Model<VehicleContractDocument>,
+
+    @InjectModel(UserRef.name)
+    private readonly userRefModel: Model<UserRefDocument>,
+
+    @InjectModel(Audit.name)
+    private readonly auditModel: Model<AuditDocument>,
+
+    private readonly emailService: EmailService,
   ) {}
 
   /* =====================================================
@@ -120,7 +138,57 @@ export class VehiclesService {
 
     });
 
+    // Notificar a los administradores de la empresa por correo
+    this.notifyAdminsNewVehicle(vehicle.toObject(), user).catch(() => { /* no bloquear */ });
+
+    // Registrar en auditoría
+    this.auditModel.create({
+      module: 'vehicles',
+      operation: 'createVehicle',
+      entity: 'Vehicle',
+      entityId: String(vehicle._id),
+      userId: user.sub,
+      username: user.username,
+      requestPayload: { placa: vehicle.placa, clase: vehicle.clase },
+      success: true,
+    }).catch(() => { /* auditoría no crítica */ });
+
     return vehicle.toObject();
+  }
+
+  private async notifyAdminsNewVehicle(vehicle: any, user: UserCtx) {
+    const enterpriseId = new Types.ObjectId(user.enterprise_id);
+
+    // Obtener admins activos de la empresa (rol admin o superadmin)
+    const admins = await this.userRefModel
+      .find({
+        enterprise_id: enterpriseId,
+        roleType: { $in: ['admin', 'superadmin'] },
+        active: true,
+      })
+      .lean();
+
+    const emails = admins
+      .map((a) => a.usuario?.correo)
+      .filter(Boolean) as string[];
+
+    if (!emails.length) return;
+
+    // Obtener nombre de empresa (colección enterprises)
+    const ent = await (this.vehicleModel.db as any)
+      .collection('enterprises')
+      .findOne({ _id: enterpriseId });
+
+    await this.emailService.sendVehicleCreatedNotification({
+      toEmails: emails,
+      enterpriseName: ent?.name ?? user.enterprise_id,
+      placa: vehicle.placa,
+      clase: vehicle.clase,
+      marca: vehicle.marca,
+      modelo: vehicle.modelo,
+      no_interno: vehicle.no_interno,
+      createdBy: user.username ?? user.sub,
+    });
   }
 
   /* =====================================================
@@ -498,5 +566,244 @@ async updateNonNullFieldsById(
   return vehicle;
 }
 
+  /* =====================================================
+   * DEACTIVATE (empresa) — desactivar con nota
+   * ===================================================== */
+  async deactivateById(
+    id: string,
+    dto: { nota_desactivacion: string },
+    user: UserCtx,
+  ) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('Vehículo no encontrado');
+    }
+
+    const vehicle = await this.vehicleModel.findOneAndUpdate(
+      {
+        _id: new Types.ObjectId(id),
+        enterprise_id: new Types.ObjectId(user.enterprise_id),
+      },
+      {
+        $set: {
+          active: false,
+          nota_desactivacion: dto.nota_desactivacion || 'Sin motivo especificado',
+          fecha_ultima_desactivacion: new Date(),
+        },
+      },
+      { new: true },
+    );
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehículo no encontrado');
+    }
+
+    await this.auditModel.create({
+      module: 'vehicles',
+      operation: 'deactivateVehicle',
+      entity: 'Vehicle',
+      entityId: id,
+      userId: user.sub,
+      username: user.username,
+      requestPayload: { nota_desactivacion: dto.nota_desactivacion },
+      success: true,
+    }).catch(() => { /* no crítico */ });
+
+    return vehicle.toObject();
+  }
+
+  /* =====================================================
+   * GET VEHICLES BY ENTERPRISE (superadmin)
+   * ===================================================== */
+  async getVehiclesByEnterprise(enterpriseId: string) {
+    if (!Types.ObjectId.isValid(enterpriseId)) {
+      throw new BadRequestException('enterprise_id inválido');
+    }
+    return this.vehicleModel
+      .find({ enterprise_id: new Types.ObjectId(enterpriseId) })
+      .sort({ placa: 1 })
+      .lean();
+  }
+
+  /* =====================================================
+   * ACTIVATE BULK (superadmin) — activa varios vehículos
+   * y crea un contrato de habilitación
+   * ===================================================== */
+  async activateBulk(
+    dto: {
+      enterprise_id: string;
+      vehicle_ids: string[];
+      fecha_activacion: string;
+      notas?: string;
+    },
+    user: UserCtx,
+  ) {
+    if (!Types.ObjectId.isValid(dto.enterprise_id)) {
+      throw new BadRequestException('enterprise_id inválido');
+    }
+    if (!dto.vehicle_ids?.length) {
+      throw new BadRequestException('Debe seleccionar al menos un vehículo');
+    }
+
+    const enterpriseId = new Types.ObjectId(dto.enterprise_id);
+    const vehicleObjIds = dto.vehicle_ids
+      .filter((id) => Types.ObjectId.isValid(id))
+      .map((id) => new Types.ObjectId(id));
+
+    if (!vehicleObjIds.length) {
+      throw new BadRequestException('IDs de vehículos inválidos');
+    }
+
+    const fechaActivacion = new Date(dto.fecha_activacion);
+    if (isNaN(fechaActivacion.getTime())) {
+      throw new BadRequestException('Fecha de activación inválida');
+    }
+
+    // Obtener placas para el contrato
+    const vehicles = await this.vehicleModel
+      .find({ _id: { $in: vehicleObjIds }, enterprise_id: enterpriseId })
+      .select('placa')
+      .lean();
+
+    if (!vehicles.length) {
+      throw new NotFoundException('No se encontraron vehículos para la empresa indicada');
+    }
+
+    const placas = vehicles.map((v) => v.placa);
+
+    // Generar número de contrato
+    const year = fechaActivacion.getFullYear();
+    const count = await this.contractModel.countDocuments({
+      enterprise_id: enterpriseId,
+    });
+    const numero_contrato = `HAB-${year}-${String(count + 1).padStart(4, '0')}`;
+
+    // Crear contrato
+    const contract = await this.contractModel.create({
+      enterprise_id: enterpriseId,
+      vehicle_ids: vehicleObjIds,
+      placas,
+      numero_contrato,
+      fecha_activacion: fechaActivacion,
+      activated_by_id: user.sub,
+      activated_by_name: user.username,
+      notas: dto.notas ?? null,
+    });
+
+    // Activar vehículos
+    await this.vehicleModel.updateMany(
+      { _id: { $in: vehicleObjIds }, enterprise_id: enterpriseId },
+      {
+        $set: {
+          active: true,
+          fecha_activacion: fechaActivacion,
+          nota_desactivacion: null,
+          contrato_id: contract._id,
+        },
+      },
+    );
+
+    // Auditoría
+    await this.auditModel.create({
+      module: 'vehicles',
+      operation: 'activateBulk',
+      entity: 'VehicleContract',
+      entityId: String(contract._id),
+      userId: user.sub,
+      username: user.username,
+      requestPayload: {
+        enterprise_id: dto.enterprise_id,
+        vehicle_ids: dto.vehicle_ids,
+        fecha_activacion: dto.fecha_activacion,
+        numero_contrato,
+        placas,
+      },
+      success: true,
+    }).catch(() => { /* no crítico */ });
+
+    return {
+      contrato: contract,
+      vehiculos_activados: vehicles.length,
+      placas,
+    };
+  }
+
+  /* =====================================================
+   * TOGGLE SICOV SYNC (superadmin)
+   * ===================================================== */
+  async toggleSicovSync(id: string, user: UserCtx) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('Vehículo no encontrado');
+    }
+
+    const vehicle = await this.vehicleModel.findById(id);
+    if (!vehicle) {
+      throw new NotFoundException('Vehículo no encontrado');
+    }
+
+    const newValue = !vehicle.sicov_sync_enabled;
+    vehicle.sicov_sync_enabled = newValue;
+    await vehicle.save();
+
+    await this.auditModel.create({
+      module: 'vehicles',
+      operation: 'toggleSicovSync',
+      entity: 'Vehicle',
+      entityId: id,
+      userId: user.sub,
+      username: user.username,
+      requestPayload: { sicov_sync_enabled: newValue, placa: vehicle.placa },
+      success: true,
+    }).catch(() => { /* no crítico */ });
+
+    return {
+      _id: vehicle._id,
+      placa: vehicle.placa,
+      sicov_sync_enabled: newValue,
+    };
+  }
+
+  /* =====================================================
+   * GET AUDIT LOGS (superadmin)
+   * ===================================================== */
+  async getAuditLogs(filters: {
+    enterprise_id?: string;
+    entityId?: string;
+    operation?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const query: any = { module: 'vehicles' };
+    if (filters.entityId) query.entityId = filters.entityId;
+    if (filters.operation) query.operation = filters.operation;
+
+    const page = Math.max(1, filters.page ?? 1);
+    const limit = Math.min(100, Math.max(1, filters.limit ?? 50));
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      this.auditModel
+        .find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      this.auditModel.countDocuments(query),
+    ]);
+
+    return { data, total, page, limit };
+  }
+
+  /* =====================================================
+   * GET CONTRACTS BY ENTERPRISE (superadmin)
+   * ===================================================== */
+  async getContractsByEnterprise(enterpriseId: string) {
+    if (!Types.ObjectId.isValid(enterpriseId)) {
+      throw new BadRequestException('enterprise_id inválido');
+    }
+    return this.contractModel
+      .find({ enterprise_id: new Types.ObjectId(enterpriseId) })
+      .sort({ createdAt: -1 })
+      .lean();
+  }
 
 }

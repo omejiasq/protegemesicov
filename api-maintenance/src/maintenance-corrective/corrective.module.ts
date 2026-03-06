@@ -32,6 +32,8 @@ import {
   TipoVehiculoTipoMantenimientoSchema,
 } from '../schema/tipos-vehiculos-tipos-mantenimientos.schema';
 
+import { VehicleRef, VehicleRefSchema } from '../schema/vehicle-ref.schema';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -52,7 +54,7 @@ import {
         name: TipoVehiculoTipoMantenimiento.name,
         schema: TipoVehiculoTipoMantenimientoSchema,
       },
-
+      { name: VehicleRef.name, schema: VehicleRefSchema },
     ]),
     
     AuditModule,

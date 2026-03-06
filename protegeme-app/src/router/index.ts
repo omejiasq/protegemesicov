@@ -14,6 +14,14 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true },
   },
 
+  // CAMBIO DE CONTRASEÑA OBLIGATORIO (requiere auth pero no layout completo)
+  {
+    path: "/change-password",
+    name: "change-password",
+    component: () => import("../views/ChangePasswordView.vue"),
+    meta: { requiresAuth: true },
+  },
+
   // RUTAS PRIVADAS ENVUELTAS POR EL LAYOUT
   {
     path: "/",
@@ -161,6 +169,14 @@ const routes: RouteRecordRaw[] = [
         component: () => import("../views/maintenance/InspectionTypes.vue"),
       },
 
+      // ─── SUPERADMIN ───
+      {
+        path: "admin/enterprises",
+        name: "admin-enterprises",
+        component: () => import("../views/admin/EnterpriseManagement.vue"),
+        meta: { requiresSuperAdmin: true },
+      },
+
     ],
   },
 
@@ -179,6 +195,15 @@ router.beforeEach((to, _from, next) => {
   }
   if (to.meta?.requiresAuth && !auth.isAuthenticated) {
     return next({ name: "login", replace: true });
+  }
+
+  // Si el usuario debe cambiar su contraseña, redirigir salvo que ya esté en esa ruta
+  if (auth.isAuthenticated && auth.user?.must_change_password && to.name !== "change-password") {
+    return next({ name: "change-password", replace: true });
+  }
+
+  if (to.meta?.requiresSuperAdmin && !auth.isSuperAdmin) {
+    return next({ name: "dashboard", replace: true });
   }
   return next();
 });

@@ -4,15 +4,14 @@ import { useToast } from "primevue/usetoast";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
 import Dropdown from "primevue/dropdown";
-//import { computed, ref, onMounted } from 'vue';
+import { VehiclesserviceApi } from "../api/vehicles.service";
+import { useVehiclesStore } from "../stores/vehiclesStore";
 
 import {
   GridComponent as EjsGrid,
   Page,
   Sort
 } from "@syncfusion/ej2-vue-grids";
-
-import { useVehiclesStore } from "../stores/vehiclesStore";
 import { useRouter } from "vue-router";
 
 // 👇 ESTO FALTABA (o estaba mal escrito)
@@ -130,9 +129,45 @@ const goToCreateVehicle = () => {
 
 const verDetalle = (row: any) => {
   console.log('Fila:', row)
-  // navegación o modal aquí
 }
 
+// ── Desactivación ────────────────────────────────────────────────────
+const deactivateModalVisible = ref(false)
+const deactivateTarget = ref<any>(null)
+const deactivateNota = ref('')
+const deactivating = ref(false)
+
+function openDeactivate(row: any) {
+  deactivateTarget.value = row
+  deactivateNota.value = ''
+  deactivateModalVisible.value = true
+}
+
+async function confirmDeactivate() {
+  if (!deactivateTarget.value) return
+  deactivating.value = true
+  try {
+    await VehiclesserviceApi.deactivate(deactivateTarget.value._id, deactivateNota.value)
+    toast.add({
+      severity: 'success',
+      summary: 'Vehículo desactivado',
+      detail: `${deactivateTarget.value.placa} desactivado correctamente`,
+      life: 3000,
+    })
+    deactivateModalVisible.value = false
+    // Recargar lista
+    vehiclesStore.fetch()
+  } catch (e: any) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: e?.response?.data?.message || 'No se pudo desactivar el vehículo',
+      life: 4000,
+    })
+  } finally {
+    deactivating.value = false
+  }
+}
 </script>
 
 
@@ -251,14 +286,78 @@ const verDetalle = (row: any) => {
 
   <!-- ✅ SLOT VA AQUÍ DENTRO -->
   <template #actionTemplate="{ data }">
-    <Button
-      icon="pi pi-pencil"
-      class="p-button-text p-button-warning p-button-sm"
-      @click="goToEdit(data)"
-    />
+    <div class="flex gap-1 justify-center">
+      <Button
+        icon="pi pi-pencil"
+        class="p-button-text p-button-warning p-button-sm"
+        v-tooltip.top="'Editar'"
+        @click="goToEdit(data)"
+      />
+      <Button
+        v-if="data.active"
+        icon="pi pi-ban"
+        class="p-button-text p-button-danger p-button-sm"
+        v-tooltip.top="'Desactivar'"
+        @click="openDeactivate(data)"
+      />
+    </div>
   </template>
 
 </EjsGrid>
+
+<!-- ================= MODAL DESACTIVACIÓN ================= -->
+<div
+  v-if="deactivateModalVisible"
+  class="modal-overlay"
+  @click.self="deactivateModalVisible = false"
+>
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3>Desactivar Vehículo</h3>
+      <button class="modal-close" @click="deactivateModalVisible = false">
+        <i class="pi pi-times" />
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <p class="mb-3">
+        Está a punto de desactivar el vehículo
+        <strong>{{ deactivateTarget?.placa }}</strong>.
+        El vehículo no podrá registrar alistamientos ni mantenimientos
+        mientras esté inactivo.
+      </p>
+
+      <div class="field">
+        <label class="field-label">Nota de desactivación <span class="required">*</span></label>
+        <textarea
+          v-model="deactivateNota"
+          rows="3"
+          placeholder="Indique el motivo de desactivación..."
+          class="p-inputtext w-full"
+          style="resize: vertical; font-family: inherit;"
+        />
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <Button
+        label="Cancelar"
+        icon="pi pi-times"
+        class="p-button-secondary p-button-outlined"
+        :disabled="deactivating"
+        @click="deactivateModalVisible = false"
+      />
+      <Button
+        label="Desactivar"
+        icon="pi pi-ban"
+        class="p-button-danger"
+        :loading="deactivating"
+        :disabled="!deactivateNota.trim()"
+        @click="confirmDeactivate"
+      />
+    </div>
+  </div>
+</div>
 
 
 
@@ -284,4 +383,54 @@ const verDetalle = (row: any) => {
   transform: translateY(-50%);
   pointer-events: none;
 }
+
+/* ── Modal ───────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-card {
+  background: #fff;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #6b7280;
+}
+.modal-body {
+  padding: 1.25rem;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid #e5e7eb;
+}
+.field { display: flex; flex-direction: column; gap: 0.4rem; }
+.field-label { font-size: 0.85rem; font-weight: 600; color: #374151; }
+.required { color: #ef4444; }
 </style>

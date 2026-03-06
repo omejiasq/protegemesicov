@@ -2,6 +2,7 @@ import {
   Injectable,
   ForbiddenException,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -79,17 +80,26 @@ export class AuthService {
     return {
       user: {
         _id: user._id,
-        username: info.usuario ?? null,           // "cooperstram"
-        email: info.correo ?? null,               // ✅ campo real en BD
-        firstName: info.nombre ?? null,           // ✅ campo real en BD
-        lastName: info.apellido ?? null,          // ✅ campo real en BD
-        phone: info.telefono ?? null,             // ✅ campo real en BD
-        documentType: info.document_type ?? null, // ✅ campo real en BD
+        username: info.usuario ?? null,
+        email: info.correo ?? null,
+        firstName: info.nombre ?? null,
+        lastName: info.apellido ?? null,
+        phone: info.telefono ?? null,
+        documentType: info.document_type ?? null,
         documentNumber: info.documentNumber ?? null,
         roleType: user.roleType,
+        must_change_password: user.must_change_password ?? false,
       },
       token,
       enterprise_id: user.enterprise_id ?? null,
+      must_change_password: user.must_change_password ?? false,
     };
+  }
+
+  async forgotPassword(identifier: string) {
+    if (!identifier?.trim()) {
+      throw new BadRequestException('Se requiere usuario o correo');
+    }
+    return this.usersService.forgotPassword(identifier);
   }
 }

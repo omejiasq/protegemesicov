@@ -107,17 +107,28 @@ export class Vehicle {
 
   @Prop({
     type: Date,
-    default: Date.now, // ← se asigna automáticamente al crear
+    default: null, // null hasta que el superadmin active el vehículo
   })
-  fecha_activacion?: Date;
-  
+  fecha_activacion?: Date | null;
+
   @Prop({ type: Date, default: null })
-  fecha_ultima_desactivacion?: Date;
+  fecha_ultima_desactivacion?: Date | null;
 
   @Prop({ type: String, default: null })
-  nota_desactivacion?: string;
-  
+  nota_desactivacion?: string | null;
 
+  // ── Control SICOV ──────────────────────────────────────────────────
+  /** Superadmin puede desactivar el envío a Supertransporte */
+  @Prop({ type: Boolean, default: true })
+  sicov_sync_enabled!: boolean;
+
+  /** Referencia al contrato de habilitación */
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'VehicleContract',
+    default: null,
+  })
+  contrato_id?: Types.ObjectId | null;
 }
 
 export const VehicleSchema = SchemaFactory.createForClass(Vehicle);

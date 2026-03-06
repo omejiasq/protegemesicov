@@ -34,6 +34,8 @@ import {
   TipoVehiculoTipoInspeccionDocument,
 } from '../schema/tipos-vehiculos-tipos-inspecciones.schema';
 
+import { VehicleRef, VehicleRefDocument } from '../schema/vehicle-ref.schema';
+
 const ACTIVIDADES_MAP: Record<number, string> = {
   1: 'Fugas del motor',
   2: 'Tensión correas',
@@ -65,6 +67,9 @@ export class AlistamientoService {
     @InjectModel(TipoVehiculoTipoInspeccion.name)
     private readonly inspectionTypeModel: Model<TipoVehiculoTipoInspeccionDocument>,
 
+    @InjectModel(VehicleRef.name)
+    private readonly vehicleRefModel: Model<VehicleRefDocument>,
+
     private readonly external: MaintenanceExternalApiService,
     private readonly maintenanceService: MaintenanceService,
   ) {}
@@ -77,6 +82,22 @@ export class AlistamientoService {
 
     if (!placa) {
       throw new BadRequestException('Placa requerida');
+    }
+
+    // ── Verificar que el vehículo esté habilitado (activo) ──────────────
+    if (user?.enterprise_id) {
+      const vehicleRecord = await this.vehicleRefModel
+        .findOne({
+          placa: { $regex: `^${placa}$`, $options: 'i' },
+          enterprise_id: new Types.ObjectId(user.enterprise_id),
+        })
+        .lean();
+
+      if (vehicleRecord && vehicleRecord.active === false) {
+        throw new BadRequestException(
+          `El vehículo ${placa} no está habilitado para registrar alistamientos. Contacte al administrador del sistema.`,
+        );
+      }
     }
     /*
     // 1️⃣ PREVENIR DUPLICADO POR PLACA / DÍA

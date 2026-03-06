@@ -16,5 +16,5 @@ export const DriversserviceApi = {
     http.put(`${baseURL}/users/${id}`, data),
 
   toggle: (id: string) =>
-    http.patch(`${baseURL}/users/${id}/toggle`),
+    http.patch(`${baseURL}/users/${id}/toggle-active`),
 };

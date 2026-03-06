@@ -9,12 +9,14 @@ import * as bcrypt from 'bcrypt';
 
 import { User } from '../schemas/user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
+import { EmailService } from '../libs/email/email.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name)
     private readonly userModel: Model<User>,
+    private readonly emailService: EmailService,
   ) {}
 
   //-----------------------------------------------------
@@ -212,9 +214,120 @@ export class UsersService {
       throw new NotFoundException('Usuario no encontrado');
 
     user.password = await bcrypt.hash(newPassword, 10);
+    user.must_change_password = false;
     await user.save();
 
     return this.sanitize(user.toObject());
+  }
+
+  //-----------------------------------------------------
+  // FORGOT PASSWORD
+  //-----------------------------------------------------
+  async forgotPassword(identifier: string) {
+    const lower = identifier.trim().toLowerCase();
+
+    const user = await this.userModel.findOne({
+      $or: [
+        { 'usuario.correo': lower },
+        { 'usuario.usuario': lower },
+      ],
+    });
+
+    // Security: don't reveal if user exists or not
+    if (!user || !user.usuario?.correo) {
+      return { message: 'Si el correo o usuario está registrado, recibirá la contraseña temporal en su correo.' };
+    }
+
+    const tempPassword = this.generateTempPassword();
+    user.password = await bcrypt.hash(tempPassword, 10);
+    user.must_change_password = true;
+    await user.save();
+
+    // Non-blocking email
+    this.emailService.sendTempPassword(
+      user.usuario.correo,
+      user.usuario.usuario,
+      tempPassword,
+    ).catch(() => {});
+
+    return { message: 'Si el correo o usuario está registrado, recibirá la contraseña temporal en su correo.' };
+  }
+
+  private generateTempPassword(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let result = '';
+    for (let i = 0; i < 8; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  //-----------------------------------------------------
+  // CREATE USER FOR ENTERPRISE (superadmin)
+  //-----------------------------------------------------
+  async createForEnterprise(
+    enterpriseId: string,
+    dto: {
+      usuario: string;
+      nombre?: string;
+      apellido?: string;
+      telefono?: string;
+      correo?: string;
+      document_type?: number;
+      password: string;
+    },
+    enterpriseName?: string,
+  ) {
+    // Only one admin user per enterprise via this flow
+    const existing = await this.userModel.findOne({
+      enterprise_id: new Types.ObjectId(enterpriseId),
+      roleType: 'admin',
+    });
+
+    if (existing) {
+      throw new BadRequestException(
+        'Ya existe un usuario administrador para esta empresa. Use la función de recuperación de contraseña si necesita acceso.',
+      );
+    }
+
+    // Unique username check
+    const usernameExists = await this.userModel.findOne({
+      'usuario.usuario': dto.usuario.trim().toLowerCase(),
+    });
+    if (usernameExists) {
+      throw new BadRequestException('El nombre de usuario ya existe');
+    }
+
+    const plainPassword = dto.password;
+    const hashedPassword = await bcrypt.hash(plainPassword, 10);
+
+    const newUser = await this.userModel.create({
+      usuario: {
+        usuario: dto.usuario.trim().toLowerCase(),
+        nombre: dto.nombre ?? undefined,
+        apellido: dto.apellido ?? undefined,
+        telefono: dto.telefono ?? undefined,
+        correo: dto.correo?.trim().toLowerCase() ?? undefined,
+        document_type: dto.document_type ?? 1,
+      },
+      password: hashedPassword,
+      roleType: 'admin',
+      enterprise_id: new Types.ObjectId(enterpriseId),
+      active: true,
+      must_change_password: true,
+    });
+
+    // Send welcome email (non-blocking)
+    if (dto.correo && enterpriseName) {
+      this.emailService.sendEnterpriseWelcome(
+        dto.correo.trim().toLowerCase(),
+        dto.usuario,
+        plainPassword,
+        enterpriseName,
+      ).catch(() => {});
+    }
+
+    return this.sanitize(newUser.toObject());
   }
 
   //-----------------------------------------------------

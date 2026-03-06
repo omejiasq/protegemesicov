@@ -146,9 +146,7 @@ const loadDrivers = async () => {
 
   drivers.value = items.map(d => ({
     _id: d._id,
-    nombre: [
-      d.usuario.nombre,
-    ].filter(Boolean).join(' '),
+    nombre: [d.usuario.nombre, d.usuario.apellido].filter(Boolean).join(' '),
   }))
 }
 

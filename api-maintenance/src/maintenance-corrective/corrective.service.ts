@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -29,6 +30,8 @@ import {
   CorrectiveItemResultDocument,
 } from '../schema/corrective_item_result.schema';
 
+import { VehicleRef, VehicleRefDocument } from '../schema/vehicle-ref.schema';
+
 @Injectable()
 export class CorrectiveService {
   constructor(
@@ -43,6 +46,9 @@ export class CorrectiveService {
 
     @InjectModel(CorrectiveItemResult.name)
     private readonly itemResultModel: Model<CorrectiveItemResultDocument>,
+
+    @InjectModel(VehicleRef.name)
+    private readonly vehicleRefModel: Model<VehicleRefDocument>,
 
     private readonly external: MaintenanceExternalApiService,
     private readonly maintenanceService: MaintenanceService,
@@ -61,6 +67,23 @@ export class CorrectiveService {
     },
     jwt?: string,
   ) {
+    // ── Verificar que el vehículo esté habilitado ─────────────────────
+    if (user?.enterprise_id && dto.placa) {
+      const placa = String(dto.placa).trim().toUpperCase();
+      const vehicleRecord = await this.vehicleRefModel
+        .findOne({
+          placa: { $regex: `^${placa}$`, $options: 'i' },
+          enterprise_id: new Types.ObjectId(user.enterprise_id),
+        })
+        .lean();
+
+      if (vehicleRecord && vehicleRecord.active === false) {
+        throw new BadRequestException(
+          `El vehículo ${placa} no está habilitado para registrar correctivos. Contacte al administrador del sistema.`,
+        );
+      }
+    }
+
     // ============================================
     // Desactivar correctivo activo anterior
     // ============================================

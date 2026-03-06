@@ -57,5 +57,17 @@ export class AuthController {
 
     return this.authService.login(user);
   }
-  
+
+  /**
+   * Recuperar contraseña por usuario o correo
+   * POST /auth/forgot-password
+   * Body: { identifier: "usuario_o_correo" }
+   */
+  @Post('forgot-password')
+  async forgotPassword(@Body('identifier') identifier: string) {
+    if (!identifier?.trim()) {
+      throw new BadRequestException('El campo identifier (usuario o correo) es requerido');
+    }
+    return this.authService.forgotPassword(identifier);
+  }
 }

@@ -3,16 +3,19 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Enterprise, EnterpriseSchema } from './schemas/enterprise.schema';
 import { EnterpriseService } from './enterprise.service';
 import { EnterpriseController } from './enterprise.controller';
-import { AuthModule } from '../auth/auth.module'; // 🔥 CLAVE
+import { AuthModule } from '../auth/auth.module';
+import { SuperadminGuard } from '../auth/guards/superadmin.guard';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Enterprise.name, schema: EnterpriseSchema },
     ]),
-    AuthModule, // 🔐 NECESARIO PARA JwtAuthGuard
+    AuthModule,
+    UsersModule,
   ],
   controllers: [EnterpriseController],
-  providers: [EnterpriseService],
+  providers: [EnterpriseService, SuperadminGuard],
 })
 export class EnterpriseModule {}
