@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -29,6 +30,31 @@ export class UsersService {
   }
 
   //-----------------------------------------------------
+  // UTIL — VALIDAR USERNAME ÚNICO
+  //-----------------------------------------------------
+  private async assertUsernameUnique(username: string, excludeId?: string) {
+    const query: any = { 'usuario.usuario': username };
+    if (excludeId) query._id = { $ne: excludeId };
+    const exists = await this.userModel.findOne(query).lean();
+    if (exists) {
+      throw new ConflictException('El nombre de usuario ya está en uso');
+    }
+  }
+
+  //-----------------------------------------------------
+  // UTIL — VALIDAR CORREO ÚNICO
+  //-----------------------------------------------------
+  private async assertEmailUnique(correo: string, excludeId?: string) {
+    const lower = correo.trim().toLowerCase();
+    const query: any = { 'usuario.correo': lower };
+    if (excludeId) query._id = { $ne: excludeId };
+    const exists = await this.userModel.findOne(query).lean();
+    if (exists) {
+      throw new BadRequestException('El correo electrónico ya está registrado por otro usuario');
+    }
+  }
+
+  //-----------------------------------------------------
   // CREATE (DESDE TOKEN)
   //-----------------------------------------------------
   async create(createUserDto: CreateUserDto, currentUser: any) {
@@ -38,78 +64,104 @@ export class UsersService {
       );
     }
 
+    await this.assertUsernameUnique(createUserDto.usuario);
+
+    if (createUserDto.email) {
+      await this.assertEmailUnique(createUserDto.email);
+    }
+
     const hashedPassword = await bcrypt.hash(
       createUserDto.password,
       10,
     );
 
-    const newUser = await this.userModel.create({
-      usuario: {
-        usuario: createUserDto.usuario,
-        nombre: createUserDto.firstName ?? undefined,
-        apellido: createUserDto.lastName ?? undefined,
-        telefono: createUserDto.phone ?? undefined,
-        correo: createUserDto.email ?? undefined,
-        document_type: createUserDto.documentType ?? 1,
-        documentNumber: createUserDto.documentNumber ?? undefined,
-      },
-      password: hashedPassword,
-      roleType: createUserDto.roleType ?? 'admin',
-      enterprise_id: new Types.ObjectId(
-        currentUser.enterprise_id,
-      ),
+    try {
+      const newUser = await this.userModel.create({
+        usuario: {
+          usuario: createUserDto.usuario,
+          nombre: createUserDto.firstName ?? undefined,
+          apellido: createUserDto.lastName ?? undefined,
+          telefono: createUserDto.phone ?? undefined,
+          correo: createUserDto.email ?? undefined,
+          document_type: createUserDto.documentType ?? 1,
+          documentNumber: createUserDto.documentNumber ?? undefined,
+        },
+        password: hashedPassword,
+        roleType: createUserDto.roleType ?? 'admin',
+        enterprise_id: new Types.ObjectId(
+          currentUser.enterprise_id,
+        ),
 
-      no_licencia_conduccion:
-        createUserDto.no_licencia_conduccion ?? undefined,
+        no_licencia_conduccion:
+          createUserDto.no_licencia_conduccion ?? undefined,
 
-      vencimiento_licencia_conduccion:
-        createUserDto.vencimiento_licencia_conduccion
-          ? new Date(createUserDto.vencimiento_licencia_conduccion)
-          : undefined,
+        vencimiento_licencia_conduccion:
+          createUserDto.vencimiento_licencia_conduccion
+            ? new Date(createUserDto.vencimiento_licencia_conduccion)
+            : undefined,
 
-      active: true,
-    });
+        active: true,
+      });
 
-    return this.sanitize(newUser.toObject());
+      return this.sanitize(newUser.toObject());
+    } catch (err: any) {
+      if (err?.code === 11000) {
+        throw new ConflictException('El número de documento ya está registrado como usuario');
+      }
+      throw err;
+    }
   }
 
   //-----------------------------------------------------
   // REGISTER (PÚBLICO)
   //-----------------------------------------------------
   async register(createUserDto: CreateUserDto) {
+    await this.assertUsernameUnique(createUserDto.usuario);
+
+    if (createUserDto.email) {
+      await this.assertEmailUnique(createUserDto.email);
+    }
+
     const hashedPassword = await bcrypt.hash(
       createUserDto.password,
       10,
     );
 
-    const newUser = await this.userModel.create({
-      usuario: {
-        usuario: createUserDto.usuario,
-        nombre: createUserDto.firstName ?? undefined,
-        apellido: createUserDto.lastName ?? undefined,
-        telefono: createUserDto.phone ?? undefined,
-        correo: createUserDto.email ?? undefined,
-        document_type: createUserDto.documentType ?? 1,
-        documentNumber: createUserDto.documentNumber ?? undefined,
-      },
-      password: hashedPassword,
-      roleType: createUserDto.roleType ?? 'admin',
-      enterprise_id: createUserDto.enterprise_id
-        ? new Types.ObjectId(createUserDto.enterprise_id)
-        : undefined,
-
-      no_licencia_conduccion:
-        createUserDto.no_licencia_conduccion ?? undefined,
-
-      vencimiento_licencia_conduccion:
-        createUserDto.vencimiento_licencia_conduccion
-          ? new Date(createUserDto.vencimiento_licencia_conduccion)
+    try {
+      const newUser = await this.userModel.create({
+        usuario: {
+          usuario: createUserDto.usuario,
+          nombre: createUserDto.firstName ?? undefined,
+          apellido: createUserDto.lastName ?? undefined,
+          telefono: createUserDto.phone ?? undefined,
+          correo: createUserDto.email ?? undefined,
+          document_type: createUserDto.documentType ?? 1,
+          documentNumber: createUserDto.documentNumber ?? undefined,
+        },
+        password: hashedPassword,
+        roleType: createUserDto.roleType ?? 'admin',
+        enterprise_id: createUserDto.enterprise_id
+          ? new Types.ObjectId(createUserDto.enterprise_id)
           : undefined,
 
-      active: true,
-    });
+        no_licencia_conduccion:
+          createUserDto.no_licencia_conduccion ?? undefined,
 
-    return this.sanitize(newUser.toObject());
+        vencimiento_licencia_conduccion:
+          createUserDto.vencimiento_licencia_conduccion
+            ? new Date(createUserDto.vencimiento_licencia_conduccion)
+            : undefined,
+
+        active: true,
+      });
+
+      return this.sanitize(newUser.toObject());
+    } catch (err: any) {
+      if (err?.code === 11000) {
+        throw new ConflictException('El número de documento ya está registrado como usuario');
+      }
+      throw err;
+    }
   }
 
   //-----------------------------------------------------
@@ -137,39 +189,52 @@ export class UsersService {
       );
     }
 
+    await this.assertUsernameUnique(createUserDto.usuario);
+
+    if (createUserDto.email) {
+      await this.assertEmailUnique(createUserDto.email);
+    }
+
     const hashedPassword = await bcrypt.hash(
       createUserDto.password,
       10,
     );
 
-    const newUser = await this.userModel.create({
-      usuario: {
-        usuario: createUserDto.usuario,
-        nombre: createUserDto.firstName ?? undefined,
-        apellido: createUserDto.lastName ?? undefined,
-        telefono: createUserDto.phone ?? undefined,
-        correo: createUserDto.email ?? undefined,
-        document_type: createUserDto.documentType ?? 1,
-        documentNumber: createUserDto.documentNumber ?? undefined,
-      },
-      password: hashedPassword,
-      roleType: createUserDto.roleType ?? 'admin',
-      enterprise_id: new Types.ObjectId(
-        currentUser.enterprise_id,
-      ),
+    try {
+      const newUser = await this.userModel.create({
+        usuario: {
+          usuario: createUserDto.usuario,
+          nombre: createUserDto.firstName ?? undefined,
+          apellido: createUserDto.lastName ?? undefined,
+          telefono: createUserDto.phone ?? undefined,
+          correo: createUserDto.email ?? undefined,
+          document_type: createUserDto.documentType ?? 1,
+          documentNumber: createUserDto.documentNumber ?? undefined,
+        },
+        password: hashedPassword,
+        roleType: createUserDto.roleType ?? 'admin',
+        enterprise_id: new Types.ObjectId(
+          currentUser.enterprise_id,
+        ),
 
-      no_licencia_conduccion:
-        createUserDto.no_licencia_conduccion ?? undefined,
+        no_licencia_conduccion:
+          createUserDto.no_licencia_conduccion ?? undefined,
 
-      vencimiento_licencia_conduccion:
-        createUserDto.vencimiento_licencia_conduccion
-          ? new Date(createUserDto.vencimiento_licencia_conduccion)
-          : undefined,
+        vencimiento_licencia_conduccion:
+          createUserDto.vencimiento_licencia_conduccion
+            ? new Date(createUserDto.vencimiento_licencia_conduccion)
+            : undefined,
 
-      active: true,
-    });
+        active: true,
+      });
 
-    return this.sanitize(newUser.toObject());
+      return this.sanitize(newUser.toObject());
+    } catch (err: any) {
+      if (err?.code === 11000) {
+        throw new ConflictException('El número de documento ya está registrado como usuario');
+      }
+      throw err;
+    }
   }
 
   //-----------------------------------------------------
@@ -298,6 +363,11 @@ export class UsersService {
       throw new BadRequestException('El nombre de usuario ya existe');
     }
 
+    // Unique email check
+    if (dto.correo) {
+      await this.assertEmailUnique(dto.correo);
+    }
+
     const plainPassword = dto.password;
     const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
@@ -337,6 +407,10 @@ export class UsersService {
     const user = await this.userModel.findById(id);
     if (!user)
       throw new NotFoundException('Usuario no encontrado');
+
+    if (updateDto.email) {
+      await this.assertEmailUnique(updateDto.email, id);
+    }
 
     user.usuario = {
       ...user.usuario,
@@ -464,6 +538,10 @@ async createStaff(createUserDto: CreateUserDto, currentUser: any) {
     throw new BadRequestException('El nombre de usuario ya existe');
   }
 
+  if (createUserDto.email) {
+    await this.assertEmailUnique(createUserDto.email);
+  }
+
   const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
   const newUser = await this.userModel.create({
@@ -546,6 +624,23 @@ async findStaffByEnterprise(
     page,
     numero_items: limit,
   };
+}
+
+//-----------------------------------------------------
+// FIND ADMINS BY ENTERPRISE (superadmin)
+//-----------------------------------------------------
+async findAdminsByEnterprise(enterpriseId: string) {
+  if (!Types.ObjectId.isValid(enterpriseId)) {
+    throw new BadRequestException('ID de empresa inválido');
+  }
+  const users = await this.userModel
+    .find({
+      enterprise_id: new Types.ObjectId(enterpriseId),
+      roleType: { $in: ['admin', 'superadmin'] },
+    })
+    .sort({ createdAt: 1 })
+    .lean();
+  return users.map((u) => this.sanitize(u));
 }
 
 //-----------------------------------------------------

@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Manual de Usuario – ProtegeMeSICOV (SuperAdmin)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', Arial, sans-serif; font-size: 13px; color: #1f2937; background: #fff; }
+
+  /* ── Portada ── */
+  .cover {
+    height: 100vh; display: flex; flex-direction: column;
+    justify-content: center; align-items: center; text-align: center;
+    background: linear-gradient(135deg, #1e1b4b 0%, #4338ca 60%, #6366f1 100%);
+    color: white; padding: 60px; page-break-after: always;
+  }
+  .cover .logo-placeholder {
+    width: 120px; height: 120px; background: rgba(255,255,255,0.15);
+    border-radius: 24px; display: flex; align-items: center; justify-content: center;
+    font-size: 48px; margin-bottom: 32px; border: 2px solid rgba(255,255,255,0.3);
+  }
+  .cover h1 { font-size: 38px; font-weight: 700; margin-bottom: 12px; line-height: 1.2; }
+  .cover h2 { font-size: 22px; font-weight: 400; opacity: 0.85; margin-bottom: 40px; }
+  .cover .badge {
+    background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 999px; padding: 8px 24px; font-size: 14px; font-weight: 500;
+    margin-bottom: 16px;
+  }
+  .cover .version { font-size: 12px; opacity: 0.6; margin-top: 40px; }
+
+  /* ── Layout ── */
+  .page { max-width: 820px; margin: 0 auto; padding: 48px 60px; }
+
+  /* ── TOC ── */
+  .toc-page { page-break-after: always; }
+  .toc-title { font-size: 24px; font-weight: 700; color: #1e1b4b; margin-bottom: 28px;
+    border-bottom: 3px solid #4338ca; padding-bottom: 10px; }
+  .toc-section { margin-bottom: 6px; }
+  .toc-section a { text-decoration: none; color: #1f2937; display: flex;
+    justify-content: space-between; padding: 5px 0; border-bottom: 1px dotted #d1d5db; }
+  .toc-section a:hover { color: #4338ca; }
+  .toc-section a .num { font-weight: 600; color: #4338ca; min-width: 32px; }
+  .toc-sub { margin-left: 32px; }
+  .toc-sub a { font-size: 12px; color: #4b5563; }
+
+  /* ── Secciones ── */
+  .section-page { page-break-before: always; }
+  h1.section-title {
+    font-size: 26px; font-weight: 700; color: #1e1b4b;
+    border-bottom: 3px solid #4338ca; padding-bottom: 10px; margin-bottom: 28px;
+  }
+  h2.subsection { font-size: 17px; font-weight: 600; color: #3730a3; margin: 28px 0 12px;
+    padding-left: 12px; border-left: 4px solid #6366f1; }
+  h3.step-title { font-size: 14px; font-weight: 600; color: #374151; margin: 18px 0 8px; }
+  p { line-height: 1.7; margin-bottom: 10px; color: #374151; }
+  ul, ol { margin: 8px 0 14px 24px; }
+  li { line-height: 1.7; margin-bottom: 4px; }
+
+  /* ── Cajas ── */
+  .info-box {
+    background: #eef2ff; border: 1px solid #c7d2fe; border-left: 4px solid #4338ca;
+    border-radius: 8px; padding: 14px 16px; margin: 14px 0;
+  }
+  .info-box.warning {
+    background: #fffbeb; border-color: #fcd34d; border-left-color: #f59e0b;
+  }
+  .info-box.success {
+    background: #f0fdf4; border-color: #86efac; border-left-color: #16a34a;
+  }
+  .info-box.danger {
+    background: #fef2f2; border-color: #fca5a5; border-left-color: #dc2626;
+  }
+  .info-box strong { display: block; margin-bottom: 4px; }
+
+  /* ── Tabla ── */
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 12px; }
+  th { background: #1e1b4b; color: white; padding: 10px 12px; text-align: left; font-weight: 600; }
+  td { padding: 9px 12px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  tr:nth-child(even) td { background: #f9fafb; }
+
+  /* ── Badge inline ── */
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .badge.green  { background: #dcfce7; color: #166534; }
+  .badge.red    { background: #fee2e2; color: #991b1b; }
+  .badge.blue   { background: #dbeafe; color: #1d4ed8; }
+  .badge.purple { background: #ede9fe; color: #5b21b6; }
+  .badge.gray   { background: #f3f4f6; color: #374151; }
+
+  /* ── Step ── */
+  .steps { counter-reset: step; margin: 14px 0; }
+  .step { display: flex; gap: 14px; margin-bottom: 12px; align-items: flex-start; }
+  .step-num {
+    counter-increment: step; min-width: 28px; height: 28px;
+    background: #4338ca; color: white; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 2px;
+  }
+  .step-body { flex: 1; }
+
+  /* ── Highlight box ── */
+  .highlight {
+    background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 10px;
+    padding: 16px 20px; margin: 16px 0;
+  }
+  .highlight .highlight-title {
+    font-weight: 700; color: #1e1b4b; font-size: 14px; margin-bottom: 8px;
+  }
+
+  /* ── Print ── */
+  @media print {
+    .cover { height: 100vh; }
+    .section-page { page-break-before: always; }
+    body { font-size: 12px; }
+    .page { padding: 32px 48px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     PORTADA
+══════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="logo-placeholder">⚙️</div>
+  <h1>ProtegeMeSICOV</h1>
+  <h2>Manual de Usuario — SuperAdmin</h2>
+  <div class="badge">Perfil: Administrador del Sistema (superadmin)</div>
+  <p style="opacity:0.75; max-width:500px; margin-top:16px; font-size:13px;">
+    Guía completa para la administración global del sistema: gestión de empresas, usuarios,
+    configuración SICOV, monitoreo de sincronización y herramientas de diagnóstico.
+  </p>
+  <div class="version">Versión 1.0 · 2025 · SENA – Minciencias</div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     TABLA DE CONTENIDO
+══════════════════════════════════════════════ -->
+<div class="page toc-page">
+  <div class="toc-title">Tabla de Contenido</div>
+
+  <div class="toc-section"><a href="#s1"><span class="num">1.</span><span>El Rol SuperAdmin</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s1-1"><span>1.1 ¿Qué puede hacer el SuperAdmin?</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s1-2"><span>1.2 Acceso al Sistema</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s1-3"><span>1.3 Menú del SuperAdmin</span></a></div>
+
+  <div class="toc-section"><a href="#s2"><span class="num">2.</span><span>Gestión de Empresas</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s2-1"><span>2.1 Listar Empresas</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s2-2"><span>2.2 Crear una Empresa</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s2-3"><span>2.3 Editar una Empresa</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s2-4"><span>2.4 Activar / Desactivar una Empresa</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s2-5"><span>2.5 Configuración de Credenciales SICOV</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s2-6"><span>2.6 Tipo de Paquete</span></a></div>
+
+  <div class="toc-section"><a href="#s3"><span class="num">3.</span><span>Módulos Heredados de Admin de Empresa</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s3-1"><span>3.1 Dashboard</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s3-2"><span>3.2 Vehículos, Conductores y Staff</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s3-3"><span>3.3 Alistamientos, Preventivos y Correctivos</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s3-4"><span>3.4 Catálogos (Partes, Alistamiento, Proveedores)</span></a></div>
+
+  <div class="toc-section"><a href="#s4"><span class="num">4.</span><span>Auditoría SICOV</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s4-1"><span>4.1 Consultar el Reporte de Auditoría</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s4-2"><span>4.2 Interpretar Resultados</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s4-3"><span>4.3 Corregir Registros Históricos</span></a></div>
+
+  <div class="toc-section"><a href="#s5"><span class="num">5.</span><span>Sincronización SICOV — Herramientas Avanzadas</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s5-1"><span>5.1 Estados de Sincronización</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s5-2"><span>5.2 Cron de Reintentos Automáticos</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s5-3"><span>5.3 Diagnóstico de Placa en SICOV</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s5-4"><span>5.4 Migración de Fechas de Sincronización</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s5-5"><span>5.5 Reparación de Transacciones Huérfanas</span></a></div>
+
+  <div class="toc-section"><a href="#s6"><span class="num">6.</span><span>API Keys para Integración Externa</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s6-1"><span>6.1 ¿Qué son las API Keys?</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s6-2"><span>6.2 Crear una API Key</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s6-3"><span>6.3 Modo Demo (demoMode)</span></a></div>
+  <div class="toc-section toc-sub"><a href="#s6-4"><span>6.4 Entorno Sandbox — Integración con Empresas Externas</span></a></div>
+
+  <div class="toc-section"><a href="#s7"><span class="num">7.</span><span>Arquitectura y Despliegue</span></a></div>
+  <div class="toc-section"><a href="#s8"><span class="num">8.</span><span>Referencia de Endpoints Administrativos</span></a></div>
+  <div class="toc-section"><a href="#s9"><span class="num">9.</span><span>Resolución de Problemas Comunes</span></a></div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 1 — ROL SUPERADMIN
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s1">
+  <h1 class="section-title">1. El Rol SuperAdmin</h1>
+
+  <h2 class="subsection" id="s1-1">1.1 ¿Qué puede hacer el SuperAdmin?</h2>
+  <p>
+    El <strong>SuperAdmin</strong> es el nivel más alto de acceso en ProtegeMeSICOV.
+    A diferencia del administrador de empresa (Admin), el SuperAdmin tiene visibilidad y control
+    sobre <strong>todas las empresas</strong> registradas en el sistema.
+  </p>
+
+  <div class="highlight">
+    <div class="highlight-title">Capacidades exclusivas del SuperAdmin:</div>
+    <ul>
+      <li>Crear, editar, activar y desactivar empresas vigiladas.</li>
+      <li>Configurar las credenciales SICOV (VigiladoId y Token) de cada empresa.</li>
+      <li>Asignar el tipo de paquete a cada empresa.</li>
+      <li>Crear el primer usuario administrador de una empresa nueva.</li>
+      <li>Acceder a todas las funciones de un administrador de empresa.</li>
+      <li>Usar herramientas avanzadas de diagnóstico y reparación SICOV.</li>
+      <li>Gestionar API Keys para integraciones externas.</li>
+    </ul>
+  </div>
+
+  <h2 class="subsection" id="s1-2">1.2 Acceso al Sistema</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-body">Acceda a la URL del sistema.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body">Ingrese las credenciales del usuario SuperAdmin (usuario y contraseña de nivel global).</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body">Será redirigido al Dashboard. El menú mostrará una sección adicional: <strong>ADMINISTRACIÓN</strong>.</div></div>
+  </div>
+  <div class="info-box danger">
+    <strong>🔒 Seguridad crítica:</strong> Las credenciales SuperAdmin deben ser custodiadas con el mayor
+    nivel de seguridad. No las comparta ni las use en dispositivos sin control. Habilite siempre
+    el cierre de sesión al terminar.
+  </div>
+
+  <h2 class="subsection" id="s1-3">1.3 Menú del SuperAdmin</h2>
+  <p>El SuperAdmin ve todas las secciones del menú, incluyendo la sección exclusiva:</p>
+  <table>
+    <tr><th>Sección</th><th>Visible para</th><th>Descripción</th></tr>
+    <tr><td>PRINCIPAL → Dashboard</td><td>Todos</td><td>Resumen general.</td></tr>
+    <tr><td>MANTENIMIENTOS</td><td>Todos (admin+)</td><td>Alistamientos, Preventivos, Correctivos, Calendario, Catálogos.</td></tr>
+    <tr><td>Config</td><td>Admin+</td><td>Vehículos, Conductores, Usuarios, Mi Empresa.</td></tr>
+    <tr><td>REPORTES → Auditoría SICOV</td><td>Admin+</td><td>Historial de comunicaciones con SICOV.</td></tr>
+    <tr><td><strong>ADMINISTRACIÓN → Empresas</strong></td><td><strong>Solo SuperAdmin</strong></td><td><strong>Gestión global de empresas vigiladas.</strong></td></tr>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 2 — GESTIÓN DE EMPRESAS
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s2">
+  <h1 class="section-title">2. Gestión de Empresas</h1>
+  <p>
+    Acceda desde: <strong>ADMINISTRACIÓN → Empresas</strong>.<br/>
+    Es el módulo central del SuperAdmin. Permite gestionar el ciclo de vida completo de cada empresa
+    vigilada registrada en la plataforma.
+  </p>
+
+  <h2 class="subsection" id="s2-1">2.1 Listar Empresas</h2>
+  <p>Al ingresar verá una tabla con todas las empresas. Las columnas son:</p>
+  <table>
+    <tr><th>Columna</th><th>Descripción</th></tr>
+    <tr><td>Nombre</td><td>Razón social de la empresa vigilada.</td></tr>
+    <tr><td>NIT</td><td>Número de Identificación Tributaria.</td></tr>
+    <tr><td>Paquete</td><td>Tipo de plan asignado (<span class="badge blue">enterprise</span> u otros).</td></tr>
+    <tr><td>VigiladoId</td><td>Identificador de la empresa en el sistema SICOV de Supertransporte.</td></tr>
+    <tr><td>Token Vigilado</td><td>Token de autenticación para la API de Supertransporte.</td></tr>
+    <tr><td>Estado</td><td><span class="badge green">Activa</span> o <span class="badge red">Inactiva</span>.</td></tr>
+    <tr><td>Acciones</td><td>Editar, Activar/Desactivar.</td></tr>
+  </table>
+
+  <h2 class="subsection" id="s2-2">2.2 Crear una Empresa</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-body">Haga clic en el botón <strong>Nueva empresa</strong>.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body">Complete los datos básicos:
+      <ul style="margin-top:6px">
+        <li><strong>Nombre:</strong> Razón social de la empresa.</li>
+        <li><strong>NIT:</strong> Sin dígito de verificación, sin puntos ni guiones.</li>
+        <li><strong>Tipo de paquete:</strong> Seleccione el plan contratado.</li>
+      </ul>
+    </div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body">Configure las credenciales SICOV (ver sección 2.5).</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-body">Haga clic en <strong>Guardar</strong>. La empresa quedará activa inmediatamente.</div></div>
+    <div class="step"><div class="step-num">5</div><div class="step-body">Cree el primer usuario administrador para esa empresa (ver sección 10 del Manual de Empresa).</div></div>
+  </div>
+
+  <h2 class="subsection" id="s2-3">2.3 Editar una Empresa</h2>
+  <p>
+    Haga clic en el ícono de <strong>edición (lápiz)</strong> de la empresa que desea modificar.
+    Se abrirá un formulario con todos los campos editables. Actualice los datos necesarios y haga
+    clic en <strong>Guardar</strong>.
+  </p>
+  <div class="info-box warning">
+    <strong>⚠️ Atención:</strong> Cambiar el <strong>VigiladoId</strong> o el <strong>Token Vigilado</strong>
+    de una empresa afecta directamente su capacidad de sincronizar con SICOV. Solo realice estos cambios
+    si recibió nuevas credenciales de Supertransporte.
+  </div>
+
+  <h2 class="subsection" id="s2-4">2.4 Activar / Desactivar una Empresa</h2>
+  <p>
+    En la lista de empresas, haga clic en el ícono de <strong>toggle (activar/desactivar)</strong>.
+    El sistema pedirá confirmación antes de proceder.
+  </p>
+  <ul>
+    <li><strong>Desactivar:</strong> Los usuarios de esa empresa no podrán iniciar sesión. Los datos se conservan.</li>
+    <li><strong>Activar:</strong> Restaura el acceso completo de la empresa al sistema.</li>
+  </ul>
+  <div class="info-box danger">
+    <strong>⚠️ Impacto operativo:</strong> Al desactivar una empresa, todos los usuarios de esa empresa
+    perderán el acceso inmediatamente. Use esta función solo en casos justificados (fin de contrato,
+    suspensión por incumplimiento, etc.).
+  </div>
+
+  <h2 class="subsection" id="s2-5">2.5 Configuración de Credenciales SICOV</h2>
+  <p>
+    Cada empresa vigilada necesita dos credenciales para comunicarse con la API de Supertransporte:
+  </p>
+  <table>
+    <tr><th>Campo</th><th>Descripción</th><th>Ejemplo</th></tr>
+    <tr>
+      <td><strong>VigiladoId</strong></td>
+      <td>NIT de la empresa tal como está registrado en SICOV Supertransporte. Es el identificador principal de la empresa vigilada ante el ente regulador.</td>
+      <td>891100299</td>
+    </tr>
+    <tr>
+      <td><strong>Token Vigilado</strong></td>
+      <td>Token de autenticación proporcionado por Supertransporte para el acceso a su API. Se incluye en cada llamada como cabecera de autorización.</td>
+      <td>eyJhbGciOiJ...</td>
+    </tr>
+  </table>
+  <div class="info-box">
+    <strong>ℹ️ Origen de las credenciales:</strong> Estas credenciales son suministradas directamente
+    por la Superintendencia de Transporte a cada empresa vigilada. El SuperAdmin las ingresa al
+    registrar o actualizar la empresa en el sistema.
+  </div>
+
+  <h2 class="subsection" id="s2-6">2.6 Tipo de Paquete</h2>
+  <p>
+    El campo <strong>Tipo de paquete</strong> permite clasificar las empresas según el plan contratado:
+  </p>
+  <table>
+    <tr><th>Paquete</th><th>Descripción</th></tr>
+    <tr><td><span class="badge blue">enterprise</span></td><td>Plan empresarial completo con todas las funciones habilitadas.</td></tr>
+    <tr><td><span class="badge gray">basic</span></td><td>Plan básico (funciones limitadas según configuración).</td></tr>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 3 — MÓDULOS HEREDADOS
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s3">
+  <h1 class="section-title">3. Módulos Heredados de Admin de Empresa</h1>
+  <p>
+    El SuperAdmin tiene acceso completo a todos los módulos que usa un administrador de empresa.
+    Estos están documentados en detalle en el <strong>Manual de Usuario — Empresa</strong>.
+    A continuación un resumen de referencia rápida.
+  </p>
+
+  <h2 class="subsection" id="s3-1">3.1 Dashboard</h2>
+  <p>Resumen ejecutivo de la empresa activa: vehículos, mantenimientos del mes, alertas SICOV pendientes.</p>
+
+  <h2 class="subsection" id="s3-2">3.2 Vehículos, Conductores y Staff</h2>
+  <table>
+    <tr><th>Módulo</th><th>Ruta</th><th>Función</th></tr>
+    <tr><td>Vehículos</td><td>Config → Vehículos</td><td>CRUD de vehículos de la flota. La placa es el identificador clave para SICOV.</td></tr>
+    <tr><td>Conductores</td><td>Config → Conductores</td><td>CRUD de conductores. Se usan en alistamientos y mantenimientos.</td></tr>
+    <tr><td>Usuarios</td><td>Config → Usuarios</td><td>CRUD de usuarios de la empresa con roles Admin / Operador.</td></tr>
+  </table>
+
+  <h2 class="subsection" id="s3-3">3.3 Alistamientos, Preventivos y Correctivos</h2>
+  <table>
+    <tr><th>Módulo</th><th>Ruta</th><th>Función</th></tr>
+    <tr><td>Alistamientos</td><td>Mantenimientos → Alistamientos</td><td>Inspecciones pre-operacionales diarias. Se sincronizan con SICOV.</td></tr>
+    <tr><td>Preventivos</td><td>Mantenimientos → Preventivos</td><td>Mantenimientos planificados. Se sincronizan con SICOV.</td></tr>
+    <tr><td>Correctivos</td><td>Mantenimientos → Correctivos</td><td>Reparaciones no planificadas. Se sincronizan con SICOV.</td></tr>
+    <tr><td>Calendario</td><td>Mantenimientos → Calendario</td><td>Vista mensual de mantenimientos preventivos programados.</td></tr>
+  </table>
+  <p>
+    Todos los registros muestran la columna <strong>Sincronización SICOV</strong> con los estados:
+    <span class="badge green">SINCRONIZADO</span> <span class="badge gray">PENDIENTE</span>
+    <span class="badge red">FALLIDO</span> <span class="badge blue">DEMO</span>.
+    Consulte la sección 5 para las herramientas avanzadas de manejo de estos estados.
+  </p>
+
+  <h2 class="subsection" id="s3-4">3.4 Catálogos</h2>
+  <table>
+    <tr><th>Catálogo</th><th>Ruta</th><th>Función</th></tr>
+    <tr><td>Partes de Mantenimiento</td><td>Mantenimientos → Partes mant.</td><td>Ítems intervenibles en preventivos y correctivos.</td></tr>
+    <tr><td>Partes de Alistamiento</td><td>Mantenimientos → Partes alist.</td><td>Ítems de inspección diaria, mapeados a códigos SICOV (1-11).</td></tr>
+    <tr><td>Proveedores</td><td>Mantenimientos → Proveedores</td><td>Talleres y proveedores de mantenimiento.</td></tr>
+    <tr><td>Mi Empresa</td><td>Config → Mi Empresa</td><td>Logo, centro especializado e ingeniero mecánico.</td></tr>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 4 — AUDITORÍA SICOV
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s4">
+  <h1 class="section-title">4. Auditoría SICOV</h1>
+  <p>
+    Acceda desde: <strong>Reportes → Auditoría SICOV</strong>.<br/>
+    El SuperAdmin puede auditar el historial completo de comunicaciones con la API de Supertransporte
+    para cualquier empresa activa en la sesión actual.
+  </p>
+
+  <h2 class="subsection" id="s4-1">4.1 Consultar el Reporte de Auditoría</h2>
+  <p>Use los filtros disponibles:</p>
+  <ul>
+    <li><strong>Desde / Hasta:</strong> Rango de fechas de las operaciones.</li>
+    <li><strong>Operación:</strong> Tipo de llamada (guardarAlistamiento, guardarMantenimiento, login, etc.).</li>
+    <li><strong>Estado:</strong> Todos / Exitosos / Con error.</li>
+  </ul>
+  <p>Haga clic en <strong>Buscar</strong> para aplicar los filtros.</p>
+
+  <h2 class="subsection" id="s4-2">4.2 Interpretar Resultados</h2>
+  <table>
+    <tr><th>Columna</th><th>Descripción</th></tr>
+    <tr><td>Fecha</td><td>Fecha y hora exacta de la operación.</td></tr>
+    <tr><td>Operación</td><td>Nombre de la función llamada (ej: <code>guardarAlistamiento</code>).</td></tr>
+    <tr><td>HTTP</td><td>Código de respuesta HTTP. 201/200 = éxito en la capa de red. Ojo: SICOV puede retornar 201 con error embebido.</td></tr>
+    <tr><td>Estado</td><td><span class="badge green">OK</span> o <span class="badge red">ERROR</span>. El sistema detecta errores embebidos en respuestas 2xx.</td></tr>
+    <tr><td>Tiempo</td><td>Milisegundos que tardó la operación.</td></tr>
+    <tr><td>Mensaje Supertransporte</td><td>Texto literal de la respuesta de SICOV. En errores indica la causa exacta.</td></tr>
+  </table>
+
+  <div class="info-box">
+    <strong>ℹ️ Sobre errores embebidos:</strong> La API de SICOV a veces devuelve un código HTTP 200 o 201
+    pero con un campo interno <code>status: 404</code> o <code>status: 500</code> en el cuerpo de la
+    respuesta. El sistema los detecta automáticamente y los registra como ERROR en la auditoría.
+  </div>
+
+  <div class="info-box">
+    <strong>ℹ️ Seguridad:</strong> Los campos sensibles como tokens y contraseñas se enmascaran
+    automáticamente antes de guardarse en la auditoría.
+  </div>
+
+  <h2 class="subsection" id="s4-3">4.3 Corregir Registros Históricos</h2>
+  <p>
+    Si registros antiguos no aparecen al filtrar por empresa, use el botón
+    <strong>"Corregir registros históricos"</strong>. Este proceso asigna el <code>enterpriseId</code>
+    a registros que fueron creados antes de que se implementara ese campo.
+  </p>
+  <p>El sistema mostrará cuántos registros fueron actualizados.</p>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 5 — SINCRONIZACIÓN SICOV AVANZADA
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s5">
+  <h1 class="section-title">5. Sincronización SICOV — Herramientas Avanzadas</h1>
+  <p>
+    Esta sección describe las herramientas disponibles a nivel técnico (API) para gestionar, diagnosticar
+    y reparar la sincronización con SICOV. Estas operaciones se realizan directamente sobre el
+    <strong>endpoint <code>/sicov-sync</code></strong> del microservicio <code>api-maintenance</code>.
+  </p>
+
+  <h2 class="subsection" id="s5-1">5.1 Estados de Sincronización</h2>
+  <table>
+    <tr><th>Estado</th><th>Valor en BD</th><th>Significado</th></tr>
+    <tr><td><span class="badge green">SINCRONIZADO</span></td><td><code>synced</code></td><td>Enviado y aceptado por SICOV. Tiene <code>fechaSyncSicov</code> asignada.</td></tr>
+    <tr><td><span class="badge gray">PENDIENTE</span></td><td><code>pending</code></td><td>En cola de reintentos. SICOV no estaba disponible al momento del registro.</td></tr>
+    <tr><td><span class="badge red">FALLIDO</span></td><td><code>failed</code></td><td>Excedió el máximo de reintentos. Requiere intervención manual.</td></tr>
+    <tr><td><span class="badge blue">DEMO</span></td><td><code>demo</code></td><td>Registro de prueba creado con API Key en modo demo. No se envía a SICOV.</td></tr>
+  </table>
+
+  <h2 class="subsection" id="s5-2">5.2 Cron de Reintentos Automáticos</h2>
+  <p>
+    El sistema ejecuta automáticamente un proceso de reintentos <strong>cada hora</strong> mediante un
+    cron job integrado en el microservicio <code>api-maintenance</code> (usando <code>@nestjs/schedule</code>).
+  </p>
+  <ul>
+    <li>Busca todos los registros con <code>sicov_sync_status: 'pending'</code>.</li>
+    <li>Para cada registro, verifica primero si ya fue enviado a SICOV (para evitar duplicados).</li>
+    <li>Si no existe en SICOV, lo envía. Si ya existe, lo marca como <code>synced</code>.</li>
+    <li>Si el envío falla de nuevo, incrementa el contador de reintentos.</li>
+  </ul>
+  <p>Para forzar la ejecución inmediata del cron (útil en urgencias):</p>
+  <div style="background:#1e1b4b; color:#c7d2fe; padding:12px 16px; border-radius:8px; font-family:monospace; font-size:12px; margin:10px 0;">
+    POST /sicov-sync/trigger-batch
+  </div>
+
+  <h2 class="subsection" id="s5-3">5.3 Diagnóstico de Placa en SICOV</h2>
+  <p>
+    Permite consultar directamente en SICOV maestras el historial de mantenimientos registrados para
+    una placa específica. Útil para verificar si los envíos llegaron correctamente.
+  </p>
+  <div style="background:#1e1b4b; color:#c7d2fe; padding:12px 16px; border-radius:8px; font-family:monospace; font-size:12px; margin:10px 0;">
+    GET /sicov-sync/diagnostico?placa=ABC123&amp;nit=891100299
+  </div>
+  <p>Retorna el histórico completo de alistamientos, preventivos y correctivos que SICOV tiene registrados para esa placa.</p>
+
+  <h2 class="subsection" id="s5-4">5.4 Migración de Fechas de Sincronización</h2>
+  <p>
+    Para registros creados antes de que se implementara el campo <code>fechaSyncSicov</code>,
+    este endpoint rellena automáticamente ese campo usando la fecha de creación del registro:
+  </p>
+  <div style="background:#1e1b4b; color:#c7d2fe; padding:12px 16px; border-radius:8px; font-family:monospace; font-size:12px; margin:10px 0;">
+    POST /sicov-sync/migrate-sync-dates
+  </div>
+  <p>
+    Afecta todos los registros con <code>sicov_sync_status: 'synced'</code> que no tienen
+    <code>fechaSyncSicov</code>. También está disponible desde el botón
+    <strong>"Marcar fechas SICOV"</strong> en la vista de Alistamientos (cuando aplica).
+  </p>
+  <p>Equivalente en MongoDB (ejecutar directamente en terminal):</p>
+  <div style="background:#1e1b4b; color:#c7d2fe; padding:14px 16px; border-radius:8px; font-family:monospace; font-size:11px; margin:10px 0; white-space:pre-wrap;">db.enlistments.updateMany(
+  { $or: [
+    { sicov_sync_status: { $exists: false } },
+    { sicov_sync_status: null },
+    { sicov_sync_status: 'synced', fechaSyncSicov: { $in: [null, undefined] } }
+  ]},
+  [{ $set: {
+    sicov_sync_status: 'synced',
+    fechaSyncSicov: { $ifNull: ['$fechaSyncSicov', '$createdAt'] }
+  }}]
+)
+// Repetir para: preventive_details y corrective_details</div>
+
+  <h2 class="subsection" id="s5-5">5.5 Reparación de Transacciones Huérfanas</h2>
+  <p>
+    Ocasionalmente, SICOV puede haber recibido la primera fase del registro (apertura de mantenimiento)
+    pero no la segunda (detalle). Esto genera una "transacción huérfana" que bloquea los reintentos.
+  </p>
+  <p>
+    El sistema detecta esto automáticamente durante los reintentos (respuesta 409 de SICOV) y lo
+    corrige. Para una reparación masiva por placas específicas:
+  </p>
+  <div style="background:#1e1b4b; color:#c7d2fe; padding:12px 16px; border-radius:8px; font-family:monospace; font-size:12px; margin:10px 0;">
+    POST /sicov-sync/repair-orphans
+  </div>
+  <div style="background:#1e1b4b; color:#c7d2fe; padding:14px 16px; border-radius:8px; font-family:monospace; font-size:11px; margin:10px 0; white-space:pre-wrap;">{
+  "placas": ["ABC123", "XYZ789"],
+  "tipoId": 3,
+  "recordType": "enlistment",
+  "vigiladoId": "891100299"
+}</div>
+
+  <p>Retorna el resultado por cada placa: <code>repaired</code> (huérfana recuperada), <code>new</code> (creada nueva) o <code>error</code>.</p>
+
+  <h2 class="subsection">5.6 Estadísticas y Registros Pendientes</h2>
+  <table>
+    <tr><th>Endpoint</th><th>Descripción</th></tr>
+    <tr><td><code>GET /sicov-sync/stats</code></td><td>Estadísticas globales de la cola de sincronización.</td></tr>
+    <tr><td><code>GET /sicov-sync/pending?limit=20</code></td><td>Lista los registros pendientes o fallidos de la empresa.</td></tr>
+    <tr><td><code>POST /sicov-sync/:id/retry</code></td><td>Fuerza el reintento manual de un registro específico (por su ID).</td></tr>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 6 — API KEYS
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s6">
+  <h1 class="section-title">6. API Keys para Integración Externa</h1>
+
+  <h2 class="subsection" id="s6-1">6.1 ¿Qué son las API Keys?</h2>
+  <p>
+    Las <strong>API Keys</strong> permiten que sistemas externos (aplicaciones de terceros, ERPs, sistemas
+    de flotas) envíen registros de mantenimiento a ProtegeMeSICOV de forma automática, sin necesidad
+    de un usuario humano.
+  </p>
+  <p>
+    Se usan en el header HTTP <code>X-Api-Key</code> de las peticiones al endpoint de ingesta:
+    <code>POST /external-ingestion/maintenance</code>.
+  </p>
+
+  <h2 class="subsection" id="s6-2">6.2 Crear una API Key</h2>
+  <div style="background:#1e1b4b; color:#c7d2fe; padding:12px 16px; border-radius:8px; font-family:monospace; font-size:12px; margin:10px 0;">
+    POST /external-ingestion/api-keys
+  </div>
+  <div style="background:#1e1b4b; color:#c7d2fe; padding:14px 16px; border-radius:8px; font-family:monospace; font-size:11px; margin:10px 0; white-space:pre-wrap;">{
+  "name": "Sistema ERP Empresa XYZ",
+  "enterprise_id": "id_de_la_empresa",
+  "demoMode": false
+}</div>
+  <p>La respuesta incluye la API Key en texto plano. <strong>Guárdela inmediatamente</strong>, ya que no podrá recuperarla después (solo se almacena el hash SHA-256).</p>
+
+  <h2 class="subsection" id="s6-3">6.3 Modo Demo (demoMode)</h2>
+  <p>
+    Al crear una API Key con <code>"demoMode": true</code>, todos los registros enviados a través de
+    esa clave <strong>se guardan localmente pero NO se envían a SICOV</strong>.
+  </p>
+  <p>Los registros en modo demo quedan con:</p>
+  <ul>
+    <li><code>sicov_sync_status: 'demo'</code></li>
+    <li>Sin entrada en la cola de reintentos.</li>
+    <li>Visible en la plataforma con el badge azul <span class="badge blue">DEMO</span>.</li>
+  </ul>
+  <div class="info-box success">
+    <strong>✅ Uso recomendado:</strong> Use demoMode para integraciones en fase de prueba, entornos de
+    desarrollo o QA. Cuando la integración esté validada, cree una nueva API Key sin demoMode para
+    producción.
+  </div>
+
+  <h2 class="subsection" id="s6-4">6.4 Entorno Sandbox — Integración con Empresas Externas</h2>
+  <p>
+    Si una empresa externa (ERP, sistema de flotas, etc.) quiere integrarse con ProtegeMeSICOV para
+    enviar alistamientos o mantenimientos en tiempo real o por lotes, puede habilitar un entorno de
+    pruebas <strong>sin riesgo de enviar datos incorrectos a Supertransporte</strong>.
+    Todo se guarda localmente con estado <span class="badge blue">DEMO</span>.
+  </p>
+
+  <h3 class="step-title">Paso 1 — Crear una empresa Sandbox (SuperAdmin)</h3>
+  <p>En <strong>ADMINISTRACIÓN → Empresas → Nueva empresa</strong> cree una empresa de prueba:</p>
+  <table>
+    <tr><th>Campo</th><th>Valor sugerido</th></tr>
+    <tr><td>Nombre</td><td>Sandbox / Demo Integraciones</td></tr>
+    <tr><td>NIT</td><td>Cualquiera (ej: 900000001)</td></tr>
+    <tr><td>VigiladoId</td><td>Dejar vacío</td></tr>
+    <tr><td>Token Vigilado</td><td>Dejar vacío</td></tr>
+    <tr><td>Estado</td><td>Activa</td></tr>
+  </table>
+  <div class="info-box">
+    <strong>ℹ️ Nota:</strong> No necesita credenciales SICOV reales. Con demoMode activado, ningún
+    dato se envía a Supertransporte independientemente de las credenciales configuradas.
+  </div>
+
+  <h3 class="step-title">Paso 2 — Crear una API Key con demoMode</h3>
+  <p>Con un usuario admin de esa empresa sandbox, realice la siguiente petición HTTP autenticada:</p>
+  <div style="background:#1e1b4b; color:#c7d2fe; padding:14px 16px; border-radius:8px; font-family:monospace; font-size:11px; margin:10px 0; white-space:pre-wrap;">POST /external-api/keys
+Authorization: Bearer &lt;jwt_token_del_admin_sandbox&gt;
+Content-Type: application/json
+
+{
+  "name": "Integración ERP Empresa XYZ",
+  "demoMode": true
+}</div>
+  <p>La respuesta incluye la API Key en texto plano <strong>una sola vez</strong>:</p>
+  <div style="background:#1e1b4b; color:#c7d2fe; padding:14px 16px; border-radius:8px; font-family:monospace; font-size:11px; margin:10px 0; white-space:pre-wrap;">{
+  "apiKey": "sk_live_abc123xyz...",
+  "name": "Integración ERP Empresa XYZ",
+  "demoMode": true
+}</div>
+  <div class="info-box warning">
+    <strong>⚠️ Guarde la API Key de inmediato.</strong> No se puede recuperar después; solo se almacena
+    el hash en la base de datos.
+  </div>
+
+  <h3 class="step-title">Paso 3 — La empresa externa llama a su API</h3>
+  <p>
+    Comparta con la empresa integradora la <strong>URL base del sistema</strong> y la <strong>API Key</strong>.
+    Deben incluir el header <code>X-Api-Key</code> en cada petición:
+  </p>
+
+  <p><strong>Registrar un alistamiento:</strong></p>
+  <div style="background:#1e1b4b; color:#c7d2fe; padding:14px 16px; border-radius:8px; font-family:monospace; font-size:11px; margin:10px 0; white-space:pre-wrap;">POST /external-api/enlistments
+X-Api-Key: sk_live_abc123xyz...
+Content-Type: application/json
+
+{
+  "placa": "ABC123",
+  "tipoIdentificacionConductor": 1,
+  "numeroIdentificacionConductor": "12345678",
+  "nombresConductor": "Juan López",
+  "actividades": [1, 2, 3, 9, 10, 11]
+}</div>
+
+  <p><strong>Registrar un preventivo:</strong></p>
+  <div style="background:#1e1b4b; color:#c7d2fe; padding:14px 16px; border-radius:8px; font-family:monospace; font-size:11px; margin:10px 0; white-space:pre-wrap;">POST /external-api/preventives
+X-Api-Key: sk_live_abc123xyz...
+Content-Type: application/json
+
+{ ... misma estructura que el formulario web ... }</div>
+
+  <p><strong>Registrar un correctivo:</strong></p>
+  <div style="background:#1e1b4b; color:#c7d2fe; padding:14px 16px; border-radius:8px; font-family:monospace; font-size:11px; margin:10px 0; white-space:pre-wrap;">POST /external-api/correctives
+X-Api-Key: sk_live_abc123xyz...
+Content-Type: application/json
+
+{ ... misma estructura que el formulario web ... }</div>
+
+  <h3 class="step-title">Paso 4 — Verificar los registros en la plataforma</h3>
+  <p>
+    Los registros enviados por la empresa externa aparecerán en la vista de
+    <strong>Alistamientos / Preventivos / Correctivos</strong> de la empresa sandbox con el badge
+    <span class="badge blue">DEMO</span>. Puede verificar que los datos llegan correctamente,
+    el formato es válido y la integración funciona antes de pasar a producción.
+  </p>
+
+  <h3 class="step-title">Paso 5 — Pasar a producción</h3>
+  <p>Cuando la integración esté validada y lista para producción:</p>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-body">Cree (o use) la empresa real con sus credenciales SICOV correctas (VigiladoId + Token Vigilado).</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body">Cree una nueva API Key para esa empresa <strong>sin</strong> <code>demoMode</code> (o con <code>"demoMode": false</code>).</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body">Entregue la nueva API Key a la empresa integradora para que actualice su configuración.</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-body">Revoque la API Key sandbox para evitar registros de prueba mezclados con los reales.</div></div>
+  </div>
+
+  <h3 class="step-title">Resumen de comportamiento según demoMode</h3>
+  <table>
+    <tr><th>Comportamiento</th><th>demoMode: true (Sandbox)</th><th>demoMode: false (Producción)</th></tr>
+    <tr><td>Guarda en base de datos</td><td>✅ Sí</td><td>✅ Sí</td></tr>
+    <tr><td>Envía a SICOV Supertransporte</td><td>❌ No</td><td>✅ Sí</td></tr>
+    <tr><td>Estado del registro</td><td><span class="badge blue">DEMO</span></td><td><span class="badge green">SINCRONIZADO</span></td></tr>
+    <tr><td>Entra a cola de reintentos</td><td>❌ No</td><td>Solo si falla el envío</td></tr>
+    <tr><td>Visible en plataforma web</td><td>✅ Sí</td><td>✅ Sí</td></tr>
+    <tr><td>Requiere credenciales SICOV</td><td>❌ No</td><td>✅ Sí</td></tr>
+  </table>
+
+  <h3 class="step-title">Gestionar API Keys existentes</h3>
+  <table>
+    <tr><th>Acción</th><th>Endpoint</th></tr>
+    <tr><td>Listar API Keys de la empresa</td><td><code>GET /external-api/keys</code></td></tr>
+    <tr><td>Revocar una API Key</td><td><code>DELETE /external-api/keys/:id</code></td></tr>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 7 — ARQUITECTURA Y DESPLIEGUE
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s7">
+  <h1 class="section-title">7. Arquitectura y Despliegue</h1>
+
+  <h2 class="subsection">7.1 Componentes del Sistema</h2>
+  <table>
+    <tr><th>Componente</th><th>Tecnología</th><th>Puerto</th><th>Función</th></tr>
+    <tr><td>api-auth</td><td>NestJS</td><td>4001</td><td>Autenticación JWT, gestión de usuarios y empresas.</td></tr>
+    <tr><td>api-maintenance</td><td>NestJS</td><td>4004</td><td>Mantenimientos, alistamientos, sincronización SICOV, auditoría.</td></tr>
+    <tr><td>protegeme-app</td><td>Vue 3 + Vite</td><td>5173/80</td><td>Interfaz web para empresas y SuperAdmin.</td></tr>
+    <tr><td>MongoDB Atlas</td><td>MongoDB</td><td>—</td><td>Base de datos principal en la nube.</td></tr>
+  </table>
+
+  <h2 class="subsection">7.2 Despliegue con Docker</h2>
+  <p>El sistema usa Docker Compose para producción. Archivo: <code>docker-compose_prod.yml</code>.</p>
+  <p><strong>Reconstruir y reiniciar solo los servicios modificados:</strong></p>
+  <div style="background:#1e1b4b; color:#c7d2fe; padding:14px 16px; border-radius:8px; font-family:monospace; font-size:11px; margin:10px 0; white-space:pre-wrap;"># Solo api-maintenance y frontend (cambios más comunes)
+docker compose -f docker-compose_prod.yml build api-maintenance web
+docker compose -f docker-compose_prod.yml up -d --no-deps api-maintenance web
+
+# Solo api-auth (si hubo cambios en autenticación/empresas)
+docker compose -f docker-compose_prod.yml build api-auth
+docker compose -f docker-compose_prod.yml up -d --no-deps api-auth</div>
+
+  <h2 class="subsection">7.3 Variables de Entorno Críticas (api-maintenance)</h2>
+  <table>
+    <tr><th>Variable</th><th>Descripción</th></tr>
+    <tr><td><code>SICOV_BASE_URL</code></td><td>URL base de la API de SICOV para operaciones de mantenimiento.</td></tr>
+    <tr><td><code>SICOV_MAESTRAS_BASE</code></td><td>URL base de la API maestras de SICOV (consultas por placa).</td></tr>
+    <tr><td><code>SICOV_MAESTRAS_TOKEN</code></td><td>Token estático para consultas al servicio maestras de SICOV.</td></tr>
+    <tr><td><code>SICOV_VIGILADO_ID</code></td><td>VigiladoId por defecto cuando no se especifica en la petición.</td></tr>
+    <tr><td><code>MONGODB_URI</code></td><td>Cadena de conexión a MongoDB Atlas.</td></tr>
+    <tr><td><code>JWT_SECRET</code></td><td>Secreto para verificación de tokens JWT.</td></tr>
+  </table>
+
+  <h2 class="subsection">7.4 Cron Job</h2>
+  <p>
+    El cron de reintentos SICOV corre <strong>dentro del proceso NestJS</strong> de <code>api-maintenance</code>,
+    sin necesidad de Redis, Bull ni workers externos. Se ejecuta automáticamente al iniciar el servicio.
+    No requiere configuración adicional en producción.
+  </p>
+  <div class="info-box warning">
+    <strong>⚠️ Importante:</strong> Si se reinicia el contenedor <code>api-maintenance</code>, el cron
+    se reactiva automáticamente. No hay pérdida de reintentos ya que el estado persiste en MongoDB.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 8 — REFERENCIA DE ENDPOINTS
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s8">
+  <h1 class="section-title">8. Referencia de Endpoints Administrativos</h1>
+  <p>Todos los endpoints requieren autenticación JWT (<code>Authorization: Bearer &lt;token&gt;</code>).</p>
+
+  <h2 class="subsection">Gestión de Empresas (api-auth)</h2>
+  <table>
+    <tr><th>Método</th><th>Endpoint</th><th>Descripción</th></tr>
+    <tr><td>GET</td><td>/enterprises</td><td>Lista todas las empresas.</td></tr>
+    <tr><td>POST</td><td>/enterprises</td><td>Crea una nueva empresa.</td></tr>
+    <tr><td>PATCH</td><td>/enterprises/:id</td><td>Actualiza datos de una empresa.</td></tr>
+    <tr><td>PATCH</td><td>/enterprises/:id/toggle</td><td>Activa o desactiva una empresa.</td></tr>
+  </table>
+
+  <h2 class="subsection">Sincronización SICOV (api-maintenance)</h2>
+  <table>
+    <tr><th>Método</th><th>Endpoint</th><th>Descripción</th></tr>
+    <tr><td>GET</td><td>/sicov-sync/stats</td><td>Estadísticas de la cola.</td></tr>
+    <tr><td>GET</td><td>/sicov-sync/pending</td><td>Registros pendientes/fallidos.</td></tr>
+    <tr><td>POST</td><td>/sicov-sync/:id/retry</td><td>Reintento manual de un ítem.</td></tr>
+    <tr><td>POST</td><td>/sicov-sync/trigger-batch</td><td>Ejecuta el cron inmediatamente.</td></tr>
+    <tr><td>POST</td><td>/sicov-sync/migrate-sync-dates</td><td>Migra fechas de sincronización históricas.</td></tr>
+    <tr><td>GET</td><td>/sicov-sync/diagnostico</td><td>Consulta estado de una placa en SICOV.</td></tr>
+    <tr><td>POST</td><td>/sicov-sync/repair-orphans</td><td>Repara transacciones huérfanas por lotes.</td></tr>
+  </table>
+
+  <h2 class="subsection">Auditoría (api-maintenance)</h2>
+  <table>
+    <tr><th>Método</th><th>Endpoint</th><th>Descripción</th></tr>
+    <tr><td>GET</td><td>/audit-report</td><td>Lista paginada de registros de auditoría con filtros.</td></tr>
+    <tr><td>GET</td><td>/audit-report/operations</td><td>Lista de operaciones disponibles para filtrar.</td></tr>
+    <tr><td>GET</td><td>/audit-report/:id</td><td>Detalle completo de un registro de auditoría.</td></tr>
+    <tr><td>POST</td><td>/audit-report/migrate</td><td>Migra enterpriseId en registros históricos.</td></tr>
+  </table>
+
+  <h2 class="subsection">API Keys (api-maintenance)</h2>
+  <table>
+    <tr><th>Método</th><th>Endpoint</th><th>Descripción</th></tr>
+    <tr><td>POST</td><td>/external-ingestion/api-keys</td><td>Crea una nueva API Key.</td></tr>
+    <tr><td>GET</td><td>/external-ingestion/api-keys</td><td>Lista las API Keys de la empresa.</td></tr>
+    <tr><td>DELETE</td><td>/external-ingestion/api-keys/:id</td><td>Revoca una API Key.</td></tr>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 9 — RESOLUCIÓN DE PROBLEMAS
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s9">
+  <h1 class="section-title">9. Resolución de Problemas Comunes</h1>
+
+  <h2 class="subsection">Una empresa no puede sincronizar con SICOV</h2>
+  <p><strong>Diagnóstico paso a paso:</strong></p>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-body">Verifique en <strong>Auditoría SICOV</strong> el mensaje de error que devuelve Supertransporte en la columna "Mensaje Supertransporte".</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body">Si el error menciona credenciales inválidas, revise el <strong>VigiladoId</strong> y el <strong>Token Vigilado</strong> en la configuración de la empresa (<strong>ADMINISTRACIÓN → Empresas → Editar</strong>).</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body">Use <code>GET /sicov-sync/diagnostico?placa=ABC123</code> para verificar si SICOV ya tiene registros para esa placa.</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-body">Si el problema persiste, verifique la conectividad del servidor con la URL de SICOV revisando los logs de Docker (<code>docker logs api-maintenance</code>).</div></div>
+  </div>
+
+  <h2 class="subsection">Registros con estado "FALLIDO" que no se auto-recuperan</h2>
+  <p>
+    Si hay registros en estado <code>failed</code> que no se recuperan con el cron automático,
+    puede deberse a transacciones huérfanas en SICOV. Use el endpoint:
+  </p>
+  <div style="background:#1e1b4b; color:#c7d2fe; padding:12px 16px; border-radius:8px; font-family:monospace; font-size:12px; margin:10px 0;">
+    POST /sicov-sync/repair-orphans
+  </div>
+  <p>con las placas afectadas y el tipo de registro.</p>
+
+  <h2 class="subsection">El filtro de fechas en Auditoría no devuelve resultados</h2>
+  <p>
+    Registros anteriores a la implementación del campo <code>enterpriseId</code> pueden no aparecer.
+    Use el botón <strong>"Corregir registros históricos"</strong> en la vista de Auditoría SICOV.
+    El sistema asignará la empresa a esos registros y aparecerán en los filtros.
+  </p>
+
+  <h2 class="subsection">El alistamiento aparece como "PENDIENTE" hace varios días</h2>
+  <p>Posibles causas:</p>
+  <ul>
+    <li>La API de SICOV estuvo caída o con problemas durante ese período.</li>
+    <li>Las credenciales de la empresa (VigiladoId/Token) estaban incorrectas.</li>
+    <li>La placa del vehículo no está registrada en SICOV maestras.</li>
+  </ul>
+  <p>
+    Fuerce el reintento inmediato con <code>POST /sicov-sync/trigger-batch</code> y revise la
+    Auditoría para ver el error específico.
+  </p>
+
+  <h2 class="subsection">¿Cómo verificar que los datos llegaron a Supertransporte?</h2>
+  <p>
+    Use el endpoint de diagnóstico para consultar directamente en SICOV maestras:
+  </p>
+  <div style="background:#1e1b4b; color:#c7d2fe; padding:12px 16px; border-radius:8px; font-family:monospace; font-size:12px; margin:10px 0;">
+    GET /sicov-sync/diagnostico?placa=ABC123&amp;nit=891100299
+  </div>
+  <p>
+    Si el registro aparece en el resultado, SICOV lo recibió correctamente.
+    Si no aparece y el estado local es <code>synced</code>, use el endpoint de reparación de huérfanas.
+  </p>
+
+  <div class="info-box" style="margin-top:40px;">
+    <strong>📞 Soporte técnico especializado:</strong><br/>
+    Para situaciones no cubiertas en este manual, el equipo técnico de ProtegeMeSICOV puede revisar
+    directamente los logs del sistema, la base de datos y las comunicaciones con SICOV para un
+    diagnóstico completo.
+  </div>
+</div>
+
+</body>
+</html>

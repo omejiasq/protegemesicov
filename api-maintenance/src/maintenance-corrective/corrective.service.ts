@@ -14,6 +14,7 @@ import {
 
 import { MaintenanceExternalApiService } from '../libs/external-api';
 import { MaintenanceService } from 'src/maintenance/maintenance.service';
+import { SicovSyncService } from '../sicov-sync/sicov-sync.service';
 
 import {
   CorrectiveVehicleSnapshot,
@@ -52,6 +53,7 @@ export class CorrectiveService {
 
     private readonly external: MaintenanceExternalApiService,
     private readonly maintenanceService: MaintenanceService,
+    private readonly sicovSync: SicovSyncService,
   ) {}
 
   // ======================================================
@@ -99,8 +101,10 @@ export class CorrectiveService {
       user?.vigiladoId ?? Number(process.env.SICOV_VIGILADO_ID);
 
     // ============================================
-    // CREAR MANTENIMIENTO BASE
+    // CREAR MANTENIMIENTO BASE (intento SICOV)
     // ============================================
+    let sicovMaintenanceDown = false;
+
     if (!mantenimientoIdLocal) {
       const maintPayload = {
         placa: dto.placa,
@@ -113,7 +117,7 @@ export class CorrectiveService {
         vigiladoId,
       };
 
-      const { doc, externalId } = await this.maintenanceService.create(
+      const { doc, externalId, sicovDown } = await this.maintenanceService.create(
         maintPayload,
         userForMaintenance,
         { awaitExternal: true },
@@ -128,14 +132,11 @@ export class CorrectiveService {
       }
 
       mantenimientoIdLocal = String(localId);
+      sicovMaintenanceDown = !!sicovDown;
 
-      if (!externalId) {
-        throw new ConflictException(
-          'No se pudo obtener el mantenimiento externo',
-        );
+      if (externalId) {
+        mantenimientoIdExterno = Number(externalId);
       }
-
-      mantenimientoIdExterno = Number(externalId);
     } else if (/^\d+$/.test(String(mantenimientoIdLocal))) {
       mantenimientoIdExterno = Number(mantenimientoIdLocal);
     }
@@ -156,8 +157,10 @@ export class CorrectiveService {
       numeroIdentificacion: dto.numeroIdentificacion,
       nombresResponsable: dto.nombresResponsable,
       detalleActividades: dto.detalleActividades,
-      evidencia_foto: dto.evidencia_foto ?? null,  // 🔥 agregar esta línea
+      evidencia_foto: dto.evidencia_foto ?? null,
       estado: true,
+      sicov_sync_status: sicovMaintenanceDown ? 'pending' : 'synced',
+      source: (dto as any).source ?? 'frontend',
     });
 
     // ============================================
@@ -266,28 +269,57 @@ export class CorrectiveService {
     }
 
     // ============================================
-    // ENVÍO A SICOV
+    // ENVÍO A SICOV (con tolerancia a fallos)
     // ============================================
-    try {
-      if (user?.vigiladoToken && mantenimientoIdExterno) {
-        const sicovPayload = {
-          fecha: dto.fecha,
-          hora: dto.hora,
-          nit: dto.nit,
-          razonSocial: dto.razonSocial,
-          tipoIdentificacion: dto.tipoIdentificacion,
-          numeroIdentificacion: dto.numeroIdentificacion,
-          nombresResponsable: dto.nombresResponsable,
-          mantenimientoId: mantenimientoIdExterno,
-          detalleActividades: dto.detalleActividades,
-          vigiladoId: String(vigiladoId),
-          vigiladoToken: user.vigiladoToken,
-        };
+    const sicovDetailPayload = {
+      fecha: dto.fecha,
+      hora: dto.hora,
+      nit: dto.nit,
+      razonSocial: dto.razonSocial,
+      tipoIdentificacion: dto.tipoIdentificacion,
+      numeroIdentificacion: dto.numeroIdentificacion,
+      nombresResponsable: dto.nombresResponsable,
+      detalleActividades: dto.detalleActividades,
+      vigiladoId: String(vigiladoId),
+      vigiladoToken: user?.vigiladoToken,
+    };
 
-        await this.external.guardarCorrectivo(sicovPayload);
+    let sicovDetailSent = false;
+
+    if (!sicovMaintenanceDown && mantenimientoIdExterno && user?.vigiladoToken) {
+      try {
+        await this.external.guardarCorrectivo({
+          ...sicovDetailPayload,
+          mantenimientoId: mantenimientoIdExterno,
+        });
+        sicovDetailSent = true;
+      } catch (err: any) {
+        console.warn('[CORRECTIVE] SICOV guardarCorrectivo falló, se encolará:', err?.message);
       }
-    } catch (err) {
-      console.error('Error enviando correctivo a SICOV:', err);
+    }
+
+    if (!sicovDetailSent) {
+      await this.model.updateOne(
+        { _id: doc._id },
+        { $set: { sicov_sync_status: 'pending' } },
+      );
+
+      await this.sicovSync.enqueue({
+        enterprise_id: user?.enterprise_id ?? '',
+        recordType: 'corrective',
+        localMaintenanceId: mantenimientoIdLocal!,
+        localDetailId: String(doc._id),
+        maintenancePayload: {
+          placa: dto.placa,
+          tipoId: 2,
+          vigiladoId: String(vigiladoId),
+          vigiladoToken: user?.vigiladoToken,
+        },
+        maintenanceExternalId: mantenimientoIdExterno
+          ? String(mantenimientoIdExterno)
+          : undefined,
+        detailPayload: sicovDetailPayload,
+      });
     }
 
     return this.model.findById(doc._id).lean();

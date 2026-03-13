@@ -102,6 +102,13 @@ toggleActive(@Param('id') id: string, @Req() req: any) {
   return this.usersService.toggleActiveUser(id, req.user);
 }
 
+// GET /users/by-enterprise/:enterpriseId → usuarios admin de una empresa (superadmin)
+@Get('by-enterprise/:enterpriseId')
+@UseGuards(JwtAuthGuard)
+async getByEnterprise(@Param('enterpriseId') enterpriseId: string) {
+  return this.usersService.findAdminsByEnterprise(enterpriseId);
+}
+
 // GET /users/:id  → obtener cualquier usuario por ID
 @Get(':id')
 @UseGuards(JwtAuthGuard)

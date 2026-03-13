@@ -43,5 +43,6 @@ export class Audit {
 
 export const AuditSchema = SchemaFactory.createForClass(Audit);
 
-// (Opcional) Índices útiles
 AuditSchema.index({ module: 1, operation: 1, createdAt: -1 });
+AuditSchema.index({ enterpriseId: 1, createdAt: -1 });
+AuditSchema.index({ enterpriseId: 1, success: 1, createdAt: -1 });

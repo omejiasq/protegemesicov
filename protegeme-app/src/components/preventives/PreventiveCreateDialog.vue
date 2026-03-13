@@ -7,6 +7,18 @@
     :closable="!saving"
   >
     <div class="formgrid grid">
+
+      <!-- SELECTOR DE PROVEEDOR -->
+      <div class="field col-12" v-if="proveedores.length">
+        <label>Proveedor (opcional — autocompletar datos del centro)</label>
+        <select class="w-full p-inputtext" v-model="selectedProveedorId" @change="onProveedorChange">
+          <option value="">— Seleccionar proveedor —</option>
+          <option v-for="p in proveedores" :key="p._id" :value="p._id">
+            {{ p.razon_social }} (NIT: {{ p.nit }})
+          </option>
+        </select>
+      </div>
+
       <!-- FILA 1 -->
       <div class="field col-12 sm:col-4">
         <label>Placa</label>
@@ -20,7 +32,7 @@
         />
       </div>
 
-      <div class=  "field col-12 sm:col-4">
+      <div class="field col-12 sm:col-4">
         <InputDate
           v-model="form.fecha"
           :disabled="saving"
@@ -107,7 +119,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, watch, ref } from "vue";
+import { reactive, computed, watch, ref, onMounted } from "vue";
 import Dialog from "primevue/dialog";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
@@ -115,16 +127,31 @@ import Textarea from "primevue/textarea";
 import UiDropdownBasic from "../ui/Dropdown.vue";
 import InputDate from "../../components/ui/InputDate.vue";
 import InputHour from "../../components/ui/InputHour.vue";
+import { useMaintenanceStore } from "../../stores/maintenanceStore";
 
 const props = defineProps<{ visible: boolean }>();
 const emit = defineEmits(["update:visible", "save"]);
 
 const saving = ref(false);
+const store = useMaintenanceStore();
+const proveedores = ref<any[]>([]);
+const selectedProveedorId = ref("");
 
 const dialogVisible = computed({
   get: () => props.visible,
   set: (val: boolean) => emit("update:visible", val),
 });
+
+function onProveedorChange() {
+  if (!selectedProveedorId.value) return;
+  const p = proveedores.value.find((x) => x._id === selectedProveedorId.value);
+  if (!p) return;
+  form.nit = p.nit ?? "";
+  form.razonSocial = p.razon_social ?? "";
+  if (p.tipo_id_mecanico) form.tipoIdentificacion = Number(p.tipo_id_mecanico);
+  form.numeroIdentificacion = p.num_id_mecanico ?? "";
+  form.nombresResponsable = p.nombre_mecanico ?? "";
+}
 
 function validateForm(): boolean {
   const required: { field: keyof typeof form; label: string }[] = [
@@ -172,43 +199,39 @@ async function buscarVehiculoPorPlaca() {
 
     const vehiculo = await response.json();
 
-    // =============================
-    // CENTRO ESPECIALIZADO
-    // =============================
-    form.nit =
-      vehiculo?.enterprise?.specialized_center_document_number || "";
+    // Solo auto-completar si no se seleccionó un proveedor
+    if (!selectedProveedorId.value) {
+      form.nit =
+        vehiculo?.enterprise?.specialized_center_document_number || "";
 
-    form.razonSocial =
-      vehiculo?.enterprise?.specialized_center_name || "";
+      form.razonSocial =
+        vehiculo?.enterprise?.specialized_center_name || "";
 
-    // =============================
-    // INGENIERO MECÁNICO
-    // =============================
+      const docType = vehiculo?.enterprise?.mechanic_document_type;
+      form.tipoIdentificacion =
+        docType !== undefined && docType !== null
+          ? Number(docType)
+          : null;
 
-    const docType = vehiculo?.enterprise?.mechanic_document_type;
+      form.numeroIdentificacion =
+        vehiculo?.enterprise?.mechanic_document_number || "";
 
-    form.tipoIdentificacion =
-      docType !== undefined && docType !== null
-        ? Number(docType)   // 👈 CLAVE
-        : null;
-
-    form.numeroIdentificacion =
-      vehiculo?.enterprise?.mechanic_document_number || "";
-
-    form.nombresResponsable =
-      vehiculo?.enterprise?.mechanic_name || "";
+      form.nombresResponsable =
+        vehiculo?.enterprise?.mechanic_name || "";
+    }
 
   } catch (error) {
     console.error(error);
 
-    form.nit = "";
-    form.razonSocial = "";
-    form.tipoIdentificacion = null;
-    form.numeroIdentificacion = "";
-    form.nombresResponsable = "";
+    if (!selectedProveedorId.value) {
+      form.nit = "";
+      form.razonSocial = "";
+      form.tipoIdentificacion = null;
+      form.numeroIdentificacion = "";
+      form.nombresResponsable = "";
+    }
   }
 }
-
 
 const documentTypeOptions = [
   { label: "Cédula de ciudadanía", value: 1 },
@@ -238,6 +261,7 @@ const form = reactive(emptyForm());
 
 function resetForm() {
   Object.assign(form, emptyForm());
+  selectedProveedorId.value = "";
 }
 
 function closeDialog() {
@@ -246,21 +270,35 @@ function closeDialog() {
 }
 
 async function onSave() {
-  if (!validateForm()) return   // ✅ detiene si hay campos vacíos
+  if (!validateForm()) return
 
   saving.value = true;
 
-  // 👉 El padre maneja el guardado real
   await emit("save", { ...form });
 
   saving.value = false;
 }
 
-// 👉 Cuando el padre cierra el modal (guardado OK), limpiamos
 watch(
   () => props.visible,
-  (val) => {
-    if (!val) resetForm();
+  async (val) => {
+    if (val) {
+      try {
+        proveedores.value = await store.proveedoresFetch();
+      } catch {
+        proveedores.value = [];
+      }
+    } else {
+      resetForm();
+    }
   }
 );
+
+onMounted(async () => {
+  try {
+    proveedores.value = await store.proveedoresFetch();
+  } catch {
+    proveedores.value = [];
+  }
+});
 </script>

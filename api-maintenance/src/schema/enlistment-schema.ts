@@ -37,6 +37,36 @@ export class EnlistmentDetail {
   @Prop({ type: String, default: null })
   firma_inspector_foto?: string;
 
+  /**
+   * Estado de sincronización con SICOV.
+   * - pending: guardado localmente, SICOV no disponible al momento de crear
+   * - synced:  enviado correctamente a SICOV
+   * - failed:  superó el máximo de reintentos, requiere intervención manual
+   */
+  @Prop({
+    enum: ['pending', 'synced', 'failed', 'demo'],
+    default: 'synced',
+    index: true,
+  })
+  sicov_sync_status!: 'pending' | 'synced' | 'failed' | 'demo';
+
+  /**
+   * Origen del registro.
+   * - frontend: creado desde la app web / móvil
+   * - external_api: cargado desde un sistema externo vía API Key
+   */
+  @Prop({ enum: ['frontend', 'external_api'], default: 'frontend' })
+  source?: 'frontend' | 'external_api';
+
+  /**
+   * Fecha/hora en que el alistamiento fue efectivamente enviado y aceptado
+   * por la Supertransporte (SICOV). Es null/undefined si aún no se ha sincronizado.
+   *
+   * Puede ser diferente de createdAt si SICOV estaba caído al momento de crear
+   * el alistamiento y se sincronizó al día siguiente por el cron de reintentos.
+   */
+  @Prop({ type: Date, default: null, index: true })
+  fechaSyncSicov?: Date;
 }
 export const EnlistmentDetailSchema =
   SchemaFactory.createForClass(EnlistmentDetail);

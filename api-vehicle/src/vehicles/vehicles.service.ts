@@ -159,7 +159,7 @@ export class VehiclesService {
   private async notifyAdminsNewVehicle(vehicle: any, user: UserCtx) {
     const enterpriseId = new Types.ObjectId(user.enterprise_id);
 
-    // Obtener admins activos de la empresa (rol admin o superadmin)
+    // Obtener admins activos de la empresa
     const admins = await this.userRefModel
       .find({
         enterprise_id: enterpriseId,
@@ -168,19 +168,29 @@ export class VehiclesService {
       })
       .lean();
 
-    const emails = admins
-      .map((a) => a.usuario?.correo)
-      .filter(Boolean) as string[];
+    // También incluir superadmins de plataforma (sin enterprise_id)
+    const platformSuperadmins = await this.userRefModel
+      .find({ roleType: 'superadmin', enterprise_id: { $exists: false } })
+      .lean();
 
-    if (!emails.length) return;
+    // Email de notificación por variable de entorno (propietario SaaS)
+    const superadminEnvEmail = process.env.SUPERADMIN_NOTIFICATION_EMAIL;
 
-    // Obtener nombre de empresa (colección enterprises)
+    const emails = [
+      ...admins.map((a) => a.usuario?.correo),
+      ...platformSuperadmins.map((a) => a.usuario?.correo),
+      ...(superadminEnvEmail ? [superadminEnvEmail] : []),
+    ].filter(Boolean) as string[];
+
+    const uniqueEmails = [...new Set(emails)];
+    if (!uniqueEmails.length) return;
+
     const ent = await (this.vehicleModel.db as any)
       .collection('enterprises')
       .findOne({ _id: enterpriseId });
 
     await this.emailService.sendVehicleCreatedNotification({
-      toEmails: emails,
+      toEmails: uniqueEmails,
       enterpriseName: ent?.name ?? user.enterprise_id,
       placa: vehicle.placa,
       clase: vehicle.clase,
@@ -188,6 +198,38 @@ export class VehiclesService {
       modelo: vehicle.modelo,
       no_interno: vehicle.no_interno,
       createdBy: user.username ?? user.sub,
+    });
+  }
+
+  private async notifySuperadminsDeactivationRequest(vehicle: any, user: UserCtx) {
+    const enterpriseId = new Types.ObjectId(user.enterprise_id);
+
+    const platformSuperadmins = await this.userRefModel
+      .find({ roleType: 'superadmin', enterprise_id: { $exists: false } })
+      .lean();
+
+    const superadminEnvEmail = process.env.SUPERADMIN_NOTIFICATION_EMAIL;
+
+    const emails = [
+      ...platformSuperadmins.map((a) => a.usuario?.correo),
+      ...(superadminEnvEmail ? [superadminEnvEmail] : []),
+    ].filter(Boolean) as string[];
+
+    const uniqueEmails = [...new Set(emails)];
+    if (!uniqueEmails.length) return;
+
+    const ent = await (this.vehicleModel.db as any)
+      .collection('enterprises')
+      .findOne({ _id: enterpriseId });
+
+    await this.emailService.sendDeactivationRequestNotification({
+      toEmails: uniqueEmails,
+      enterpriseName: ent?.name ?? user.enterprise_id,
+      placa: vehicle.placa,
+      clase: vehicle.clase,
+      nota_desactivacion: vehicle.nota_desactivacion,
+      requestedBy: user.username ?? user.sub ?? 'Desconocido',
+      fecha_solicitud: vehicle.fecha_solicitud_desactivacion,
     });
   }
 
@@ -567,7 +609,8 @@ async updateNonNullFieldsById(
 }
 
   /* =====================================================
-   * DEACTIVATE (empresa) — desactivar con nota
+   * REQUEST DEACTIVATION (empresa) — solicita desactivación, queda pendiente
+   * El vehículo permanece activo hasta que el superadmin apruebe o rechace.
    * ===================================================== */
   async deactivateById(
     id: string,
@@ -578,28 +621,32 @@ async updateNonNullFieldsById(
       throw new NotFoundException('Vehículo no encontrado');
     }
 
+    const now = new Date();
+
     const vehicle = await this.vehicleModel.findOneAndUpdate(
       {
         _id: new Types.ObjectId(id),
         enterprise_id: new Types.ObjectId(user.enterprise_id),
+        active: true, // solo se puede solicitar si está activo
       },
       {
         $set: {
-          active: false,
           nota_desactivacion: dto.nota_desactivacion || 'Sin motivo especificado',
-          fecha_ultima_desactivacion: new Date(),
+          fecha_solicitud_desactivacion: now,
+          deactivation_estado: 'pendiente',
+          // active permanece true hasta aprobación superadmin
         },
       },
       { new: true },
     );
 
     if (!vehicle) {
-      throw new NotFoundException('Vehículo no encontrado');
+      throw new NotFoundException('Vehículo no encontrado o ya inactivo');
     }
 
     await this.auditModel.create({
       module: 'vehicles',
-      operation: 'deactivateVehicle',
+      operation: 'requestDeactivation',
       entity: 'Vehicle',
       entityId: id,
       userId: user.sub,
@@ -608,7 +655,111 @@ async updateNonNullFieldsById(
       success: true,
     }).catch(() => { /* no crítico */ });
 
+    // Notificar a superadmins de la plataforma
+    this.notifySuperadminsDeactivationRequest(vehicle.toObject(), user).catch(() => { /* no bloquear */ });
+
     return vehicle.toObject();
+  }
+
+  /* =====================================================
+   * APPROVE DEACTIVATION (superadmin) — aprueba la solicitud, desactiva el vehículo
+   * ===================================================== */
+  async approveDeactivation(id: string, user: UserCtx) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('Vehículo no encontrado');
+    }
+
+    const vehicle = await this.vehicleModel.findOneAndUpdate(
+      {
+        _id: new Types.ObjectId(id),
+        deactivation_estado: 'pendiente',
+      },
+      {
+        $set: {
+          active: false,
+          fecha_ultima_desactivacion: new Date(),
+          deactivation_estado: 'aprobada',
+        },
+      },
+      { new: true },
+    );
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehículo no encontrado o sin solicitud pendiente');
+    }
+
+    await this.auditModel.create({
+      module: 'vehicles',
+      operation: 'approveDeactivation',
+      entity: 'Vehicle',
+      entityId: id,
+      userId: user.sub,
+      username: user.username,
+      requestPayload: { placa: vehicle.placa },
+      success: true,
+    }).catch(() => { /* no crítico */ });
+
+    return vehicle.toObject();
+  }
+
+  /* =====================================================
+   * REJECT DEACTIVATION (superadmin) — rechaza la solicitud, vehículo sigue activo
+   * ===================================================== */
+  async rejectDeactivation(id: string, user: UserCtx) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('Vehículo no encontrado');
+    }
+
+    const vehicle = await this.vehicleModel.findOneAndUpdate(
+      {
+        _id: new Types.ObjectId(id),
+        deactivation_estado: 'pendiente',
+      },
+      {
+        $set: {
+          deactivation_estado: null,
+          fecha_solicitud_desactivacion: null,
+          nota_desactivacion: null,
+        },
+      },
+      { new: true },
+    );
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehículo no encontrado o sin solicitud pendiente');
+    }
+
+    await this.auditModel.create({
+      module: 'vehicles',
+      operation: 'rejectDeactivation',
+      entity: 'Vehicle',
+      entityId: id,
+      userId: user.sub,
+      username: user.username,
+      requestPayload: { placa: vehicle.placa },
+      success: true,
+    }).catch(() => { /* no crítico */ });
+
+    return vehicle.toObject();
+  }
+
+  /* =====================================================
+   * GET PENDING DEACTIVATIONS (superadmin)
+   * ===================================================== */
+  async getPendingDeactivations() {
+    return this.vehicleModel.aggregate([
+      { $match: { deactivation_estado: 'pendiente' } },
+      {
+        $lookup: {
+          from: 'enterprises',
+          localField: 'enterprise_id',
+          foreignField: '_id',
+          as: 'enterprise',
+        },
+      },
+      { $unwind: { path: '$enterprise', preserveNullAndEmptyArrays: true } },
+      { $sort: { fecha_solicitud_desactivacion: 1 } },
+    ]);
   }
 
   /* =====================================================
@@ -689,7 +840,7 @@ async updateNonNullFieldsById(
       notas: dto.notas ?? null,
     });
 
-    // Activar vehículos
+    // Activar vehículos (también limpiar cualquier solicitud de desactivación pendiente)
     await this.vehicleModel.updateMany(
       { _id: { $in: vehicleObjIds }, enterprise_id: enterpriseId },
       {
@@ -697,6 +848,8 @@ async updateNonNullFieldsById(
           active: true,
           fecha_activacion: fechaActivacion,
           nota_desactivacion: null,
+          fecha_solicitud_desactivacion: null,
+          deactivation_estado: null,
           contrato_id: contract._id,
         },
       },

@@ -16,13 +16,48 @@
           </div>
 
           <div class="field">
+            <label>Clase</label>
+            <input v-model="form.clase" type="text" />
+          </div>
+
+          <div class="field">
+            <label>Marca</label>
+            <input v-model="form.marca" type="text" />
+          </div>
+
+          <div class="field">
+            <label>Línea</label>
+            <input v-model="form.linea" type="text" />
+          </div>
+
+          <div class="field">
+            <label>Servicio</label>
+            <input v-model="form.servicio" type="text" />
+          </div>
+
+          <div class="field">
             <label>Modelo</label>
-            <input v-model="form.modelo" type="number" />
+            <input v-model="form.modelo" type="text" />
+          </div>
+
+          <div class="field">
+            <label>Combustible</label>
+            <input v-model="form.combustible" type="text" />
+          </div>
+
+          <div class="field">
+            <label>Color</label>
+            <input v-model="form.color" type="text" />
           </div>
 
           <div class="field">
             <label>Kilometraje</label>
-            <input v-model="form.kilometraje" type="number" />
+            <input v-model="form.kilometraje" type="number" min="0" />
+          </div>
+
+          <div class="field">
+            <label>Cilindraje</label>
+            <input v-model="form.cilindraje" type="number" min="0" />
           </div>
 
           <div class="field">
@@ -36,8 +71,8 @@
           </div>
 
           <div class="field">
-            <label>Interno</label>
-            <input v-model="form.interno" type="text" />
+            <label>No. Interno</label>
+            <input v-model="form.no_interno" type="text" />
           </div>
 
           <div class="field">
@@ -46,13 +81,13 @@
           </div>
 
           <div class="field">
-            <label>Chasis</label>
-            <input v-model="form.chasis" type="text" />
+            <label>No. Chasis</label>
+            <input v-model="form.no_chasis" type="text" />
           </div>
 
           <div class="field">
             <label>Capacidad</label>
-            <input v-model="form.capacidad" type="number" />
+            <input v-model="form.capacidad" type="number" min="0" />
           </div>
         </div>
 
@@ -64,11 +99,7 @@
             <label>Conductor Principal</label>
             <select v-model="form.driver_id">
               <option :value="null">Sin asignar</option>
-              <option
-                v-for="d in drivers"
-                :key="d._id"
-                :value="d._id"
-              >
+              <option v-for="d in drivers" :key="d._id" :value="d._id">
                 {{ d.nombre }}
               </option>
             </select>
@@ -78,11 +109,7 @@
             <label>Conductor Secundario</label>
             <select v-model="form.driver2_id">
               <option :value="null">Sin asignar</option>
-              <option
-                v-for="d in drivers"
-                :key="d._id"
-                :value="d._id"
-              >
+              <option v-for="d in drivers" :key="d._id" :value="d._id">
                 {{ d.nombre }}
               </option>
             </select>
@@ -93,9 +120,89 @@
         <h3 class="section">Propietario</h3>
 
         <div class="grid">
-          <div class="field full">
-            <label>Nombre del Propietario</label>
+          <div class="field">
+            <label>Nombre</label>
             <input v-model="form.nombre_propietario" type="text" />
+          </div>
+
+          <div class="field">
+            <label>Cédula</label>
+            <input v-model="form.cedula_propietario" type="text" />
+          </div>
+
+          <div class="field">
+            <label>Teléfono</label>
+            <input v-model="form.telefono_propietario" type="tel" />
+          </div>
+
+          <div class="field full">
+            <label>Dirección</label>
+            <input v-model="form.direccion_propietario" type="text" />
+          </div>
+        </div>
+
+        <!-- ================= DOCUMENTACIÓN ================= -->
+        <h3 class="section">Documentación</h3>
+
+        <div class="grid">
+          <div class="field">
+            <label>No. RTM</label>
+            <input v-model="form.no_rtm" type="text" />
+          </div>
+
+          <div class="field">
+            <label>Vencimiento RTM</label>
+            <input v-model="form.expiration_rtm" type="date" />
+          </div>
+
+          <div class="field">
+            <label>No. SOAT</label>
+            <input v-model="form.no_soat" type="text" />
+          </div>
+
+          <div class="field">
+            <label>Vencimiento SOAT</label>
+            <input v-model="form.expiration_soat" type="date" />
+          </div>
+
+          <div class="field">
+            <label>No. RCC</label>
+            <input v-model="form.no_rcc" type="text" />
+          </div>
+
+          <div class="field">
+            <label>Vencimiento RCC</label>
+            <input v-model="form.expiration_rcc" type="date" />
+          </div>
+
+          <div class="field">
+            <label>No. RCE</label>
+            <input v-model="form.no_rce" type="text" />
+          </div>
+
+          <div class="field">
+            <label>Vencimiento RCE</label>
+            <input v-model="form.expiration_rce" type="date" />
+          </div>
+
+          <div class="field">
+            <label>No. Tecnomecánica</label>
+            <input v-model="form.no_tecnomecanica" type="text" />
+          </div>
+
+          <div class="field">
+            <label>Vencimiento Tecnomecánica</label>
+            <input v-model="form.expiration_tecnomecanica" type="date" />
+          </div>
+
+          <div class="field">
+            <label>No. Tarjeta Operación</label>
+            <input v-model="form.no_tarjeta_opera" type="text" />
+          </div>
+
+          <div class="field">
+            <label>Vencimiento Tarjeta Operación</label>
+            <input v-model="form.expiration_tarjeta_opera" type="date" />
           </div>
         </div>
 
@@ -127,30 +234,52 @@ const drivers = ref([])
 
 const form = ref({
   placa: '',
-  modelo: null,
+  clase: '',
+  marca: '',
+  linea: '',
+  servicio: '',
+  modelo: '',
+  combustible: '',
+  color: '',
   kilometraje: null,
+  cilindraje: null,
   tipo_vehiculo: '',
   modalidad: '',
-  interno: '',
+  no_interno: '',
   motor: '',
-  chasis: '',
+  no_chasis: '',
   capacidad: null,
-  nombre_propietario: '',
+
   driver_id: null,
   driver2_id: null,
+
+  nombre_propietario: '',
+  cedula_propietario: '',
+  telefono_propietario: '',
+  direccion_propietario: '',
+
+  no_rtm: '',
+  expiration_rtm: '',
+  no_soat: '',
+  expiration_soat: '',
+  no_rcc: '',
+  expiration_rcc: '',
+  no_rce: '',
+  expiration_rce: '',
+  no_tecnomecanica: '',
+  expiration_tecnomecanica: '',
+  no_tarjeta_opera: '',
+  expiration_tarjeta_opera: '',
 })
 
-/* ================== CARGAR CONDUCTORES (IGUAL AL EDIT) ================== */
 const loadDrivers = async () => {
   const { items } = await driversStore.list({ estado: true })
-
   drivers.value = items.map(d => ({
     _id: d._id,
     nombre: [d.usuario.nombre, d.usuario.apellido].filter(Boolean).join(' '),
   }))
 }
 
-/* ================== CREAR VEHÍCULO ================== */
 const submit = async () => {
   if (form.value.placa.length !== 6) {
     alert('La placa debe tener 6 caracteres')
@@ -160,21 +289,41 @@ const submit = async () => {
   loading.value = true
 
   try {
-    await vehiclesStore.create({
+    const payload: any = {
       placa: form.value.placa,
-      modelo: form.value.modelo,
-      kilometraje: form.value.kilometraje,
-      tipo_vehiculo: form.value.tipo_vehiculo,
-      modalidad: form.value.modalidad,
-      no_interno: form.value.interno,
-      motor: form.value.motor,
-      no_chasis: form.value.chasis,
-      capacidad: form.value.capacidad,
-      nombre_propietario: form.value.nombre_propietario,
-      driver_id: form.value.driver_id,
-      driver2_id: form.value.driver2_id,
-      nivelServicio: 1
-    })
+      nivelServicio: 1,
+    }
+
+    // Campos opcionales de texto
+    const textFields = [
+      'clase', 'marca', 'servicio', 'modelo', 'combustible', 'color',
+      'tipo_vehiculo', 'modalidad', 'no_interno', 'motor', 'no_chasis',
+      'nombre_propietario', 'cedula_propietario', 'telefono_propietario',
+      'direccion_propietario',
+      'no_rtm', 'expiration_rtm',
+      'no_soat', 'expiration_soat',
+      'no_rcc', 'expiration_rcc',
+      'no_rce', 'expiration_rce',
+      'no_tecnomecanica', 'expiration_tecnomecanica',
+      'no_tarjeta_opera', 'expiration_tarjeta_opera',
+    ]
+    for (const key of textFields) {
+      if (form.value[key]) payload[key] = form.value[key]
+    }
+
+    // Linea tiene nombre diferente en el backend
+    if (form.value.linea) payload.Linea = form.value.linea
+
+    // Campos numéricos
+    if (form.value.kilometraje != null) payload.kilometraje = form.value.kilometraje
+    if (form.value.cilindraje != null) payload.cilindraje = form.value.cilindraje
+    if (form.value.capacidad != null) payload.capacidad = form.value.capacidad
+
+    // Conductores
+    if (form.value.driver_id) payload.driver_id = form.value.driver_id
+    if (form.value.driver2_id) payload.driver2_id = form.value.driver2_id
+
+    await vehiclesStore.create(payload)
 
     alert('Vehículo creado correctamente')
     router.push({ name: 'vehicles' })
@@ -186,9 +335,9 @@ const submit = async () => {
   }
 }
 
-
 onMounted(loadDrivers)
 </script>
+
 <style scoped>
 .vehicle-edit {
   padding: 24px;
@@ -219,7 +368,6 @@ onMounted(loadDrivers)
   color: #374151;
 }
 
-/* GRID */
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -235,7 +383,6 @@ onMounted(loadDrivers)
   grid-column: 1 / -1;
 }
 
-/* LABEL */
 label {
   font-size: 13px;
   font-weight: 500;
@@ -243,7 +390,6 @@ label {
   color: #4b5563;
 }
 
-/* INPUTS */
 input,
 select {
   height: 42px;
@@ -261,19 +407,12 @@ select:focus {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
-input:disabled {
-  background: #f3f4f6;
-  color: #6b7280;
-}
-
-/* ACTIONS */
 .actions {
   display: flex;
   justify-content: flex-end;
   margin-top: 32px;
 }
 
-/* BOTÓN AZUL MODERNO */
 .btn-primary {
   background: linear-gradient(135deg, #2563eb, #1d4ed8);
   color: #ffffff;
@@ -295,18 +434,15 @@ input:disabled {
   transform: scale(0.97);
 }
 
-/* RESPONSIVE */
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 @media (max-width: 640px) {
-  .card {
-    padding: 20px;
-  }
-
-  .actions {
-    justify-content: center;
-  }
-
-  .btn-primary {
-    width: 100%;
-  }
+  .card { padding: 20px; }
+  .actions { justify-content: center; }
+  .btn-primary { width: 100%; }
 }
 </style>

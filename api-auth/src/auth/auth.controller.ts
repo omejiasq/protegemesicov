@@ -1,15 +1,21 @@
 import {
   Controller,
   Post,
+  Patch,
+  Param,
   Body,
   UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { UsersService } from '../users/users.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private usersService: UsersService,
+  ) {}
 
   /**
    * Registro de usuario
@@ -69,5 +75,20 @@ export class AuthController {
       throw new BadRequestException('El campo identifier (usuario o correo) es requerido');
     }
     return this.authService.forgotPassword(identifier);
+  }
+
+  /**
+   * Cambiar contraseña — alias para el path que llega desde el proxy de producción
+   * PATCH /auth/users/:id/password
+   */
+  @Patch('users/:id/password')
+  async updatePassword(
+    @Param('id') id: string,
+    @Body('newPassword') newPassword: string,
+  ) {
+    if (!newPassword) {
+      throw new BadRequestException('newPassword es requerido');
+    }
+    return this.usersService.updatePassword(id, newPassword);
   }
 }

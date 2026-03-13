@@ -21,6 +21,7 @@ import { EnlistmentController } from './enlistment.controller';
 import { MaintenanceExternalApiService } from 'src/libs/external-api';
 import { AuditModule } from 'src/libs/audit/audit.module';
 import { MaintenanceModule } from 'src/maintenance/maintenance.module';
+import { SicovSyncModule } from '../sicov-sync/sicov-sync.module';
 
 import {
   TipoVehiculoTipoInspeccion,
@@ -45,7 +46,8 @@ import { VehicleRef, VehicleRefSchema } from '../schema/vehicle-ref.schema';
       { name: VehicleRef.name, schema: VehicleRefSchema },
     ]),
     AuditModule,
-    MaintenanceModule
+    MaintenanceModule,
+    SicovSyncModule,
   ],
   controllers: [EnlistmentController],
   providers: [AlistamientoService, MaintenanceExternalApiService],

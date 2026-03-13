@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Manual de Usuario – ProtegeMeSICOV (Empresa)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', Arial, sans-serif; font-size: 13px; color: #1f2937; background: #fff; }
+
+  /* ── Portada ── */
+  .cover {
+    height: 100vh; display: flex; flex-direction: column;
+    justify-content: center; align-items: center; text-align: center;
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #3b82f6 100%);
+    color: white; padding: 60px; page-break-after: always;
+  }
+  .cover .logo-placeholder {
+    width: 120px; height: 120px; background: rgba(255,255,255,0.15);
+    border-radius: 24px; display: flex; align-items: center; justify-content: center;
+    font-size: 48px; margin-bottom: 32px; border: 2px solid rgba(255,255,255,0.3);
+  }
+  .cover h1 { font-size: 38px; font-weight: 700; margin-bottom: 12px; line-height: 1.2; }
+  .cover h2 { font-size: 22px; font-weight: 400; opacity: 0.85; margin-bottom: 40px; }
+  .cover .badge {
+    background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 999px; padding: 8px 24px; font-size: 14px; font-weight: 500;
+    margin-bottom: 16px;
+  }
+  .cover .version { font-size: 12px; opacity: 0.6; margin-top: 40px; }
+
+  /* ── Layout ── */
+  .page { max-width: 820px; margin: 0 auto; padding: 48px 60px; }
+
+  /* ── TOC ── */
+  .toc-page { page-break-after: always; }
+  .toc-title { font-size: 24px; font-weight: 700; color: #1e3a8a; margin-bottom: 28px;
+    border-bottom: 3px solid #2563eb; padding-bottom: 10px; }
+  .toc-section { margin-bottom: 6px; }
+  .toc-section a { text-decoration: none; color: #1f2937; display: flex;
+    justify-content: space-between; padding: 5px 0; border-bottom: 1px dotted #d1d5db; }
+  .toc-section a:hover { color: #2563eb; }
+  .toc-section a .num { font-weight: 600; color: #2563eb; min-width: 32px; }
+  .toc-sub { margin-left: 32px; }
+  .toc-sub a { font-size: 12px; color: #4b5563; }
+
+  /* ── Secciones ── */
+  .section-page { page-break-before: always; }
+  h1.section-title {
+    font-size: 26px; font-weight: 700; color: #1e3a8a;
+    border-bottom: 3px solid #2563eb; padding-bottom: 10px; margin-bottom: 28px;
+  }
+  h2.subsection { font-size: 17px; font-weight: 600; color: #1e40af; margin: 28px 0 12px;
+    padding-left: 12px; border-left: 4px solid #3b82f6; }
+  h3.step-title { font-size: 14px; font-weight: 600; color: #374151; margin: 18px 0 8px; }
+  p { line-height: 1.7; margin-bottom: 10px; color: #374151; }
+  ul, ol { margin: 8px 0 14px 24px; }
+  li { line-height: 1.7; margin-bottom: 4px; }
+
+  /* ── Cajas ── */
+  .info-box {
+    background: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #2563eb;
+    border-radius: 8px; padding: 14px 16px; margin: 14px 0;
+  }
+  .info-box.warning {
+    background: #fffbeb; border-color: #fcd34d; border-left-color: #f59e0b;
+  }
+  .info-box.success {
+    background: #f0fdf4; border-color: #86efac; border-left-color: #16a34a;
+  }
+  .info-box.danger {
+    background: #fef2f2; border-color: #fca5a5; border-left-color: #dc2626;
+  }
+  .info-box strong { display: block; margin-bottom: 4px; }
+
+  /* ── Tabla ── */
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 12px; }
+  th { background: #1e3a8a; color: white; padding: 10px 12px; text-align: left; font-weight: 600; }
+  td { padding: 9px 12px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  tr:nth-child(even) td { background: #f9fafb; }
+
+  /* ── Badge inline ── */
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .badge.green  { background: #dcfce7; color: #166534; }
+  .badge.orange { background: #fff7ed; color: #c2410c; }
+  .badge.red    { background: #fee2e2; color: #991b1b; }
+  .badge.blue   { background: #dbeafe; color: #1d4ed8; }
+  .badge.gray   { background: #f3f4f6; color: #374151; }
+
+  /* ── Step ── */
+  .steps { counter-reset: step; margin: 14px 0; }
+  .step {
+    display: flex; gap: 14px; margin-bottom: 12px; align-items: flex-start;
+  }
+  .step-num {
+    counter-increment: step; min-width: 28px; height: 28px;
+    background: #2563eb; color: white; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 2px;
+  }
+  .step-body { flex: 1; }
+
+  /* ── Print ── */
+  @media print {
+    .cover { height: 100vh; }
+    .section-page { page-break-before: always; }
+    body { font-size: 12px; }
+    .page { padding: 32px 48px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     PORTADA
+══════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="logo-placeholder">🛡️</div>
+  <h1>ProtegeMeSICOV</h1>
+  <h2>Manual de Usuario — Empresa</h2>
+  <div class="badge">Perfil: Administrador de Empresa (Admin)</div>
+  <p style="opacity:0.75; max-width:480px; margin-top:16px; font-size:13px;">
+    Guía completa para la gestión de vehículos, conductores, mantenimientos
+    y sincronización con Supertransporte (SICOV).
+  </p>
+  <div class="version">Versión 1.0 · 2025 · SENA – Minciencias</div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     TABLA DE CONTENIDO
+══════════════════════════════════════════════ -->
+<div class="page toc-page">
+  <div class="toc-title">Tabla de Contenido</div>
+
+  <div class="toc-section"><a href="#s1"><span class="num">1.</span><span>Introducción y Acceso al Sistema</span><span></span></a></div>
+  <div class="toc-section toc-sub"><a href="#s1-1"><span>1.1 ¿Qué es ProtegeMeSICOV?</span><span></span></a></div>
+  <div class="toc-section toc-sub"><a href="#s1-2"><span>1.2 Inicio de Sesión</span><span></span></a></div>
+  <div class="toc-section toc-sub"><a href="#s1-3"><span>1.3 Cambio de Contraseña Obligatorio</span><span></span></a></div>
+  <div class="toc-section toc-sub"><a href="#s1-4"><span>1.4 Navegación General</span><span></span></a></div>
+
+  <div class="toc-section"><a href="#s2"><span class="num">2.</span><span>Dashboard</span><span></span></a></div>
+
+  <div class="toc-section"><a href="#s3"><span class="num">3.</span><span>Gestión de Vehículos</span><span></span></a></div>
+  <div class="toc-section toc-sub"><a href="#s3-1"><span>3.1 Listar Vehículos</span><span></span></a></div>
+  <div class="toc-section toc-sub"><a href="#s3-2"><span>3.2 Registrar un Vehículo</span><span></span></a></div>
+  <div class="toc-section toc-sub"><a href="#s3-3"><span>3.3 Editar un Vehículo</span><span></span></a></div>
+
+  <div class="toc-section"><a href="#s4"><span class="num">4.</span><span>Gestión de Conductores</span><span></span></a></div>
+
+  <div class="toc-section"><a href="#s5"><span class="num">5.</span><span>Alistamientos</span><span></span></a></div>
+  <div class="toc-section toc-sub"><a href="#s5-1"><span>5.1 ¿Qué es un Alistamiento?</span><span></span></a></div>
+  <div class="toc-section toc-sub"><a href="#s5-2"><span>5.2 Registrar un Alistamiento</span><span></span></a></div>
+  <div class="toc-section toc-sub"><a href="#s5-3"><span>5.3 Estados de Sincronización SICOV</span><span></span></a></div>
+  <div class="toc-section toc-sub"><a href="#s5-4"><span>5.4 Descargar PDF del Alistamiento</span><span></span></a></div>
+
+  <div class="toc-section"><a href="#s6"><span class="num">6.</span><span>Mantenimientos Preventivos</span><span></span></a></div>
+  <div class="toc-section"><a href="#s7"><span class="num">7.</span><span>Mantenimientos Correctivos</span><span></span></a></div>
+  <div class="toc-section"><a href="#s8"><span class="num">8.</span><span>Calendario de Mantenimientos</span><span></span></a></div>
+
+  <div class="toc-section"><a href="#s9"><span class="num">9.</span><span>Catálogos de Configuración</span><span></span></a></div>
+  <div class="toc-section toc-sub"><a href="#s9-1"><span>9.1 Partes de Mantenimiento</span><span></span></a></div>
+  <div class="toc-section toc-sub"><a href="#s9-2"><span>9.2 Partes de Alistamiento</span><span></span></a></div>
+  <div class="toc-section toc-sub"><a href="#s9-3"><span>9.3 Proveedores</span><span></span></a></div>
+
+  <div class="toc-section"><a href="#s10"><span class="num">10.</span><span>Gestión de Usuarios (Staff)</span><span></span></a></div>
+  <div class="toc-section"><a href="#s11"><span class="num">11.</span><span>Configuración de Mi Empresa</span><span></span></a></div>
+  <div class="toc-section"><a href="#s12"><span class="num">12.</span><span>Reporte de Auditoría SICOV</span><span></span></a></div>
+  <div class="toc-section"><a href="#s13"><span class="num">13.</span><span>Preguntas Frecuentes y Solución de Problemas</span><span></span></a></div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 1 — INTRODUCCIÓN
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s1">
+  <h1 class="section-title">1. Introducción y Acceso al Sistema</h1>
+
+  <h2 class="subsection" id="s1-1">1.1 ¿Qué es ProtegeMeSICOV?</h2>
+  <p>
+    <strong>ProtegeMeSICOV</strong> es una plataforma web diseñada para empresas de transporte vigiladas por la
+    Superintendencia de Transporte (Supertransporte) de Colombia. Permite registrar, gestionar y sincronizar
+    automáticamente los <strong>alistamientos diarios</strong>, <strong>mantenimientos preventivos</strong> y
+    <strong>correctivos</strong> de la flota vehicular con el sistema nacional <strong>SICOV</strong>
+    (Sistema de Información y Control de Operaciones Vehiculares).
+  </p>
+  <p>Con esta plataforma usted podrá:</p>
+  <ul>
+    <li>Registrar alistamientos y mantenimientos desde web o app móvil.</li>
+    <li>Sincronizar automáticamente los registros con Supertransporte.</li>
+    <li>Gestionar vehículos, conductores y personal de la empresa.</li>
+    <li>Consultar el historial completo de mantenimientos con trazabilidad.</li>
+    <li>Descargar reportes en PDF y Excel.</li>
+    <li>Monitorear el estado de sincronización con SICOV en tiempo real.</li>
+  </ul>
+
+  <h2 class="subsection" id="s1-2">1.2 Inicio de Sesión</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-body">Abra el navegador y acceda a la URL del sistema proporcionada por su administrador.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body">Ingrese su <strong>usuario</strong> (correo electrónico o nombre de usuario) y su <strong>contraseña</strong>.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body">Haga clic en el botón <strong>Ingresar</strong>. Si los datos son correctos, será redirigido al Dashboard.</div></div>
+  </div>
+  <div class="info-box warning">
+    <strong>⚠️ Importante:</strong> Si su cuenta fue creada recientemente por un administrador, es probable que deba
+    cambiar su contraseña en el primer acceso. El sistema lo redirigirá automáticamente a esa pantalla.
+  </div>
+
+  <h2 class="subsection" id="s1-3">1.3 Cambio de Contraseña Obligatorio</h2>
+  <p>Si al ingresar el sistema lo lleva a la pantalla de <strong>Cambio de Contraseña</strong>:</p>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-body">Ingrese su contraseña actual en el campo correspondiente.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body">Escriba su nueva contraseña (mínimo 8 caracteres, se recomienda combinar letras, números y símbolos).</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body">Confirme la nueva contraseña y haga clic en <strong>Guardar</strong>.</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-body">Una vez guardada, será redirigido automáticamente al Dashboard.</div></div>
+  </div>
+
+  <h2 class="subsection" id="s1-4">1.4 Navegación General</h2>
+  <p>
+    La interfaz cuenta con una <strong>barra lateral izquierda (menú)</strong> de color azul oscuro que organiza
+    todas las funciones del sistema en secciones:
+  </p>
+  <table>
+    <tr><th>Sección del menú</th><th>Descripción</th></tr>
+    <tr><td><strong>PRINCIPAL</strong></td><td>Dashboard – resumen general de la empresa.</td></tr>
+    <tr><td><strong>MANTENIMIENTOS</strong></td><td>Alistamientos, Correctivos, Preventivos, Calendario, catálogos.</td></tr>
+    <tr><td><strong>Config</strong></td><td>Vehículos, Conductores, Usuarios, Mi Empresa.</td></tr>
+    <tr><td><strong>REPORTES</strong></td><td>Auditoría SICOV.</td></tr>
+  </table>
+  <div class="info-box">
+    <strong>ℹ️ Nota:</strong> En pantallas móviles el menú se puede abrir con el ícono de las tres líneas (☰) en
+    la parte superior de la pantalla.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 2 — DASHBOARD
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s2">
+  <h1 class="section-title">2. Dashboard</h1>
+  <p>
+    El <strong>Dashboard</strong> es la pantalla de inicio que aparece al ingresar al sistema. Muestra un resumen
+    ejecutivo del estado actual de la flota y los mantenimientos de la empresa.
+  </p>
+  <p>En el Dashboard encontrará:</p>
+  <ul>
+    <li><strong>Indicadores de resumen:</strong> Total de vehículos, conductores activos, mantenimientos del mes.</li>
+    <li><strong>Estado de sincronización SICOV:</strong> Cantidad de registros pendientes de enviar a Supertransporte.</li>
+    <li><strong>Accesos rápidos</strong> a las funciones más usadas.</li>
+    <li><strong>Alertas:</strong> Mantenimientos próximos a vencer o alistamientos sin sincronizar.</li>
+  </ul>
+  <div class="info-box success">
+    <strong>✅ Buena práctica:</strong> Revise el Dashboard al inicio de cada jornada para detectar alertas
+    de sincronización pendiente con SICOV o mantenimientos programados para el día.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 3 — VEHÍCULOS
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s3">
+  <h1 class="section-title">3. Gestión de Vehículos</h1>
+  <p>
+    El módulo de <strong>Vehículos</strong> permite registrar y administrar toda la flota de la empresa.
+    Acceda desde el menú lateral: <strong>Config → Vehículos</strong>.
+  </p>
+
+  <h2 class="subsection" id="s3-1">3.1 Listar Vehículos</h2>
+  <p>
+    Al ingresar a Vehículos verá una tabla con todos los vehículos registrados. Las columnas principales son:
+    <strong>Placa, Marca, Modelo, Año, Clase de Vehículo</strong> y acciones disponibles.
+  </p>
+  <p>Puede usar el campo de búsqueda para filtrar por placa o cualquier campo.</p>
+
+  <h2 class="subsection" id="s3-2">3.2 Registrar un Vehículo</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-body">Haga clic en el botón <strong>Nuevo Vehículo</strong>.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body">Complete los datos requeridos: Placa, Marca, Línea, Modelo, Año, Clase de vehículo, Número de motor, VIN/Número de chasis.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body">Haga clic en <strong>Guardar</strong> para registrar el vehículo.</div></div>
+  </div>
+  <div class="info-box warning">
+    <strong>⚠️ Importante:</strong> La <strong>placa</strong> del vehículo es el identificador principal que se usa
+    para la sincronización con SICOV. Asegúrese de ingresarla correctamente (sin espacios, en mayúsculas).
+  </div>
+
+  <h2 class="subsection" id="s3-3">3.3 Editar un Vehículo</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-body">En la lista de vehículos, haga clic en el ícono de <strong>editar (lápiz)</strong> del vehículo que desea modificar.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body">Actualice los campos necesarios.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body">Haga clic en <strong>Guardar Cambios</strong>.</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 4 — CONDUCTORES
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s4">
+  <h1 class="section-title">4. Gestión de Conductores</h1>
+  <p>
+    El módulo de <strong>Conductores</strong> permite registrar y gestionar los conductores de la empresa.
+    Acceda desde el menú: <strong>Config → Conductores</strong>.
+  </p>
+
+  <h2 class="subsection">4.1 Registrar un Conductor</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-body">Haga clic en <strong>Nuevo Conductor</strong>.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body">Complete los datos: Tipo y número de documento, Nombres, Apellidos, Teléfono, correo electrónico.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body">Haga clic en <strong>Guardar</strong>.</div></div>
+  </div>
+
+  <h2 class="subsection">4.2 Editar un Conductor</h2>
+  <p>
+    En la lista de conductores, haga clic en el ícono de edición del conductor que desea modificar,
+    actualice los campos y haga clic en <strong>Guardar Cambios</strong>.
+  </p>
+
+  <div class="info-box">
+    <strong>ℹ️ Nota:</strong> Los conductores registrados aquí estarán disponibles para seleccionar al
+    momento de crear un alistamiento o mantenimiento desde la aplicación móvil o la plataforma web.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 5 — ALISTAMIENTOS
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s5">
+  <h1 class="section-title">5. Alistamientos</h1>
+
+  <h2 class="subsection" id="s5-1">5.1 ¿Qué es un Alistamiento?</h2>
+  <p>
+    Un <strong>alistamiento</strong> es la inspección pre-operacional diaria que se realiza a cada vehículo
+    antes de que salga a operar. Es obligatorio según la normativa de Supertransporte y debe registrarse
+    en el sistema SICOV. El alistamiento verifica el estado de los siguientes ítems:
+  </p>
+  <table>
+    <tr><th>Código SICOV</th><th>Ítem a revisar</th></tr>
+    <tr><td>1</td><td>Fugas del motor</td></tr>
+    <tr><td>2</td><td>Tensión de correas</td></tr>
+    <tr><td>3</td><td>Ajuste de tapas</td></tr>
+    <tr><td>4</td><td>Niveles de aceite (motor, transmisión, dirección, frenos)</td></tr>
+    <tr><td>5</td><td>Nivel de agua del limpiaparabrisas</td></tr>
+    <tr><td>6</td><td>Aditivos del radiador</td></tr>
+    <tr><td>7</td><td>Filtros húmedos y secos</td></tr>
+    <tr><td>8</td><td>Baterías: niveles de electrolito, ajuste de bornes y sulfatación</td></tr>
+    <tr><td>9</td><td>Llantas: desgaste y presión de aire</td></tr>
+    <tr><td>10</td><td>Equipo de carretera</td></tr>
+    <tr><td>11</td><td>Botiquín</td></tr>
+  </table>
+
+  <h2 class="subsection" id="s5-2">5.2 Registrar un Alistamiento</h2>
+  <p>
+    Acceda desde el menú: <strong>Mantenimientos → Alistamientos</strong>.
+  </p>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-body">Haga clic en el botón <strong>Nuevo Alistamiento</strong>.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body">Seleccione el <strong>vehículo</strong> (por placa) y el <strong>conductor</strong>.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body">Indique los ítems de inspección revisados (según los configurados en Partes de Alistamiento).</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-body">Agregue observaciones si es necesario.</div></div>
+    <div class="step"><div class="step-num">5</div><div class="step-body">Haga clic en <strong>Guardar</strong>. El sistema guardará el registro localmente y enviará automáticamente la información a SICOV.</div></div>
+  </div>
+
+  <h2 class="subsection" id="s5-3">5.3 Estados de Sincronización SICOV</h2>
+  <p>
+    En la columna <strong>Sincronización SICOV</strong> de la lista de alistamientos verá uno de los
+    siguientes estados:
+  </p>
+  <table>
+    <tr><th>Estado</th><th>Significado</th><th>Acción requerida</th></tr>
+    <tr>
+      <td><span class="badge green">SINCRONIZADO</span></td>
+      <td>El alistamiento fue enviado y aceptado por Supertransporte.</td>
+      <td>Ninguna. Todo correcto.</td>
+    </tr>
+    <tr>
+      <td><span class="badge orange">PENDIENTE</span></td>
+      <td>El registro fue guardado localmente pero no se ha enviado a SICOV aún (sistema externo no disponible).</td>
+      <td>El sistema reintentará automáticamente. No se requiere acción inmediata.</td>
+    </tr>
+    <tr>
+      <td><span class="badge red">FALLIDO</span></td>
+      <td>El envío a SICOV falló repetidamente.</td>
+      <td>Contacte al administrador del sistema para revisar la conexión con Supertransporte.</td>
+    </tr>
+    <tr>
+      <td><span class="badge blue">DEMO</span></td>
+      <td>Registro de prueba. No se envía a SICOV.</td>
+      <td>Solo para entornos de prueba.</td>
+    </tr>
+  </table>
+  <div class="info-box warning">
+    <strong>⚠️ Plan de contingencia:</strong> Si aparece un <strong>banner naranja</strong> en la parte
+    superior de la pantalla indicando registros pendientes de sincronización, no se preocupe. El sistema
+    guarda todos los registros localmente y realiza reintentos automáticos cada hora. La operación
+    <strong>no se interrumpe</strong> aunque SICOV no esté disponible temporalmente.
+  </div>
+
+  <h2 class="subsection" id="s5-4">5.4 Descargar PDF del Alistamiento</h2>
+  <p>
+    En la lista de alistamientos, haga clic en el ícono de <strong>PDF</strong> del registro que desea
+    descargar. El documento incluye los datos del vehículo, conductor, ítems inspeccionados,
+    firma del responsable y el estado de sincronización con SICOV.
+  </p>
+  <p>También puede descargar un reporte en <strong>Excel</strong> de todos los alistamientos del período
+  seleccionado haciendo clic en el botón <strong>Exportar Excel</strong>.</p>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 6 — PREVENTIVOS
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s6">
+  <h1 class="section-title">6. Mantenimientos Preventivos</h1>
+  <p>
+    Los <strong>mantenimientos preventivos</strong> son las intervenciones planificadas que se realizan a los
+    vehículos para prevenir fallas. Acceda desde: <strong>Mantenimientos → Preventivos</strong>.
+  </p>
+
+  <h2 class="subsection">6.1 Registrar un Mantenimiento Preventivo</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-body">Haga clic en <strong>Nuevo Preventivo</strong>.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body">Seleccione el <strong>vehículo</strong>, la <strong>fecha</strong> y el <strong>proveedor o taller</strong>.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body">Seleccione las <strong>partes o sistemas</strong> intervenidos (según el catálogo de Partes de Mantenimiento).</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-body">Ingrese observaciones, kilometraje y demás datos requeridos.</div></div>
+    <div class="step"><div class="step-num">5</div><div class="step-body">Haga clic en <strong>Guardar</strong>. El registro se envía automáticamente a SICOV.</div></div>
+  </div>
+
+  <h2 class="subsection">6.2 Ver Detalle de un Preventivo</h2>
+  <p>
+    En la lista de preventivos, haga clic en el ícono de <strong>detalle (ojo)</strong> para ver el
+    informe completo del mantenimiento, incluyendo las partes intervenidas, el responsable técnico y el
+    estado SICOV. También puede descargar el informe en PDF.
+  </p>
+
+  <h2 class="subsection">6.3 Sincronización con SICOV</h2>
+  <p>
+    Al igual que los alistamientos, los preventivos muestran la columna
+    <strong>Sincronización SICOV</strong> con los mismos estados (Sincronizado, Pendiente, Fallido, Demo).
+    El sistema gestiona automáticamente los reintentos.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 7 — CORRECTIVOS
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s7">
+  <h1 class="section-title">7. Mantenimientos Correctivos</h1>
+  <p>
+    Los <strong>mantenimientos correctivos</strong> son las reparaciones no planificadas que se realizan cuando
+    un vehículo presenta una falla o avería. Acceda desde: <strong>Mantenimientos → Correctivos</strong>.
+  </p>
+
+  <h2 class="subsection">7.1 Registrar un Mantenimiento Correctivo</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-body">Haga clic en <strong>Nuevo Correctivo</strong>.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body">Seleccione el <strong>vehículo</strong>, la <strong>fecha</strong> y describa la <strong>falla detectada</strong>.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body">Registre las <strong>partes o sistemas</strong> reparados o reemplazados.</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-body">Indique el <strong>proveedor</strong> que realizó la reparación y el costo si aplica.</div></div>
+    <div class="step"><div class="step-num">5</div><div class="step-body">Haga clic en <strong>Guardar</strong>.</div></div>
+  </div>
+
+  <h2 class="subsection">7.2 Ver Detalle de un Correctivo</h2>
+  <p>
+    Haga clic en el ícono de detalle del correctivo para ver el informe completo con las partes
+    intervenidas, fotos si fueron adjuntadas, y el estado de sincronización con SICOV.
+    También puede generar el reporte en PDF.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 8 — CALENDARIO
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s8">
+  <h1 class="section-title">8. Calendario de Mantenimientos</h1>
+  <p>
+    El <strong>Calendario</strong> permite visualizar en formato mensual los mantenimientos preventivos
+    programados y ejecutados. Acceda desde: <strong>Mantenimientos → Calendario</strong>.
+  </p>
+  <ul>
+    <li>Cada evento en el calendario representa un mantenimiento preventivo.</li>
+    <li>Puede navegar entre meses con los botones de anterior/siguiente.</li>
+    <li>Al hacer clic en un evento puede ver el detalle del mantenimiento.</li>
+    <li>Los eventos se codifican por color según su estado (programado, ejecutado, vencido).</li>
+  </ul>
+  <div class="info-box success">
+    <strong>✅ Uso recomendado:</strong> Utilice el calendario para planificar los próximos mantenimientos
+    preventivos y asegurarse de que ningún vehículo supere los intervalos recomendados de servicio.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 9 — CATÁLOGOS
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s9">
+  <h1 class="section-title">9. Catálogos de Configuración</h1>
+  <p>
+    Los catálogos permiten personalizar los ítems que aparecen al registrar mantenimientos y alistamientos,
+    adaptándolos a la operación específica de su empresa.
+  </p>
+
+  <h2 class="subsection" id="s9-1">9.1 Partes de Mantenimiento</h2>
+  <p>
+    Acceda desde: <strong>Mantenimientos → Partes mant.</strong><br/>
+    Define los sistemas o partes del vehículo que pueden intervenirse en mantenimientos preventivos y
+    correctivos (ej: Motor, Frenos, Suspensión, Transmisión).
+  </p>
+  <h3 class="step-title">Agregar una nueva parte:</h3>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-body">Haga clic en <strong>Nueva parte</strong>.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body">Ingrese el nombre, tipo de parte, clase de vehículo y orden de aparición.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body">Haga clic en <strong>Guardar</strong>.</div></div>
+  </div>
+  <p>
+    Puede <strong>activar o desactivar</strong> partes con el switch de la columna "Activo".
+    Las partes desactivadas no aparecerán en los formularios de registro.
+  </p>
+
+  <h2 class="subsection" id="s9-2">9.2 Partes de Alistamiento</h2>
+  <p>
+    Acceda desde: <strong>Mantenimientos → Partes alist.</strong><br/>
+    Define los ítems de inspección que aparecen en el formulario de alistamiento diario.
+    Cada ítem está mapeado a uno o más <strong>códigos SICOV</strong> (1 al 11) para garantizar el correcto
+    reporte a Supertransporte.
+  </p>
+  <div class="info-box">
+    <strong>ℹ️ Nota técnica:</strong> Los ítems con el ícono de candado pertenecen al catálogo base global
+    y no pueden editarse. Solo los ítems propios de su empresa son editables.
+  </div>
+
+  <h2 class="subsection" id="s9-3">9.3 Proveedores</h2>
+  <p>
+    Acceda desde: <strong>Mantenimientos → Proveedores</strong>.<br/>
+    Registre los talleres y proveedores que realizan mantenimientos a los vehículos de la empresa.
+  </p>
+  <h3 class="step-title">Agregar un proveedor:</h3>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-body">Haga clic en <strong>Nuevo proveedor</strong>.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body">Ingrese nombre, NIT, teléfono y dirección.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body">Haga clic en <strong>Guardar</strong>.</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 10 — USUARIOS (STAFF)
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s10">
+  <h1 class="section-title">10. Gestión de Usuarios (Staff)</h1>
+  <p>
+    Acceda desde: <strong>Config → Usuarios</strong>.<br/>
+    Permite crear y gestionar los usuarios que tendrán acceso al sistema de la empresa. Existen diferentes
+    roles con distintos niveles de acceso:
+  </p>
+  <table>
+    <tr><th>Rol</th><th>Acceso</th></tr>
+    <tr>
+      <td><strong>Admin</strong></td>
+      <td>Acceso completo a todas las funciones de la empresa (todos los módulos del menú).</td>
+    </tr>
+    <tr>
+      <td><strong>Operador</strong></td>
+      <td>Acceso solo al módulo de Alistamientos. Puede registrar alistamientos pero no gestionar configuración.</td>
+    </tr>
+  </table>
+
+  <h2 class="subsection">10.1 Crear un Usuario</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-body">Haga clic en <strong>Nuevo Usuario</strong>.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body">Complete los datos: Nombres, Apellidos, Correo electrónico, Teléfono.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body">Seleccione el <strong>rol</strong> (Admin u Operador).</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-body">Haga clic en <strong>Guardar</strong>. El nuevo usuario recibirá sus credenciales y deberá cambiar la contraseña en el primer acceso.</div></div>
+  </div>
+
+  <h2 class="subsection">10.2 Editar o Desactivar un Usuario</h2>
+  <p>
+    En la lista de usuarios, use el ícono de edición para modificar los datos o el rol del usuario.
+    Para revocar el acceso de un usuario, desactívelo desde el formulario de edición.
+  </p>
+  <div class="info-box danger">
+    <strong>🔒 Seguridad:</strong> Desactive inmediatamente la cuenta de cualquier usuario que ya no
+    pertenezca a la empresa o cuyas credenciales puedan estar comprometidas.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 11 — MI EMPRESA
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s11">
+  <h1 class="section-title">11. Configuración de Mi Empresa</h1>
+  <p>
+    Acceda desde: <strong>Config → Mi Empresa</strong>.<br/>
+    Aquí puede configurar la información institucional de la empresa que aparece en los reportes PDF y
+    que es requerida para la correcta integración con SICOV.
+  </p>
+
+  <h2 class="subsection">11.1 Logo de la Empresa</h2>
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><div class="step-body">En la sección <strong>Logo de la Empresa</strong>, haga clic en <strong>Seleccionar imagen</strong>.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body">Elija una imagen en formato PNG o JPG (se recomienda fondo transparente).</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body">Haga clic en <strong>Guardar logo</strong>.</div></div>
+  </div>
+  <p>El logo aparecerá en todos los reportes PDF generados por el sistema.</p>
+
+  <h2 class="subsection">11.2 Centro Especializado</h2>
+  <p>
+    Ingrese los datos del <strong>Centro Especializado de Mantenimiento</strong> que avala los mantenimientos:
+  </p>
+  <ul>
+    <li><strong>Nombre del centro especializado:</strong> Razón social del centro.</li>
+    <li><strong>NIT del centro especializado:</strong> Número de identificación tributaria.</li>
+  </ul>
+
+  <h2 class="subsection">11.3 Ingeniero Mecánico</h2>
+  <p>
+    Ingrese los datos del <strong>Ingeniero Mecánico</strong> responsable de los mantenimientos:
+  </p>
+  <ul>
+    <li>Tipo de identificación (Cédula, Tarjeta profesional, etc.).</li>
+    <li>Número de identificación.</li>
+    <li>Nombres y apellidos completos.</li>
+  </ul>
+  <div class="info-box warning">
+    <strong>⚠️ Importante:</strong> Esta información aparece en los documentos PDF de mantenimiento que
+    son requisito para la auditoria de Supertransporte. Manténgala siempre actualizada.
+  </div>
+  <p>
+    Una vez completados todos los campos, haga clic en <strong>Guardar Cambios</strong>.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 12 — AUDITORÍA SICOV
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s12">
+  <h1 class="section-title">12. Reporte de Auditoría SICOV</h1>
+  <p>
+    Acceda desde: <strong>Reportes → Auditoría SICOV</strong>.<br/>
+    Permite consultar el historial detallado de todas las comunicaciones que el sistema realizó con la
+    API externa de Supertransporte. Es útil para verificar envíos, diagnosticar errores y auditar
+    la trazabilidad de la información reportada.
+  </p>
+
+  <h2 class="subsection">12.1 Filtros disponibles</h2>
+  <table>
+    <tr><th>Filtro</th><th>Descripción</th></tr>
+    <tr><td>Desde / Hasta</td><td>Rango de fechas de las operaciones.</td></tr>
+    <tr><td>Operación</td><td>Tipo de operación (guardarAlistamiento, guardarPreventivo, etc.).</td></tr>
+    <tr><td>Estado</td><td>Todos / Exitosos / Con error.</td></tr>
+  </table>
+
+  <h2 class="subsection">12.2 Información de la tabla</h2>
+  <table>
+    <tr><th>Columna</th><th>Descripción</th></tr>
+    <tr><td>Fecha</td><td>Fecha y hora exacta de la operación.</td></tr>
+    <tr><td>Operación</td><td>Nombre de la llamada realizada a SICOV.</td></tr>
+    <tr><td>HTTP</td><td>Código de respuesta HTTP de la API de Supertransporte.</td></tr>
+    <tr><td>Estado</td><td><span class="badge green">OK</span> si fue exitosa, <span class="badge red">ERROR</span> si hubo fallo.</td></tr>
+    <tr><td>Tiempo</td><td>Duración en milisegundos de la operación.</td></tr>
+    <tr><td>Mensaje Supertransporte</td><td>Texto de respuesta literal que devuelve SICOV (ej: "Registro guardado correctamente").</td></tr>
+  </table>
+
+  <h2 class="subsection">12.3 Corregir registros históricos</h2>
+  <p>
+    Si al filtrar por fechas no aparecen registros antiguos, use el botón
+    <strong>"Corregir registros históricos"</strong> en la parte superior derecha.
+    Esta función asigna la empresa a registros anteriores que quedaron sin ese dato.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECCIÓN 13 — FAQ
+══════════════════════════════════════════════ -->
+<div class="page section-page" id="s13">
+  <h1 class="section-title">13. Preguntas Frecuentes y Solución de Problemas</h1>
+
+  <h2 class="subsection">¿Qué hago si aparece un banner naranja indicando registros pendientes?</h2>
+  <p>
+    El sistema intenta enviar los registros a SICOV automáticamente cada hora. Si el problema persiste
+    más de 24 horas, contacte al administrador del sistema para verificar la conectividad con
+    Supertransporte. <strong>La operación no se ve interrumpida</strong>; los registros quedan guardados
+    localmente y se sincronizarán en cuanto SICOV vuelva a estar disponible.
+  </p>
+
+  <h2 class="subsection">¿Por qué el estado SICOV dice "FALLIDO"?</h2>
+  <p>
+    Un estado "FALLIDO" indica que el sistema intentó varias veces enviar el registro a Supertransporte
+    sin éxito. Las causas más comunes son:
+  </p>
+  <ul>
+    <li>La placa del vehículo no está registrada en SICOV maestras.</li>
+    <li>El NIT o token de la empresa no es válido.</li>
+    <li>Los datos del alistamiento son incompletos.</li>
+  </ul>
+  <p>Contacte al administrador del sistema para que revise la Auditoría SICOV y determine la causa exacta.</p>
+
+  <h2 class="subsection">¿Puedo registrar alistamientos cuando no hay internet?</h2>
+  <p>
+    La aplicación <strong>móvil</strong> permite registrar alistamientos sin conexión; los datos se
+    sincronizan automáticamente cuando se restablece la conectividad. La <strong>versión web</strong>
+    requiere conexión a internet para guardar los registros.
+  </p>
+
+  <h2 class="subsection">¿Puedo modificar un alistamiento ya registrado?</h2>
+  <p>
+    Los registros ya sincronizados con SICOV no pueden modificarse, ya que forman parte del histórico
+    oficial de Supertransporte. Si hay un error, debe crear un nuevo registro correcto y notificar
+    a su supervisor.
+  </p>
+
+  <h2 class="subsection">¿Cómo cierro sesión?</h2>
+  <p>
+    Haga clic en su nombre de usuario en la parte superior derecha de la pantalla y seleccione
+    <strong>Cerrar sesión</strong>. Por seguridad, cierre siempre la sesión cuando deje de usar el sistema,
+    especialmente en computadores compartidos.
+  </p>
+
+  <div class="info-box" style="margin-top: 40px;">
+    <strong>📞 Soporte técnico:</strong> Si tiene algún problema que no está cubierto en este manual,
+    comuníquese con el equipo de soporte técnico de ProtegeMeSICOV a través del canal establecido
+    por su empresa.
+  </div>
+</div>
+
+</body>
+</html>

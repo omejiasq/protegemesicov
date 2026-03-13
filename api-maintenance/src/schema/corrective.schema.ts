@@ -61,6 +61,20 @@ export class CorrectiveDetail {
 
   @Prop({ type: String, default: null })
   evidencia_foto?: string;
+
+  @Prop({
+    enum: ['pending', 'synced', 'failed', 'demo'],
+    default: 'synced',
+    index: true,
+  })
+  sicov_sync_status!: 'pending' | 'synced' | 'failed' | 'demo';
+
+  @Prop({ enum: ['frontend', 'external_api'], default: 'frontend' })
+  source?: 'frontend' | 'external_api';
+
+  /** Fecha/hora en que fue enviado y aceptado por SICOV. Null si pendiente. */
+  @Prop({ type: Date, default: null, index: true })
+  fechaSyncSicov?: Date;
 }
 
 export const CorrectiveDetailSchema =

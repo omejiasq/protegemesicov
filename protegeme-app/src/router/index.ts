@@ -169,6 +169,25 @@ const routes: RouteRecordRaw[] = [
         component: () => import("../views/maintenance/InspectionTypes.vue"),
       },
 
+      {
+        path: "maintenance/suppliers",
+        name: "maintenance/suppliers",
+        component: () => import("../views/maintenance/Suppliers.vue"),
+      },
+
+      {
+        path: "maintenance/response-types",
+        name: "maintenance/response-types",
+        component: () => import("../views/maintenance/ResponseTypes.vue"),
+      },
+
+      // ─── REPORTES (admin) ───
+      {
+        path: "audit-report",
+        name: "audit-report",
+        component: () => import("../views/AuditReport.vue"),
+      },
+
       // ─── SUPERADMIN ───
       {
         path: "admin/enterprises",

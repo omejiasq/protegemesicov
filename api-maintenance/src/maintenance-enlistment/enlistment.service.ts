@@ -13,6 +13,7 @@ import { Model, Types } from 'mongoose';
 
 import { MaintenanceExternalApiService } from '../libs/external-api';
 import { MaintenanceService } from '../maintenance/maintenance.service';
+import { SicovSyncService } from '../sicov-sync/sicov-sync.service';
 
 import {
   EnlistmentDetail,
@@ -72,6 +73,7 @@ export class AlistamientoService {
 
     private readonly external: MaintenanceExternalApiService,
     private readonly maintenanceService: MaintenanceService,
+    private readonly sicovSync: SicovSyncService,
   ) {}
 
   // ======================================================
@@ -117,23 +119,26 @@ export class AlistamientoService {
     }
     */
 
-    // 2️⃣ CREAR MANTENIMIENTO (LOCAL + SICOV)
-    const { doc, externalId } =
-      await this.maintenanceService.create(
-        {
-          placa,
-          tipoId: 3, // ALISTAMIENTO
-          vigiladoId: user.vigiladoId,
-        },
-        user,
-        { awaitExternal: true },
-      );
+    // 2️⃣ CREAR MANTENIMIENTO (LOCAL + intento SICOV)
+    const {
+      doc,
+      externalId,
+      sicovDown,
+    } = await this.maintenanceService.create(
+      {
+        placa,
+        tipoId: 3, // ALISTAMIENTO
+        vigiladoId: user.vigiladoId,
+      },
+      user,
+      { awaitExternal: true },
+    );
 
-    if (!doc?._id || !externalId || isNaN(Number(externalId))) {
-      throw new ConflictException(
-        'No fue posible crear el mantenimiento en SICOV',
-      );
+    if (!doc?._id) {
+      throw new ConflictException('No fue posible crear el registro local');
     }
+
+    // sicovDown: SICOV no disponible → se encola para reintento automático
 
     // 3️⃣ DERIVAR ACTIVIDADES DESDE LA BASE DE DATOS
     // Si vienen items (mobile), se buscan en DB los codigos_sicov de los ítems OK.
@@ -199,30 +204,29 @@ export class AlistamientoService {
 
     this.logger.log(`SICOV payload → ${JSON.stringify(sicovPayload)}`);
 
-    // 5️⃣ ENVÍO A SICOV
-    try {
-      await Promise.race([
-        this.external.guardarAlistamiento(sicovPayload),
-        new Promise((_, reject) =>
-          setTimeout(
-            () =>
-              reject(
-                new Error('Timeout al enviar alistamiento a SICOV'),
-              ),
-            15000,
-          ),
-        ),
-      ]);
-    } catch (error) {
-      this.logger.error(
-        'ERROR SICOV',
-        error?.response?.data || error?.message || error,
-      );
+    // 5️⃣ ENVÍO A SICOV (con tolerancia a fallos)
+    // Demo mode: omitir SICOV, marcar directamente como 'demo'
+    const isDemoMode = !!(user as any)?.demoMode;
+    let sicovDetailDown = sicovDown;
 
-      throw new ConflictException(
-        error?.response?.data?.message ||
-          'Error al registrar el alistamiento en SICOV',
-      );
+    if (!sicovDown && externalId && !isDemoMode) {
+      try {
+        await Promise.race([
+          this.external.guardarAlistamiento(sicovPayload),
+          new Promise((_, reject) =>
+            setTimeout(
+              () => reject(new Error('Timeout al enviar alistamiento a SICOV')),
+              15000,
+            ),
+          ),
+        ]);
+      } catch (error) {
+        this.logger.warn(
+          `[ENLISTMENT] SICOV no disponible para guardarAlistamiento: ` +
+          `${error?.message ?? error}. Se encolará para reintento.`,
+        );
+        sicovDetailDown = true;
+      }
     }
 
     // 6️⃣ DESACTIVAR ALISTAMIENTOS ANTERIORES
@@ -236,7 +240,8 @@ export class AlistamientoService {
     );
 
     // 7️⃣ GUARDAR LOCAL
-
+    const syncStatus = isDemoMode ? 'demo' : sicovDetailDown ? 'pending' : 'synced';
+    const fechaSyncSicov = syncStatus === 'synced' ? new Date() : null;
     const enlistment = await this.model.create({
       enterprise_id: user.enterprise_id,
       createdBy: user.sub,
@@ -256,13 +261,44 @@ export class AlistamientoService {
       detalleActividades: dto.detalleActividades ?? '',
       actividades: actividadesFinales,
 
-      firma_conductor_foto: dto.firma_conductor_foto ?? null,   // ✅ agregar
-      firma_inspector_foto: dto.firma_inspector_foto ?? null,   // ✅ agregar
-      
+      firma_conductor_foto: dto.firma_conductor_foto ?? null,
+      firma_inspector_foto: dto.firma_inspector_foto ?? null,
+
       estado: true,
+      sicov_sync_status: syncStatus,
+      fechaSyncSicov,
+      source: (dto as any).source ?? 'frontend',
     });
 
-    // 8️⃣ SNAPSHOT
+    // 8️⃣ ENCOLAR SI SICOV ESTABA CAÍDO (no encolar en demo mode)
+    if (sicovDetailDown && !isDemoMode) {
+      const maintenancePayload = {
+        placa,
+        tipoId: 3,
+        vigiladoId: String(user.vigiladoId ?? process.env.SICOV_VIGILADO_ID),
+        vigiladoToken: user.vigiladoToken,
+      };
+
+      await this.sicovSync.enqueue({
+        enterprise_id: user.enterprise_id,
+        recordType: 'enlistment',
+        localMaintenanceId: String(doc._id),
+        localDetailId: String(enlistment._id),
+        maintenancePayload,
+        // Si ya teníamos externalId de fase 1, saltamos directo a fase 2
+        maintenanceExternalId: externalId ?? undefined,
+        detailPayload: {
+          ...sicovPayload,
+          mantenimientoId: undefined, // se sobreescribe en el sync con el externalId real
+        },
+      });
+
+      this.logger.warn(
+        `[ENLISTMENT] Guardado local OK — SICOV caído, encolado para reintento: ${String(enlistment._id)}`,
+      );
+    }
+
+    // 9️⃣ SNAPSHOT
     /*
     if (dto.dailySnapshot) {
       await this.snapshotModel.create({
@@ -272,7 +308,7 @@ export class AlistamientoService {
     }
     */
 
-    // 9️⃣ ITEMS
+    // 🔟 ITEMS
     if (Array.isArray(dto.items) && dto.items.length) {
       await this.itemResultModel.insertMany(
         dto.items.map((i: any) => ({
@@ -433,10 +469,31 @@ export class AlistamientoService {
   
     doc.font('Helvetica').fontSize(8);
     doc.text(`Placa: ${e.placa}`);
-    doc.text(`Fecha: ${moment(e.createdAt).format('YYYY/MM/DD')}`);
-  
+    doc.text(`Fecha creación local: ${moment(e.createdAt).format('YYYY/MM/DD HH:mm')}`);
+
+    // Estado de sincronización con SICOV (plan de contingencia)
+    const syncStatus = (e as any).sicov_sync_status ?? 'synced';
+    const fechaSync = (e as any).fechaSyncSicov;
+    if (syncStatus === 'synced' && fechaSync) {
+      doc.text(`Enviado a Supertransporte: ${moment(fechaSync).format('YYYY/MM/DD HH:mm')}`);
+    } else if (syncStatus === 'pending') {
+      doc.font('Helvetica-Bold').fillColor('orange')
+        .text('PENDIENTE DE SINCRONIZACIÓN CON SUPERTRANSPORTE');
+      doc.font('Helvetica').fillColor('black')
+        .text('Este alistamiento fue creado localmente y será cargado a la');
+      doc.text('Supertransporte cuando el sistema esté disponible.');
+    } else if (syncStatus === 'failed') {
+      doc.font('Helvetica-Bold').fillColor('red')
+        .text('ERROR DE SINCRONIZACIÓN — Requiere revisión');
+      doc.font('Helvetica').fillColor('black');
+    } else if (syncStatus === 'demo') {
+      doc.font('Helvetica-Bold').fillColor('#0066cc')
+        .text('MODO DEMO — No enviado a Supertransporte');
+      doc.font('Helvetica').fillColor('black');
+    }
+
     doc.moveDown(1);
-  
+
     // ================= CONDUCTOR =================
     doc.font('Helvetica-Bold').text('CONDUCTOR');
     doc.moveDown(0.3);

@@ -110,6 +110,28 @@
                         <span class="layout-menuitem-text">Partes alist.</span>
                       </router-link>
                     </li>
+
+                    <li>
+                      <router-link
+                        to="/maintenance/suppliers"
+                        class="layout-menuitem-link"
+                        :class="{ 'active-menuitem': $route.path.includes('/maintenance/suppliers') }"
+                      >
+                        <i class="pi pi-building layout-menuitem-icon"></i>
+                        <span class="layout-menuitem-text">Proveedores</span>
+                      </router-link>
+                    </li>
+
+                    <li>
+                      <router-link
+                        to="/maintenance/response-types"
+                        class="layout-menuitem-link"
+                        :class="{ 'active-menuitem': $route.path.includes('/maintenance/response-types') }"
+                      >
+                        <i class="pi pi-check-square layout-menuitem-icon"></i>
+                        <span class="layout-menuitem-text">Tipos respuesta</span>
+                      </router-link>
+                    </li>
                   </template>
 
                 </ul>
@@ -169,6 +191,25 @@
 
             </ul>
           </li>
+
+          <!-- ═══════════════ REPORTES (admin) ═══════════════ -->
+          <template v-if="isAdmin">
+            <li class="layout-menuitem-category">
+              <div class="layout-menuitem-root-text">REPORTES</div>
+              <ul>
+                <li>
+                  <router-link
+                    to="/audit-report"
+                    class="layout-menuitem-link"
+                    :class="{ 'active-menuitem': $route.path.includes('/audit-report') }"
+                  >
+                    <i class="pi pi-history layout-menuitem-icon"></i>
+                    <span class="layout-menuitem-text">Auditoría SICOV</span>
+                  </router-link>
+                </li>
+              </ul>
+            </li>
+          </template>
 
           <!-- ═══════════════ SUPERADMIN ═══════════════ -->
           <template v-if="isSuperAdmin">

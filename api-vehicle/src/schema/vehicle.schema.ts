@@ -117,6 +117,14 @@ export class Vehicle {
   @Prop({ type: String, default: null })
   nota_desactivacion?: string | null;
 
+  /** Fecha en que la empresa solicitó la desactivación (aún activo, pendiente de aprobación superadmin) */
+  @Prop({ type: Date, default: null })
+  fecha_solicitud_desactivacion?: Date | null;
+
+  /** Estado de la solicitud de desactivación: null = sin solicitud, 'pendiente' = esperando superadmin, 'aprobada' = desactivado */
+  @Prop({ type: String, enum: ['pendiente', 'aprobada', null], default: null })
+  deactivation_estado?: 'pendiente' | 'aprobada' | null;
+
   // ── Control SICOV ──────────────────────────────────────────────────
   /** Superadmin puede desactivar el envío a Supertransporte */
   @Prop({ type: Boolean, default: true })

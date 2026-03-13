@@ -95,4 +95,28 @@ export const MaintenanceserviceApi = {
   toggleInspectionType: (id: string) =>
     http.patch(`${baseURL}/inspection-types/${id}/toggle`, {}),
 
+  // ── Tipos de Respuesta de Ítems ─────────────────────────────────
+  listAllItemResponseTypes: (tipo?: string) =>
+    http.get(`${baseURL}/item-response-types/all`, { params: tipo ? { tipo } : {} }),
+  listItemResponseTypes: (tipo?: string) =>
+    http.get(`${baseURL}/item-response-types`, { params: tipo ? { tipo } : {} }),
+  createItemResponseType: (data: any) =>
+    http.post(`${baseURL}/item-response-types`, data),
+  updateItemResponseType: (id: string, data: any) =>
+    http.patch(`${baseURL}/item-response-types/${id}`, data),
+  toggleItemResponseType: (id: string) =>
+    http.patch(`${baseURL}/item-response-types/${id}/toggle`, {}),
+
+  // ── Proveedores ────────────────────────────────────────────────────
+  listProveedores: () =>
+    http.get(`${baseURL}/proveedores`),
+  listAllProveedores: () =>
+    http.get(`${baseURL}/proveedores/all`),
+  createProveedor: (data: any) =>
+    http.post(`${baseURL}/proveedores`, data),
+  updateProveedor: (id: string, data: any) =>
+    http.patch(`${baseURL}/proveedores/${id}`, data),
+  toggleProveedor: (id: string) =>
+    http.patch(`${baseURL}/proveedores/${id}/toggle`, {}),
+
 };

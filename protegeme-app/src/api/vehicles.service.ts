@@ -46,4 +46,16 @@ export const VehiclesserviceApi = {
   /** Logs de auditoría de vehículos */
   getAuditLogs: (params?: Record<string, any>) =>
     http.get(`${baseURL}/vehicles/admin/audit`, { params }),
+
+  /** Vehículos con solicitud de desactivación pendiente */
+  getPendingDeactivations: () =>
+    http.get(`${baseURL}/vehicles/admin/pending-deactivations`),
+
+  /** Aprobar solicitud de desactivación (superadmin) */
+  approveDeactivation: (id: string) =>
+    http.patch(`${baseURL}/vehicles/admin/${id}/approve-deactivation`),
+
+  /** Rechazar solicitud de desactivación (superadmin) */
+  rejectDeactivation: (id: string) =>
+    http.patch(`${baseURL}/vehicles/admin/${id}/reject-deactivation`),
 };

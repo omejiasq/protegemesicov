@@ -136,3 +136,6 @@ UserSchema.index({ enterprise_id: 1 });
 
 // Filtro común SaaS
 UserSchema.index({ enterprise_id: 1, roleType: 1, active: 1 });
+
+// Correo único (sparse: ignora documentos sin correo)
+UserSchema.index({ 'usuario.correo': 1 }, { unique: true, sparse: true });

@@ -5,7 +5,7 @@
     <header class="page-header">
       <div>
         <h2>Agenda Operativa de Flota</h2>
-        <p>Vencimientos y ejecuciones de mantenimientos preventivos</p>
+        <p>Mantenimientos preventivos y vencimientos de documentos</p>
       </div>
       <div class="header-actions">
         <button class="btn-refresh" @click="fetchData" :disabled="loading">
@@ -37,7 +37,7 @@
     <section class="calendar-wrapper">
       <div v-if="loading" class="loading-overlay">
         <i class="pi pi-spin pi-spinner" style="font-size:2rem" />
-        <p>Cargando mantenimientos...</p>
+        <p>Cargando calendario...</p>
       </div>
 
       <ejs-schedule
@@ -75,32 +75,45 @@ import {
   Agenda,
 } from "@syncfusion/ej2-vue-schedule";
 import { useMaintenanceStore } from "../../stores/maintenanceStore";
+import { useVehiclesStore } from "../../stores/vehiclesStore";
+import { useDriversStore } from "../../stores/driversStore";
 
 provide("schedule", [Month, Week, Agenda]);
 
 const store = useMaintenanceStore();
+const vehiclesStore = useVehiclesStore();
+const driversStore = useDriversStore();
 const loading = ref(false);
 const selectedDate = new Date();
 
 /* =============================
-   COLORES
+   COLORES — Mantenimientos preventivos
 ============================= */
 const COLORS = {
   vencido:    "#ef4444", // 🔴 dueDate pasada sin ejecutar
   porVencer:  "#f97316", // 🟠 vence en ≤15 días
   ejecutado:  "#22c55e", // 🟢 tiene executedAt
-  programado: "#3b82f6", // 🔵 scheduledAt futuro, sin ejecutar
+  programado: "#3b82f6", // 🔵 scheduledAt futuro
+  // Documentos de vehículo
+  soat:        "#8b5cf6", // 🟣 SOAT
+  tecnomecanica: "#0891b2", // 🔵 Tecnomecánica
+  tarjetaOpera:  "#f59e0b", // 🟡 Tarjeta Operación
+  licencia:      "#ec4899", // 🩷 Licencia conducción
 };
 
 const legend = [
-  { label: "Vencido sin ejecutar", color: COLORS.vencido    },
-  { label: "Vence en ≤15 días",    color: COLORS.porVencer  },
-  { label: "Ejecutado",            color: COLORS.ejecutado  },
-  { label: "Programado",           color: COLORS.programado },
+  { label: "Mant. vencido",     color: COLORS.vencido    },
+  { label: "Mant. vence ≤15d",  color: COLORS.porVencer  },
+  { label: "Mant. ejecutado",   color: COLORS.ejecutado  },
+  { label: "Mant. programado",  color: COLORS.programado },
+  { label: "SOAT",              color: COLORS.soat       },
+  { label: "Tecnomecánica",     color: COLORS.tecnomecanica },
+  { label: "Tarjeta Operación", color: COLORS.tarjetaOpera  },
+  { label: "Lic. conducción",   color: COLORS.licencia   },
 ];
 
 /* =============================
-   STATS REACTIVOS
+   STATS
 ============================= */
 const events = ref<any[]>([]);
 
@@ -144,9 +157,9 @@ function endOf(date: Date): Date {
 }
 
 /* =============================
-   CLASIFICAR Y CONSTRUIR EVENTOS
+   EVENTOS DE MANTENIMIENTO PREVENTIVO
 ============================= */
-function buildEvents(items: any[]): any[] {
+function buildMaintenanceEvents(items: any[]): any[] {
   const result: any[] = [];
   let id = 1;
 
@@ -155,7 +168,8 @@ function buildEvents(items: any[]): any[] {
     const taller = item.razonSocial || item.taller || "Sin taller";
     const mecanico = item.nombresResponsable || item.mecanico || "Sin mecánico";
 
-    // ── Fecha de ejecución (executedAt) ──────────────────
+    const nota = item.detalleActividades || "";
+
     if (item.executedAt) {
       const d = new Date(item.executedAt);
       result.push({
@@ -171,16 +185,15 @@ function buildEvents(items: any[]): any[] {
         Mecanico: mecanico,
         FechaEjecucion: formatDateCO(item.executedAt),
         FechaVencimiento: formatDateCO(item.dueDate),
+        Nota: nota,
       });
     }
 
-    // ── Fecha de vencimiento (dueDate) ───────────────────
     if (item.dueDate) {
       const d = new Date(item.dueDate);
       const diff = daysDiff(d);
       const yaEjecutado = !!item.executedAt;
 
-      // Si ya fue ejecutado no mostrar como vencido/urgente
       if (!yaEjecutado) {
         let color = COLORS.programado;
         let tipo = "PROGRAMADO";
@@ -210,9 +223,93 @@ function buildEvents(items: any[]): any[] {
           FechaEjecucion: formatDateCO(item.executedAt),
           FechaVencimiento: formatDateCO(item.dueDate),
           DiasRestantes: diff,
+          Nota: nota,
         });
       }
     }
+  }
+
+  return result;
+}
+
+/* =============================
+   EVENTOS DE DOCUMENTOS DE VEHÍCULO
+============================= */
+function buildDocEvent(
+  id: number,
+  placa: string,
+  label: string,
+  color: string,
+  expirationDate: string | Date,
+): any | null {
+  if (!expirationDate) return null;
+  const d = new Date(expirationDate);
+  if (isNaN(d.getTime())) return null;
+
+  const diff = daysDiff(d);
+  let tipo = "PROGRAMADO";
+  let emoji = "📋";
+
+  if (diff < 0) {
+    tipo = "VENCIDO";
+    emoji = "⛔";
+  } else if (diff <= 30) {
+    tipo = "POR_VENCER";
+    emoji = "⚠️";
+  }
+
+  return {
+    Id: id,
+    Subject: `${emoji} ${placa} · ${label} ${diff < 0 ? `venció hace ${Math.abs(diff)}d` : `vence en ${diff}d`}`,
+    StartTime: startOf(d),
+    EndTime: endOf(d),
+    Description: `${label} — vence: ${formatDateCO(d)}`,
+    CategoryColor: color,
+    Tipo: tipo,
+    Placa: placa,
+    TipoDoc: label,
+    FechaVencimiento: formatDateCO(d),
+    DiasRestantes: diff,
+  };
+}
+
+function buildVehicleDocEvents(vehicles: any[], startId: number): any[] {
+  const result: any[] = [];
+  let id = startId;
+
+  for (const v of vehicles) {
+    const placa = (v.placa || "").toUpperCase();
+    if (!placa) continue;
+
+    const docs = [
+      { label: "SOAT",              color: COLORS.soat,          date: v.expiration_soat         },
+      { label: "Tecnomecánica",     color: COLORS.tecnomecanica, date: v.expiration_tecnomecanica },
+      { label: "Tarjeta Operación", color: COLORS.tarjetaOpera,  date: v.expiration_tarjeta_opera },
+    ];
+
+    for (const doc of docs) {
+      const ev = buildDocEvent(id++, placa, doc.label, doc.color, doc.date);
+      if (ev) result.push(ev);
+    }
+  }
+
+  return result;
+}
+
+function buildDriverLicenseEvents(drivers: any[], startId: number): any[] {
+  const result: any[] = [];
+  let id = startId;
+
+  for (const d of drivers) {
+    const venc = d.vencimiento_licencia_conduccion || d.licenciaVencimiento;
+    if (!venc) continue;
+
+    const nombre = d.usuario
+      ? [d.usuario.nombre, d.usuario.apellido].filter(Boolean).join(' ')
+      : (d.nombre || d.primerNombrePrincipal || 'Conductor');
+
+    const ev = buildDocEvent(id++, nombre, "Lic. conducción", COLORS.licencia, venc);
+    if (ev) result.push(ev);
   }
 
   return result;
@@ -224,16 +321,27 @@ function buildEvents(items: any[]): any[] {
 async function fetchData() {
   loading.value = true;
   try {
-    await store.preventiveFetchList({ numero_items: 500, page: 1 });
-    // ✅ Solo activos
-    const soloActivos = (store.preventiveList.items || []).filter(
+    const [_, __, ___] = await Promise.all([
+      store.preventiveFetchList({ numero_items: 500, page: 1 }),
+      vehiclesStore.fetch({ numero_items: 500, page: 1 }),
+      driversStore.fetch({ numero_items: 500, page: 1 }),
+    ]);
+
+    const preventivos = (store.preventiveList.items || []).filter(
       (item: any) => item.estado === true
     );
-    
-    events.value = buildEvents(soloActivos);
-    
+
+    const maintEvents = buildMaintenanceEvents(preventivos);
+    const vehicleDocEvents = buildVehicleDocEvents(vehiclesStore.items, maintEvents.length + 1);
+    const driverLicEvents = buildDriverLicenseEvents(
+      driversStore.items,
+      maintEvents.length + vehicleDocEvents.length + 1
+    );
+
+    events.value = [...maintEvents, ...vehicleDocEvents, ...driverLicEvents];
+
   } catch (e) {
-    console.error("Error cargando preventivos:", e);
+    console.error("Error cargando calendario:", e);
   } finally {
     loading.value = false;
   }
@@ -274,11 +382,32 @@ function onEventRendered(args: any) {
 function onPopupOpen(args: any) {
   if (args.type !== "QuickInfo") return;
   const d = args.data;
-  if (!d?.Placa) return;
+  if (!d?.CategoryColor) return;
 
-  // Enriquecer el quickInfo con datos extra
   const container = args.element?.querySelector(".e-popup-content");
-  if (container) {
+  if (!container) return;
+
+  // Evento de documento de vehículo / licencia
+  if (d.TipoDoc) {
+    container.innerHTML = `
+      <div style="font-size:13px;line-height:1.8">
+        <div><b>📋 Documento:</b> ${d.TipoDoc}</div>
+        <div><b>🚗 Vehículo/Conductor:</b> ${d.Placa}</div>
+        <div><b>📅 Vencimiento:</b> ${d.FechaVencimiento}</div>
+        ${d.DiasRestantes !== undefined ? `
+          <div style="margin-top:6px;padding:4px 8px;border-radius:6px;
+            background:${d.CategoryColor}20;color:${d.CategoryColor};font-weight:600">
+            ${d.DiasRestantes < 0
+              ? `Vencido hace ${Math.abs(d.DiasRestantes)} días`
+              : `Vence en ${d.DiasRestantes} días`}
+          </div>` : ""}
+      </div>
+    `;
+    return;
+  }
+
+  // Evento de mantenimiento preventivo
+  if (d.Placa) {
     container.innerHTML = `
       <div style="font-size:13px;line-height:1.8">
         <div><b>🚗 Placa:</b> ${d.Placa}</div>
@@ -286,6 +415,11 @@ function onPopupOpen(args: any) {
         <div><b>👷 Mecánico:</b> ${d.Mecanico}</div>
         <div><b>📅 Vencimiento:</b> ${d.FechaVencimiento}</div>
         <div><b>✅ Ejecutado:</b> ${d.FechaEjecucion || "Pendiente"}</div>
+        ${d.Nota ? `
+          <div style="margin-top:8px;padding:6px 8px;border-radius:6px;
+            background:#f1f5f9;color:#374151;font-size:12px;line-height:1.5">
+            <b>📝 Nota:</b> ${d.Nota}
+          </div>` : ""}
         ${d.DiasRestantes !== undefined ? `
           <div style="margin-top:6px;padding:4px 8px;border-radius:6px;
             background:${d.CategoryColor}20;color:${d.CategoryColor};font-weight:600">
@@ -311,7 +445,6 @@ onMounted(fetchData);
   gap: 12px;
 }
 
-/* Header */
 .page-header {
   display: flex;
   align-items: center;
@@ -346,7 +479,6 @@ onMounted(fetchData);
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Leyenda */
 .legend-bar {
   display: flex;
   flex-wrap: wrap;
@@ -385,7 +517,6 @@ onMounted(fetchData);
 .legend-stat.urgente b { color: #f97316; }
 .legend-stat.ok b { color: #22c55e; }
 
-/* Calendar */
 .calendar-wrapper {
   background: #fff;
   border-radius: 16px;
@@ -407,5 +538,13 @@ onMounted(fetchData);
   .legend-bar { gap: 8px; }
   .legend-item { font-size: 0.75rem; }
   .page-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+}
+
+/* ── Ocultar botones editar y borrar del QuickInfo de Syncfusion ── */
+:deep(.e-quick-popup-wrapper .e-edit),
+:deep(.e-quick-popup-wrapper .e-delete),
+:deep(.e-quick-popup-wrapper .e-edit-icon),
+:deep(.e-quick-popup-wrapper .e-delete-icon) {
+  display: none !important;
 }
 </style>

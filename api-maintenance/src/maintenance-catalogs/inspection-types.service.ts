@@ -22,14 +22,14 @@ export class InspectionTypesService {
     private readonly model: Model<TipoVehiculoTipoInspeccionDocument>,
   ) {}
 
-  /** Solo habilitados, incluye ítems de la empresa base — para mobile */
+  /** Solo habilitados, únicamente los ítems de la empresa — para mobile */
   findByCompany(company: string) {
     if (!Types.ObjectId.isValid(company)) {
       throw new BadRequestException('company inválido');
     }
     return this.model
       .find({
-        company: { $in: [new Types.ObjectId(company), this.BASE_COMPANY_ID] },
+        company: new Types.ObjectId(company),
         enabled: true,
       })
       .sort({ tipo_parte: 1, orden: 1, dispositivo: 1 })

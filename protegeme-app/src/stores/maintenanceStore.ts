@@ -97,6 +97,13 @@ export const useMaintenanceStore = defineStore("maintenance", {
       >,
       error: "" as string,
     },
+
+    // Proveedores
+    proveedores: {
+      items: [] as AnyObj[],
+      loading: false,
+      error: "" as string,
+    },
   }),
 
   actions: {
@@ -944,6 +951,57 @@ export const useMaintenanceStore = defineStore("maintenance", {
         vigiladoId: 0,
       });
       return this.enlistmentCreate(maintenancePayload);
+    },
+
+    // ══════════════════════════════════════════════
+    // PROVEEDORES
+    // ══════════════════════════════════════════════
+
+    async proveedoresFetchAll() {
+      const s = this.proveedores;
+      s.loading = true;
+      s.error = "";
+      try {
+        const { data } = await MaintenanceserviceApi.listAllProveedores();
+        s.items = Array.isArray(data) ? data : data?.items ?? [];
+        return s.items;
+      } catch (e: any) {
+        s.error = e?.response?.data?.message || e?.message || "Error al cargar proveedores";
+        throw e;
+      } finally {
+        s.loading = false;
+      }
+    },
+
+    async proveedoresFetch() {
+      const s = this.proveedores;
+      s.loading = true;
+      s.error = "";
+      try {
+        const { data } = await MaintenanceserviceApi.listProveedores();
+        s.items = Array.isArray(data) ? data : data?.items ?? [];
+        return s.items;
+      } catch (e: any) {
+        s.error = e?.response?.data?.message || e?.message || "Error al cargar proveedores";
+        throw e;
+      } finally {
+        s.loading = false;
+      }
+    },
+
+    async proveedoresCreate(dto: any) {
+      const { data } = await MaintenanceserviceApi.createProveedor(dto);
+      return data;
+    },
+
+    async proveedoresUpdate(id: string, dto: any) {
+      const { data } = await MaintenanceserviceApi.updateProveedor(id, dto);
+      return data;
+    },
+
+    async proveedoresToggle(id: string) {
+      const { data } = await MaintenanceserviceApi.toggleProveedor(id);
+      return data;
     },
   },
 });

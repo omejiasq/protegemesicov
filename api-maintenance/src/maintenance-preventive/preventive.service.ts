@@ -28,6 +28,7 @@ import {
 
 import { MaintenanceExternalApiService } from '../libs/external-api';
 import { MaintenanceService } from 'src/maintenance/maintenance.service';
+import { SicovSyncService } from '../sicov-sync/sicov-sync.service';
 
 @Injectable()
 export class PreventiveService {
@@ -46,6 +47,7 @@ export class PreventiveService {
 
     private readonly external: MaintenanceExternalApiService,
     private readonly maintenanceService: MaintenanceService,
+    private readonly sicovSync: SicovSyncService,
   ) {}
 
   // ======================================================
@@ -81,8 +83,10 @@ async create(
     user?.vigiladoId ?? Number(process.env.SICOV_VIGILADO_ID);
 
   // ---------------------------------------------------
-  // 2. Crear mantenimiento base (LOCAL + SICOV)
+  // 2. Crear mantenimiento base (LOCAL + intento SICOV)
   // ---------------------------------------------------
+  let sicovMaintenanceDown = false;
+
   if (!mantenimientoIdLocal) {
     const maintPayload = {
       placa: dto.placa,
@@ -95,7 +99,7 @@ async create(
       vigiladoId,
     };
 
-    const { doc, externalId } = await this.maintenanceService.create(
+    const { doc, externalId, sicovDown } = await this.maintenanceService.create(
       maintPayload,
       userForMaintenance,
       { awaitExternal: true },
@@ -110,15 +114,12 @@ async create(
     }
 
     mantenimientoIdLocal = String(localId);
+    sicovMaintenanceDown = !!sicovDown;
 
-    if (!externalId) {
-      throw new ConflictException(
-        'No se pudo obtener el mantenimiento externo',
-      );
+    if (externalId) {
+      mantenimientoIdExterno = Number(externalId);
     }
-
-    mantenimientoIdExterno = Number(externalId);
-  } 
+  }
   else if (/^\d+$/.test(String(mantenimientoIdLocal))) {
     mantenimientoIdExterno = Number(mantenimientoIdLocal);
   }
@@ -146,6 +147,8 @@ async create(
     evidencia_foto: dto.evidencia_foto ?? null,
 
     estado: true,
+    sicov_sync_status: sicovMaintenanceDown ? 'pending' : 'synced',
+    source: (dto as any).source ?? 'frontend',
   });
 
   // ---------------------------------------------------
@@ -265,45 +268,58 @@ async create(
   
 
   // ---------------------------------------------------
-  // 5. ENVÍO A SICOV
+  // 5. ENVÍO A SICOV (con tolerancia a fallos)
   // ---------------------------------------------------
-  try {
-    const sicovPayload = {
-      fecha: dto.fecha,
-      hora: dto.hora,
-      nit: dto.nit,
-      razonSocial: dto.razonSocial,
-      tipoIdentificacion: dto.tipoIdentificacion,
-      numeroIdentificacion: dto.numeroIdentificacion,
-      nombresResponsable: dto.nombresResponsable,
-      mantenimientoId: mantenimientoIdExterno as number,
-      detalleActividades: dto.detalleActividades,
-      vigiladoId: String(vigiladoId),
-      vigiladoToken: user?.vigiladoToken,
-    };
+  const sicovDetailPayload = {
+    fecha: dto.fecha,
+    hora: dto.hora,
+    nit: dto.nit,
+    razonSocial: dto.razonSocial,
+    tipoIdentificacion: dto.tipoIdentificacion,
+    numeroIdentificacion: dto.numeroIdentificacion,
+    nombresResponsable: dto.nombresResponsable,
+    detalleActividades: dto.detalleActividades,
+    vigiladoId: String(vigiladoId),
+    vigiladoToken: user?.vigiladoToken,
+  };
 
-    const REQUIRED = [
-      'fecha',
-      'hora',
-      'nit',
-      'razonSocial',
-      'tipoIdentificacion',
-      'numeroIdentificacion',
-      'nombresResponsable',
-      'detalleActividades',
-      'mantenimientoId',
-      'vigiladoId',
-    ];
+  let sicovDetailSent = false;
 
-    const missing = REQUIRED.filter(
-      (k) => !sicovPayload[k as keyof typeof sicovPayload],
+  if (!sicovMaintenanceDown && mantenimientoIdExterno && user?.vigiladoToken) {
+    try {
+      await this.external.guardarPreventivo({
+        ...sicovDetailPayload,
+        mantenimientoId: mantenimientoIdExterno,
+      });
+      sicovDetailSent = true;
+    } catch (err: any) {
+      console.warn('[PREVENTIVE] SICOV guardarPreventivo falló, se encolará:', err?.message);
+    }
+  }
+
+  if (!sicovDetailSent) {
+    // Actualizar estado del registro local a pending
+    await this.model.updateOne(
+      { _id: doc._id },
+      { $set: { sicov_sync_status: 'pending' } },
     );
 
-    if (missing.length === 0 && user?.vigiladoToken) {
-      await this.external.guardarPreventivo(sicovPayload);
-    }
-  } catch (err) {
-    console.error('Error enviando preventivo a SICOV:', err);
+    await this.sicovSync.enqueue({
+      enterprise_id: user?.enterprise_id ?? '',
+      recordType: 'preventive',
+      localMaintenanceId: mantenimientoIdLocal!,
+      localDetailId: String(doc._id),
+      maintenancePayload: {
+        placa: dto.placa,
+        tipoId: 1,
+        vigiladoId: String(vigiladoId),
+        vigiladoToken: user?.vigiladoToken,
+      },
+      maintenanceExternalId: mantenimientoIdExterno
+        ? String(mantenimientoIdExterno)
+        : undefined,
+      detailPayload: sicovDetailPayload,
+    });
   }
 
   return this.model.findById(doc._id).lean();

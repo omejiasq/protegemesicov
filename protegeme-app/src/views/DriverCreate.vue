@@ -51,7 +51,7 @@
     </div>
 
 <div class="field">
-  <label>No. Licencia de Conducción *</label>
+  <label>No. Licencia de Conducción</label>
   <input
     v-model="form.no_licencia_conduccion"
     :class="{ error: errors.no_licencia_conduccion }"
@@ -62,7 +62,7 @@
 </div>
 
 <div class="field">
-  <label>Vencimiento Licencia *</label>
+  <label>Vencimiento Licencia</label>
   <input
     type="date"
     v-model="form.vencimiento_licencia_conduccion"

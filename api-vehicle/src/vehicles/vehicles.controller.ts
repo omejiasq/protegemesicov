@@ -148,6 +148,27 @@ export class VehiclesController {
     return this.service.toggleSicovSync(id, req.user);
   }
 
+  /** Vehículos con solicitud de desactivación pendiente (superadmin) */
+  @UseGuards(JwtAuthGuard, SuperadminGuard)
+  @Get('admin/pending-deactivations')
+  getPendingDeactivations() {
+    return this.service.getPendingDeactivations();
+  }
+
+  /** Aprobar solicitud de desactivación (superadmin) */
+  @UseGuards(JwtAuthGuard, SuperadminGuard)
+  @Patch('admin/:id/approve-deactivation')
+  approveDeactivation(@Param('id') id: string, @Req() req: any) {
+    return this.service.approveDeactivation(id, req.user);
+  }
+
+  /** Rechazar solicitud de desactivación (superadmin) */
+  @UseGuards(JwtAuthGuard, SuperadminGuard)
+  @Patch('admin/:id/reject-deactivation')
+  rejectDeactivation(@Param('id') id: string, @Req() req: any) {
+    return this.service.rejectDeactivation(id, req.user);
+  }
+
   /** Logs de auditoría de vehículos */
   @UseGuards(JwtAuthGuard, SuperadminGuard)
   @Get('admin/audit')

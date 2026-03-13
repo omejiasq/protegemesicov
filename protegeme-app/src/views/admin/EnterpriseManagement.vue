@@ -58,6 +58,9 @@
               <button class="btn-icon btn-icon-green" title="Crear usuario admin" @click="openCreateUser(ent)">
                 <i class="pi pi-user-plus" />
               </button>
+              <button class="btn-icon btn-icon-purple" title="Ver usuarios admin" @click="openAdminUsers(ent)">
+                <i class="pi pi-users" />
+              </button>
             </td>
           </tr>
           <tr v-if="enterprises.length === 0">
@@ -324,6 +327,83 @@
       </div>
     </div>
 
+    <!-- ═══════════ MODAL USUARIOS ADMIN ═══════════ -->
+    <div v-if="showAdminUsersModal" class="modal-overlay" @click.self="showAdminUsersModal = false">
+      <div class="modal modal-md">
+        <div class="modal-header">
+          <h3>Usuarios admin — {{ adminUsersEnterprise?.name }}</h3>
+          <button class="btn-close" @click="showAdminUsersModal = false"><i class="pi pi-times" /></button>
+        </div>
+        <div class="modal-body">
+          <div v-if="adminUsersLoading" class="loading-state">
+            <i class="pi pi-spin pi-spinner" style="font-size: 1.5rem" />
+          </div>
+          <div v-else-if="adminUsersList.length === 0" class="empty-cell" style="padding: 1.5rem 0; text-align: center; color: #9ca3af;">
+            No hay usuarios administradores para esta empresa.
+          </div>
+          <div v-else class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Usuario</th>
+                  <th>Nombre</th>
+                  <th>Correo</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="u in adminUsersList" :key="u._id">
+                  <td><strong>{{ u.usuario?.usuario }}</strong></td>
+                  <td>{{ [u.usuario?.nombre, u.usuario?.apellido].filter(Boolean).join(' ') || '—' }}</td>
+                  <td style="font-size: 0.8rem; color: #6b7280;">{{ u.usuario?.correo || '—' }}</td>
+                  <td>
+                    <span :class="['badge', u.active ? 'badge-green' : 'badge-red']">
+                      {{ u.active ? 'Activo' : 'Inactivo' }}
+                    </span>
+                  </td>
+                  <td>
+                    <button class="btn-icon btn-icon-orange" title="Cambiar contraseña" @click="openChangePassword(u)">
+                      <i class="pi pi-key" />
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" @click="showAdminUsersModal = false">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ MODAL CAMBIAR CONTRASEÑA ═══════════ -->
+    <div v-if="showPasswordModal" class="modal-overlay" @click.self="showPasswordModal = false">
+      <div class="modal modal-sm">
+        <div class="modal-header">
+          <h3>Cambiar contraseña — {{ passwordTargetUser?.usuario?.usuario }}</h3>
+          <button class="btn-close" @click="showPasswordModal = false"><i class="pi pi-times" /></button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size: 0.85rem; color: #6b7280; margin-bottom: 1rem;">
+            El usuario deberá usar esta nueva contraseña en su próximo inicio de sesión.
+          </p>
+          <div class="field">
+            <label>Nueva contraseña <span class="req">*</span></label>
+            <input v-model="newPassword" type="password" placeholder="Mín. 6 caracteres" />
+            <small v-if="passwordError" class="error-text">{{ passwordError }}</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" @click="showPasswordModal = false">Cancelar</button>
+          <button class="btn-primary" :disabled="savingPassword" @click="confirmChangePassword">
+            {{ savingPassword ? 'Guardando...' : 'Guardar contraseña' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- ═══════════ PANEL VEHÍCULOS ═══════════ -->
     <div v-if="showVehiclesPanel" class="modal-overlay" @click.self="showVehiclesPanel = false">
       <div class="modal modal-xl">
@@ -391,14 +471,17 @@
                     <th>Placa</th>
                     <th>Clase</th>
                     <th>Modelo</th>
-                    <th>Propietario</th>
                     <th>Estado</th>
+                    <th>F. Creación</th>
                     <th>F. Habilitación</th>
-                    <th>SICOV Sync</th>
+                    <th>F. Solicitud Desact.</th>
+                    <th>F. Desactivación</th>
+                    <th>SICOV</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="v in vehiclesList" :key="v._id">
+                  <tr v-for="v in vehiclesList" :key="v._id" :class="{ 'row-pending-deact': v.deactivation_estado === 'pendiente' }">
                     <td>
                       <input
                         v-if="!v.active"
@@ -410,13 +493,23 @@
                     <td><strong>{{ v.placa }}</strong></td>
                     <td>{{ v.clase }}</td>
                     <td>{{ v.modelo }}</td>
-                    <td>{{ v.nombre_propietario }}</td>
                     <td>
-                      <span :class="['badge', v.active ? 'badge-green' : 'badge-red']">
+                      <span v-if="v.active && v.deactivation_estado === 'pendiente'" class="badge badge-yellow">
+                        Desact. pendiente
+                      </span>
+                      <span v-else :class="['badge', v.active ? 'badge-green' : 'badge-red']">
                         {{ v.active ? 'Activo' : 'Inactivo' }}
                       </span>
                     </td>
-                    <td>{{ v.fecha_activacion ? new Date(v.fecha_activacion).toLocaleDateString('es-CO') : '—' }}</td>
+                    <td style="font-size:0.78rem;">{{ v.createdAt ? new Date(v.createdAt).toLocaleDateString('es-CO') : '—' }}</td>
+                    <td style="font-size:0.78rem;">{{ v.fecha_activacion ? new Date(v.fecha_activacion).toLocaleDateString('es-CO') : '—' }}</td>
+                    <td style="font-size:0.78rem;">
+                      <span v-if="v.fecha_solicitud_desactivacion" style="color:#92400e; font-weight:600;">
+                        {{ new Date(v.fecha_solicitud_desactivacion).toLocaleDateString('es-CO') }}
+                      </span>
+                      <span v-else>—</span>
+                    </td>
+                    <td style="font-size:0.78rem;">{{ v.fecha_ultima_desactivacion ? new Date(v.fecha_ultima_desactivacion).toLocaleDateString('es-CO') : '—' }}</td>
                     <td>
                       <button
                         :class="['toggle-btn', v.sicov_sync_enabled ? 'toggle-on' : 'toggle-off']"
@@ -427,9 +520,29 @@
                         {{ v.sicov_sync_enabled ? 'ON' : 'OFF' }}
                       </button>
                     </td>
+                    <td style="white-space:nowrap;">
+                      <template v-if="v.deactivation_estado === 'pendiente'">
+                        <button
+                          class="btn-sm btn-danger"
+                          style="margin-right:0.3rem;"
+                          :title="`Motivo: ${v.nota_desactivacion}`"
+                          :disabled="approvingDeact"
+                          @click="approveDeactivation(v)"
+                        >
+                          <i class="pi pi-check" /> Aprobar
+                        </button>
+                        <button
+                          class="btn-sm btn-secondary"
+                          :disabled="approvingDeact"
+                          @click="rejectDeactivation(v)"
+                        >
+                          <i class="pi pi-times" /> Rechazar
+                        </button>
+                      </template>
+                    </td>
                   </tr>
                   <tr v-if="vehiclesList.length === 0">
-                    <td colspan="8" class="empty-cell">No hay vehículos registrados</td>
+                    <td colspan="11" class="empty-cell">No hay vehículos registrados</td>
                   </tr>
                 </tbody>
               </table>
@@ -908,6 +1021,59 @@ async function saveEnterpriseUser() {
   }
 }
 
+// ── Admin users panel ─────────────────────────────────────────────────
+const showAdminUsersModal = ref(false)
+const adminUsersEnterprise = ref<Enterprise | null>(null)
+const adminUsersList = ref<any[]>([])
+const adminUsersLoading = ref(false)
+
+async function openAdminUsers(ent: Enterprise) {
+  adminUsersEnterprise.value = ent
+  adminUsersList.value = []
+  showAdminUsersModal.value = true
+  adminUsersLoading.value = true
+  try {
+    const { data } = await AuthserviceApi.getEnterpriseAdmins(ent._id)
+    adminUsersList.value = data
+  } catch (e: any) {
+    showToast(e?.response?.data?.message || 'Error cargando usuarios', 'error')
+  } finally {
+    adminUsersLoading.value = false
+  }
+}
+
+// ── Change password ────────────────────────────────────────────────────
+const showPasswordModal = ref(false)
+const passwordTargetUser = ref<any | null>(null)
+const newPassword = ref('')
+const passwordError = ref('')
+const savingPassword = ref(false)
+
+function openChangePassword(user: any) {
+  passwordTargetUser.value = user
+  newPassword.value = ''
+  passwordError.value = ''
+  showPasswordModal.value = true
+}
+
+async function confirmChangePassword() {
+  passwordError.value = ''
+  if (!newPassword.value || newPassword.value.length < 6) {
+    passwordError.value = 'La contraseña debe tener al menos 6 caracteres'
+    return
+  }
+  savingPassword.value = true
+  try {
+    await AuthserviceApi.changePassword(passwordTargetUser.value._id, newPassword.value)
+    showToast(`Contraseña de "${passwordTargetUser.value.usuario?.usuario}" actualizada`)
+    showPasswordModal.value = false
+  } catch (e: any) {
+    showToast(e?.response?.data?.message || 'Error al cambiar contraseña', 'error')
+  } finally {
+    savingPassword.value = false
+  }
+}
+
 // ── Vehicle panel ─────────────────────────────────────────────────────
 const showVehiclesPanel = ref(false)
 const vehiclesPanelEnterprise = ref<Enterprise | null>(null)
@@ -977,6 +1143,36 @@ async function toggleSicov(vehicle: any) {
   }
 }
 
+const approvingDeact = ref(false)
+
+async function approveDeactivation(vehicle: any) {
+  if (!confirm(`¿Aprobar desactivación de ${vehicle.placa}?\nMotivo: ${vehicle.nota_desactivacion}`)) return
+  approvingDeact.value = true
+  try {
+    await VehiclesserviceApi.approveDeactivation(vehicle._id)
+    showToast(`Vehículo ${vehicle.placa} desactivado correctamente`)
+    await loadVehiclesData(vehiclesPanelEnterprise.value!._id)
+  } catch (e: any) {
+    showToast(e?.response?.data?.message || 'Error al aprobar desactivación', 'error')
+  } finally {
+    approvingDeact.value = false
+  }
+}
+
+async function rejectDeactivation(vehicle: any) {
+  if (!confirm(`¿Rechazar solicitud de desactivación de ${vehicle.placa}?`)) return
+  approvingDeact.value = true
+  try {
+    await VehiclesserviceApi.rejectDeactivation(vehicle._id)
+    showToast(`Solicitud de desactivación de ${vehicle.placa} rechazada`)
+    await loadVehiclesData(vehiclesPanelEnterprise.value!._id)
+  } catch (e: any) {
+    showToast(e?.response?.data?.message || 'Error al rechazar solicitud', 'error')
+  } finally {
+    approvingDeact.value = false
+  }
+}
+
 onMounted(async () => {
   try {
     const { data } = await AuthserviceApi.getAllEnterprises()
@@ -1011,6 +1207,8 @@ onMounted(async () => {
 .badge-red { background: #fee2e2; color: #991b1b; }
 .badge-blue { background: #dbeafe; color: #1d4ed8; }
 .badge-gray { background: #f3f4f6; color: #374151; }
+.badge-yellow { background: #fef3c7; color: #92400e; }
+.row-pending-deact td { background: #fffbeb !important; }
 
 .btn-primary { background: #1e40af; color: white; border: none; padding: 0.5rem 1.25rem; border-radius: 6px; cursor: pointer; font-size: 0.875rem; font-weight: 500; display: inline-flex; align-items: center; gap: 0.4rem; }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -1062,6 +1260,9 @@ onMounted(async () => {
 .modal-xl { max-width: 960px; }
 .btn-icon-blue:hover { color: #1e40af !important; }
 .btn-icon-green:hover { color: #166534 !important; }
+.btn-icon-purple:hover { color: #7c3aed !important; }
+.btn-icon-orange:hover { color: #d97706 !important; }
+.modal-md { max-width: 600px; }
 .user-modal-info { font-size: 0.85rem; color: #6b7280; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 0.65rem 0.9rem; margin-bottom: 0.25rem; }
 .hint-text { color: #6b7280; font-size: 0.75rem; }
 .btn-sm { padding: 0.4rem 0.9rem; font-size: 0.82rem; }

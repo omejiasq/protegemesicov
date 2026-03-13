@@ -21,8 +21,8 @@ export class EnlistmentItemResult {
   })
   itemId!: Types.ObjectId;
 
-  @Prop({ required: true, enum: ['OK', 'NC', 'NA'] })
-  estado!: 'OK' | 'NC' | 'NA';
+  @Prop({ required: true, trim: true })
+  estado!: string;
 
   @Prop({ trim: true })
   observacion?: string;

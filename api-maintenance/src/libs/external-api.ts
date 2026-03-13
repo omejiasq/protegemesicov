@@ -387,14 +387,52 @@ export class MaintenanceExternalApiService {
       placa: payload.placa,
       tipoId: payload.tipoId,
     };
-    return this.requestWithAudit(
-      endpoint,
-      'POST',
-      'guardarMantenimiento',
-      body,
-      payload.vigiladoId,
-      payload.vigiladoToken,
-    );
+
+    try {
+      return await this.requestWithAudit(
+        endpoint,
+        'POST',
+        'guardarMantenimiento',
+        body,
+        payload.vigiladoId,
+        payload.vigiladoToken,
+      );
+    } catch (e: any) {
+      /**
+       * SICOV 409 = "ya existe una transacción abierta para esta placa/tipoId".
+       * El cuerpo de la respuesta contiene el id de esa transacción huérfana.
+       * Lo tratamos como éxito: reutilizamos ese id para completar la transacción.
+       *
+       * Ejemplo de respuesta 409 de SICOV:
+       *   { "id": 12345, "mensaje": "Ya existe un mantenimiento activo..." }
+       */
+      if (e?.status === 409) {
+        const sicovData: AnyObj =
+          e?.response?.data ?? e?.response ?? e?.data ?? {};
+
+        const existingId =
+          sicovData?.id ??
+          sicovData?.mantenimientoId ??
+          null;
+
+        if (existingId != null) {
+          this.logger.warn(
+            `[guardarMantenimiento] 409 — transacción huérfana detectada para ` +
+            `placa=${payload.placa} tipoId=${payload.tipoId}. ` +
+            `Reutilizando id=${existingId}`,
+          );
+          return {
+            ok: true,
+            status: 409,
+            data: { ...sicovData, id: existingId },
+            orphanRecovered: true,
+          };
+        }
+      }
+
+      // Cualquier otro error se propaga normalmente
+      throw e;
+    }
   }
 
   async guardarPreventivo(payload: {
@@ -657,6 +695,77 @@ export class MaintenanceExternalApiService {
       id, // headers: vigiladoId
       payload.vigiladoToken, // headers: vigiladoToken si aplica
     );
+  }
+
+  /**
+   * Consulta el estado de mantenimientos completados en SICOV para una placa.
+   *
+   * Usa el endpoint de maestras (base URL diferente + token estático de la API),
+   * no el token de login. Útil para diagnóstico y reconciliación.
+   *
+   * GET https://rutasbackend.azurewebsites.net/api/v1/maestras/mantenimientos?nit=X&placa=Y
+   *
+   * Respuesta:
+   *   {
+   *     "mantenimientoPreventivo": [...],
+   *     "mantenimientoCorrectivo": [...],
+   *     "alistamiento": [...]
+   *   }
+   */
+  async consultarMantenimientosPorPlaca(params: {
+    nit: string | number;
+    placa: string;
+  }): Promise<{
+    ok: boolean;
+    status: number;
+    data?: {
+      mantenimientoPreventivo: any[];
+      mantenimientoCorrectivo: any[];
+      alistamiento: any[];
+    };
+    error?: string;
+  }> {
+    const base =
+      process.env.SICOV_MAESTRAS_BASE ??
+      'https://rutasbackend.azurewebsites.net';
+    const staticToken =
+      process.env.SICOV_MAESTRAS_TOKEN ?? 'a6edc4af-4b84-4444-8c98-8afa14437cd1';
+
+    const nit = String(params.nit).replace(/\D+/g, '');
+    const url = `${base}/api/v1/maestras/mantenimientos?nit=${nit}&placa=${encodeURIComponent(params.placa)}`;
+
+    const started = Date.now();
+    try {
+      const resp = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          token: staticToken,
+        },
+      });
+
+      const data = await this.safeJson(resp);
+
+      await this.audit.log({
+        module: 'maintenance',
+        operation: 'consultarMantenimientosPorPlaca',
+        endpoint: url,
+        requestPayload: { nit, placa: params.placa },
+        responseStatus: resp.status,
+        responseBody: data,
+        success: resp.ok,
+        durationMs: Date.now() - started,
+      });
+
+      if (!resp.ok) {
+        return { ok: false, status: resp.status, error: `SICOV maestras ${resp.status}` };
+      }
+
+      return { ok: true, status: resp.status, data };
+    } catch (e: any) {
+      this.logger.error(`[consultarMantenimientosPorPlaca] ${e?.message}`);
+      return { ok: false, status: 0, error: e?.message ?? String(e) };
+    }
   }
 
   async crearArchivoPrograma(payload: {

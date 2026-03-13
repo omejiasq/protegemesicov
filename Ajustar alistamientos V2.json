@@ -1,0 +1,476 @@
+{
+  "name": "Ajustar alistamientos V2",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        48
+      ],
+      "id": "321acc71-f675-45cc-835f-de307fbbab5b",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sisntback.supertransporte.gov.co/api/v1/autenticacion/inicio-sesion",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "usuario",
+              "value": "900416316"
+            },
+            {
+              "name": "contrasena",
+              "value": "V.{v(DzRaf|*"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        112,
+        -96
+      ],
+      "id": "f0b33a6f-f597-465f-96da-7dce7283fd1c",
+      "name": "Autenticacion",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a452a3b5-af7d-4fb6-b970-b305a68264aa",
+              "name": "tokenlogin",
+              "value": "={{ $json.token }}",
+              "type": "string"
+            },
+            {
+              "id": "707764a6-766c-466a-a3d0-a0e9936ea1c7",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        64
+      ],
+      "id": "3f048ade-346d-4ede-8d0f-169114412e88",
+      "name": "Capturar token",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "fileSelector": "/home/node/.n8n-files/NEW_archivo_carga_vehiculos_cootranshuila.xlsx",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        320,
+        -96
+      ],
+      "id": "fc3a60a4-7604-40ce-9a54-6d50b24159b3",
+      "name": "Leer archivos directorio",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {
+          "headerRow": true,
+          "sheetName": "Hoja1"
+        }
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        416,
+        64
+      ],
+      "id": "9e3b6c7a-3a28-4bd3-8b75-006d8d311ab1",
+      "name": "Extraer informacion del excel",
+      "notesInFlow": true,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://rutasback.supertransporte.gov.co/api/v2/mantenimiento/guardar-mantenimieto",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.tokenlogin }}"
+            },
+            {
+              "name": "token",
+              "value": "b041a84c-500b-4d7e-b76a-f62ecf67fbce"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n\"vigiladoId\": 891100299,\n\"placa\": \"{{ $json.placa }}\",\n\"tipoId\": 3\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        640,
+        64
+      ],
+      "id": "8562185f-fea4-45a9-8c5c-2a6d6220425f",
+      "name": "Crear / validar mantenimiento",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5408d3d7-8a6f-4bb7-879e-ee88ca7729a1",
+              "name": "placa",
+              "value": "={{ $json.PLACA }}",
+              "type": "string"
+            },
+            {
+              "id": "e8ad2428-adb8-499a-954f-90ae3a579a76",
+              "name": "tipoIdentificacionConductor",
+              "value": "={{ $json.tipoIdentificacionConductor }}",
+              "type": "number"
+            },
+            {
+              "id": "82078635-5bf0-421b-9842-bd94e5ef74c0",
+              "name": "numeroIdentificacionConductor",
+              "value": "={{ $json.numeroIdentificacionConductor }}",
+              "type": "string"
+            },
+            {
+              "id": "4d008808-ad20-49c5-b0d5-430238b0bb71",
+              "name": "nombresConductor",
+              "value": "={{ $json.nombresConductor }}",
+              "type": "string"
+            },
+            {
+              "id": "54068204-8631-41db-9ddf-f1fea780e6da",
+              "name": "tipoIdentificacionResponsable",
+              "value": "={{ $json.tipoIdentificacionResponsable }}",
+              "type": "number"
+            },
+            {
+              "id": "58e520df-9d1d-4bdf-804f-4a7b25b26271",
+              "name": "numeroIdentificacionResponsable",
+              "value": "={{ $json.numeroIdentificacionResponsable }}",
+              "type": "number"
+            },
+            {
+              "id": "5eb5fd0f-2390-48cc-b509-850e6e66047c",
+              "name": "actividades",
+              "value": "={{ $json.actividades }}",
+              "type": "string"
+            },
+            {
+              "id": "d7c4ea07-5215-4456-9e29-325005b2fbf8",
+              "name": "detalleActividades",
+              "value": "={{ $json.detalleActividades }}",
+              "type": "string"
+            },
+            {
+              "id": "1810dc98-48b1-42fb-9a52-17ed7c0951f5",
+              "name": "tokenlogin",
+              "value": "={{ $('Capturar token').item.json.tokenlogin }}",
+              "type": "string"
+            },
+            {
+              "id": "661c8b0d-d157-4d7e-a92c-45671d3a538c",
+              "name": "nombreResponsable",
+              "value": "={{ $json.nombreResponsable }}",
+              "type": "string"
+            },
+            {
+              "id": "68365584-400d-4a8d-99bf-beabbae3777e",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        544,
+        -96
+      ],
+      "id": "702fd75b-c3d4-4b8e-9b65-46e624b31979",
+      "name": "Capturar todos campos"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "868210d7-167c-4a8a-b313-f060c0353611",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": 409,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        752,
+        -80
+      ],
+      "id": "f437ac7c-1409-4fea-84c4-25ea38b7e855",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f6603153-9c8f-4f7f-88a7-2f96fdf7ace7",
+              "name": "=mantenimientoId",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        944,
+        16
+      ],
+      "id": "3c05c650-6a4c-4989-b527-57f26bb1a975",
+      "name": "Edit Fields",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => ({\n  json: {\n    tipoIdentificacionResponsable: 1,\n    numeroIdentificacionResponsable: $('Capturar todos campos').first().json.numeroIdentificacionResponsable,\n    nombreResponsable: $('Capturar todos campos').first().json.nombreResponsable,\n\n    tipoIdentificacionConductor: 1,\n    numeroIdentificacionConductor: $('Capturar todos campos').first().json.numeroIdentificacionConductor,\n    nombresConductor: $('Capturar todos campos').first().json.nombresConductor,\n\n    detalleActividades: item.json.detalleActividades || 'En buen estado para operar',\n\n    actividades: [6,3,8,11,10,7,1,9,5,4,2],\n\n    mantenimientoId: Number(item.json.mantenimientoId)\n  }\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        256
+      ],
+      "id": "949548d7-c771-4d1d-8edc-557f41cf2f45",
+      "name": "Preparar payload del alistamiento"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://rutasback.supertransporte.gov.co/api/v2/mantenimiento/guardar-alistamiento",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "token",
+              "value": "b041a84c-500b-4d7e-b76a-f62ecf67fbce"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Capturar token').item.json.tokenlogin }}"
+            },
+            {
+              "name": "vigiladoId",
+              "value": "891100299"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        784,
+        256
+      ],
+      "id": "c05cdc27-daa0-48a4-bc93-4bb23af85a1f",
+      "name": "Guardar alistamiento"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Autenticacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Autenticacion": {
+      "main": [
+        [
+          {
+            "node": "Capturar token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capturar token": {
+      "main": [
+        [
+          {
+            "node": "Leer archivos directorio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer archivos directorio": {
+      "main": [
+        [
+          {
+            "node": "Extraer informacion del excel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer informacion del excel": {
+      "main": [
+        [
+          {
+            "node": "Capturar todos campos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capturar todos campos": {
+      "main": [
+        [
+          {
+            "node": "Crear / validar mantenimiento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear / validar mantenimiento": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Preparar payload del alistamiento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar payload del alistamiento": {
+      "main": [
+        [
+          {
+            "node": "Guardar alistamiento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "de1fa129-3a67-4585-af4b-5061b1325e3a",
+  "meta": {
+    "instanceId": "0ac01bd3387c8f59b3b010601ba403ba2611e5be8756fd715cd925e51d8b33a9"
+  },
+  "id": "a561csCsW61ag7i3tDz7i",
+  "tags": []
+}

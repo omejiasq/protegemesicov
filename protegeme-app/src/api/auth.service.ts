@@ -22,7 +22,11 @@ export const AuthserviceApi = {
   createEnterpriseUser: (enterpriseId: string, data: any) =>
     http.post(`${baseURL}/enterprise/${enterpriseId}/create-user`, data),
 
-  // Cambiar contraseña del usuario actual
+  // Cambiar contraseña de cualquier usuario (superadmin)
   changePassword: (userId: string, newPassword: string) =>
     http.patch(`${baseURL}/users/${userId}/password`, { newPassword }),
+
+  // Listar usuarios admin de una empresa (superadmin)
+  getEnterpriseAdmins: (enterpriseId: string) =>
+    http.get(`${baseURL}/users/by-enterprise/${enterpriseId}`),
 };

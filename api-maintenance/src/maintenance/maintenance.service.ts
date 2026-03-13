@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
@@ -16,6 +17,8 @@ type UserCtx = { enterprise_id?: string };
 
 @Injectable()
 export class MaintenanceService {
+  private readonly logger = new Logger(MaintenanceService.name);
+
   constructor(
     @InjectModel(Maintenance.name)
     private readonly model: Model<MaintenanceDocument>,
@@ -70,10 +73,26 @@ export class MaintenanceService {
       undefined;
 
     /**
-     * 🔥 ALISTAMIENTO → SICOV PRIMERO
+     * 🔥 ALISTAMIENTO → intenta SICOV primero; si está caído, guarda local
+     *    y retorna sicovDown:true para que el llamador encole el reintento.
+     *    Si demoMode=true, omite SICOV completamente (solo guarda local).
      */
     if (dto.tipoId === 3) {
-      let externalId: string;
+      let externalId: string | null = null;
+      let sicovDown = false;
+
+      // Demo mode: no llamar a SICOV, guardar solo local
+      if ((user as any)?.demoMode) {
+        const local = await this.model.create({
+          placa: dto.placa?.trim(),
+          tipoId: dto.tipoId,
+          enterprise_id: user?.enterprise_id,
+          createdBy: user?.sub,
+          vigiladoId,
+          sicov_sync_status: 'demo',
+        });
+        return { doc: local.toJSON(), externalId: null, sicovDown: false, demoMode: true };
+      }
 
       try {
         const res = await this.external.guardarMantenimiento({
@@ -84,17 +103,23 @@ export class MaintenanceService {
         });
 
         externalId =
-          res?.data?.id ??
-          res?.data?.mantenimientoId ??
+          (res as any)?.data?.id ??
+          (res as any)?.data?.mantenimientoId ??
           null;
 
         if (!externalId) {
           throw new Error('SICOV no retornó mantenimientoId');
         }
+
+        // Indicar si se recuperó una transacción huérfana (409)
+        if ((res as any)?.orphanRecovered) {
+          this.logger.warn(
+            `[CREATE] Transacción huérfana recuperada: placa=${dto.placa} ` +
+            `tipoId=${dto.tipoId} externalId=${externalId}`,
+          );
+        }
       } catch {
-        throw new ConflictException(
-          'No fue posible crear mantenimiento de alistamiento en SICOV',
-        );
+        sicovDown = true;
       }
 
       const local = await this.model.create({
@@ -103,13 +128,30 @@ export class MaintenanceService {
         enterprise_id: user?.enterprise_id,
         createdBy: user?.sub,
         vigiladoId,
-        externalId: String(externalId),
+        externalId: externalId ? String(externalId) : undefined,
+        sicov_sync_status: sicovDown ? 'pending' : 'synced',
       });
 
       return {
         doc: local.toJSON(),
         externalId,
+        sicovDown,
       };
+    }
+
+    /**
+     * 🔵 CORRECTIVO / PREVENTIVO — demo mode: solo guarda local
+     */
+    if ((user as any)?.demoMode) {
+      const local = await this.model.create({
+        placa: dto.placa?.trim(),
+        tipoId: dto.tipoId,
+        enterprise_id: user?.enterprise_id,
+        createdBy: user?.sub,
+        vigiladoId,
+        sicov_sync_status: 'demo',
+      });
+      return { doc: local.toJSON(), externalId: null, sicovDown: false, demoMode: true };
     }
 
     /**
@@ -121,9 +163,11 @@ export class MaintenanceService {
       enterprise_id: user?.enterprise_id,
       createdBy: user?.sub,
       vigiladoId,
+      sicov_sync_status: 'pending',
     });
 
     let externalIdFromExternal: string | null = null;
+    let sicovDown = false;
 
     const call = this.external
       .guardarMantenimiento({
@@ -134,19 +178,28 @@ export class MaintenanceService {
       })
       .then(async (res) => {
         const extId =
-          res?.data?.id ??
-          res?.data?.mantenimientoId ??
+          (res as any)?.data?.id ??
+          (res as any)?.data?.mantenimientoId ??
           null;
 
         if (extId) {
           externalIdFromExternal = String(extId);
           await this.model.updateOne(
             { _id: local._id },
-            { $set: { externalId: externalIdFromExternal } },
+            { $set: { externalId: externalIdFromExternal, sicov_sync_status: 'synced' } },
           );
+
+          if ((res as any)?.orphanRecovered) {
+            this.logger.warn(
+              `[CREATE] Transacción huérfana recuperada (tipo ${dto.tipoId}): ` +
+              `placa=${dto.placa} externalId=${externalIdFromExternal}`,
+            );
+          }
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        sicovDown = true;
+      });
 
     if (opts?.awaitExternal) {
       await call;
@@ -163,6 +216,7 @@ export class MaintenanceService {
     return {
       doc: out as any,
       externalId: externalIdFromExternal,
+      sicovDown,
     };
   }
 

@@ -9,6 +9,7 @@ import {
 import { MaintenanceExternalApiService } from 'src/libs/external-api';
 import { AuditModule } from 'src/libs/audit/audit.module';
 import { MaintenanceModule } from 'src/maintenance/maintenance.module';
+import { SicovSyncModule } from '../sicov-sync/sicov-sync.module';
 
 import {
   PreventiveVehicleSnapshot,
@@ -53,7 +54,8 @@ import {
       },
     ]),
     AuditModule,
-    MaintenanceModule
+    MaintenanceModule,
+    SicovSyncModule,
   ],
   controllers: [PreventiveController],
   providers: [PreventiveService, MaintenanceExternalApiService],

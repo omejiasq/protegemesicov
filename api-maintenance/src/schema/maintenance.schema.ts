@@ -19,6 +19,17 @@ export class Maintenance {
 
   @Prop({ index: true }) enterprise_id?: string;
   @Prop() createdBy?: string;
+
+  /** ID externo asignado por SICOV al crear el mantenimiento */
+  @Prop() externalId?: string;
+
+  /** Estado de sincronización con SICOV */
+  @Prop({
+    enum: ['pending', 'synced', 'failed', 'demo'],
+    default: 'synced',
+    index: true,
+  })
+  sicov_sync_status?: 'pending' | 'synced' | 'failed' | 'demo';
 }
 
 export const MaintenanceSchema = SchemaFactory.createForClass(Maintenance);

@@ -53,6 +53,7 @@ const actionTemplate = (args: any) => {
 
 
 const estadoAccessor = (_field: string, data: any) => {
+  if (data.active && data.deactivation_estado === 'pendiente') return 'Desactivación pendiente'
   return data.active ? 'Activo' : 'Inactivo'
 }
 
@@ -150,18 +151,17 @@ async function confirmDeactivate() {
     await VehiclesserviceApi.deactivate(deactivateTarget.value._id, deactivateNota.value)
     toast.add({
       severity: 'success',
-      summary: 'Vehículo desactivado',
-      detail: `${deactivateTarget.value.placa} desactivado correctamente`,
-      life: 3000,
+      summary: 'Solicitud enviada',
+      detail: `Solicitud de desactivación de ${deactivateTarget.value.placa} enviada al administrador`,
+      life: 4000,
     })
     deactivateModalVisible.value = false
-    // Recargar lista
     vehiclesStore.fetch()
   } catch (e: any) {
     toast.add({
       severity: 'error',
       summary: 'Error',
-      detail: e?.response?.data?.message || 'No se pudo desactivar el vehículo',
+      detail: e?.response?.data?.message || 'No se pudo enviar la solicitud',
       life: 4000,
     })
   } finally {
@@ -286,7 +286,7 @@ async function confirmDeactivate() {
 
   <!-- ✅ SLOT VA AQUÍ DENTRO -->
   <template #actionTemplate="{ data }">
-    <div class="flex gap-1 justify-center">
+    <div class="flex gap-1 justify-center align-items-center">
       <Button
         icon="pi pi-pencil"
         class="p-button-text p-button-warning p-button-sm"
@@ -294,12 +294,19 @@ async function confirmDeactivate() {
         @click="goToEdit(data)"
       />
       <Button
-        v-if="data.active"
+        v-if="data.active && data.deactivation_estado !== 'pendiente'"
         icon="pi pi-ban"
         class="p-button-text p-button-danger p-button-sm"
-        v-tooltip.top="'Desactivar'"
+        v-tooltip.top="'Solicitar desactivación'"
         @click="openDeactivate(data)"
       />
+      <span
+        v-if="data.active && data.deactivation_estado === 'pendiente'"
+        class="deact-pending-badge"
+        v-tooltip.top="'Desactivación pendiente de aprobación'"
+      >
+        <i class="pi pi-clock" /> Pendiente
+      </span>
     </div>
   </template>
 
@@ -313,7 +320,7 @@ async function confirmDeactivate() {
 >
   <div class="modal-card">
     <div class="modal-header">
-      <h3>Desactivar Vehículo</h3>
+      <h3>Solicitar desactivación</h3>
       <button class="modal-close" @click="deactivateModalVisible = false">
         <i class="pi pi-times" />
       </button>
@@ -321,10 +328,9 @@ async function confirmDeactivate() {
 
     <div class="modal-body">
       <p class="mb-3">
-        Está a punto de desactivar el vehículo
+        Va a enviar una solicitud de desactivación para el vehículo
         <strong>{{ deactivateTarget?.placa }}</strong>.
-        El vehículo no podrá registrar alistamientos ni mantenimientos
-        mientras esté inactivo.
+        El vehículo permanecerá activo hasta que el administrador de la plataforma apruebe la solicitud.
       </p>
 
       <div class="field">
@@ -348,8 +354,8 @@ async function confirmDeactivate() {
         @click="deactivateModalVisible = false"
       />
       <Button
-        label="Desactivar"
-        icon="pi pi-ban"
+        label="Enviar solicitud"
+        icon="pi pi-send"
         class="p-button-danger"
         :loading="deactivating"
         :disabled="!deactivateNota.trim()"
@@ -433,4 +439,5 @@ async function confirmDeactivate() {
 .field { display: flex; flex-direction: column; gap: 0.4rem; }
 .field-label { font-size: 0.85rem; font-weight: 600; color: #374151; }
 .required { color: #ef4444; }
+.deact-pending-badge { display: inline-flex; align-items: center; gap: 0.25rem; background: #fef3c7; color: #92400e; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
 </style>

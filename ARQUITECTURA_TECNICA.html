@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Documento Técnico de Arquitectura — PROTEGEMESICOV / SICOV</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --azul:       #1e3a8a;
+      --azul-claro: #1d4ed8;
+      --azul-bg:    #dbeafe;
+      --gris-bg:    #f8fafc;
+      --gris-borde: #e2e8f0;
+      --texto:      #1e293b;
+      --texto-sub:  #475569;
+      --verde:      #166534;
+      --verde-bg:   #dcfce7;
+      --rojo:       #991b1b;
+      --rojo-bg:    #fee2e2;
+      --naranja:    #92400e;
+      --naranja-bg: #fef3c7;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--texto);
+      background: #fff;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 2rem 4rem;
+    }
+
+    /* ── Portada ─────────────────────────────────── */
+    .portada {
+      text-align: center;
+      padding: 4rem 2rem 3rem;
+      border-bottom: 3px solid var(--azul);
+      margin-bottom: 3rem;
+    }
+    .portada .logo-badge {
+      display: inline-block;
+      background: var(--azul);
+      color: #fff;
+      font-size: 2rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      padding: 0.6rem 2rem;
+      border-radius: 10px;
+      margin-bottom: 1.5rem;
+    }
+    .portada h1 {
+      font-size: 1.9rem;
+      font-weight: 800;
+      color: var(--azul);
+      margin-bottom: 0.5rem;
+    }
+    .portada .subtitle {
+      font-size: 1.1rem;
+      color: var(--texto-sub);
+      margin-bottom: 1.5rem;
+    }
+    .portada .meta {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+      font-size: 0.85rem;
+      color: var(--texto-sub);
+    }
+    .portada .meta span { font-weight: 600; }
+
+    /* ── Secciones ───────────────────────────────── */
+    h2 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--azul);
+      border-left: 5px solid var(--azul-claro);
+      padding-left: 0.85rem;
+      margin: 2.5rem 0 1rem;
+    }
+    h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--azul-claro);
+      margin: 1.5rem 0 0.5rem;
+    }
+    h4 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--texto);
+      margin: 1rem 0 0.3rem;
+    }
+    p { margin-bottom: 0.75rem; color: var(--texto-sub); }
+    ul, ol { padding-left: 1.5rem; margin-bottom: 0.75rem; color: var(--texto-sub); }
+    li { margin-bottom: 0.25rem; }
+
+    /* ── Tabla de contenidos ─────────────────────── */
+    .toc {
+      background: var(--gris-bg);
+      border: 1px solid var(--gris-borde);
+      border-radius: 10px;
+      padding: 1.25rem 1.75rem;
+      margin-bottom: 2rem;
+    }
+    .toc h3 { margin-top: 0; }
+    .toc ol { margin: 0; }
+    .toc a { color: var(--azul-claro); text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+
+    /* ── Cards de componentes ────────────────────── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    .card {
+      border: 1px solid var(--gris-borde);
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      background: #fff;
+    }
+    .card .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--azul);
+      margin-bottom: 0.4rem;
+    }
+    .card .port {
+      display: inline-block;
+      background: var(--azul-bg);
+      color: var(--azul-claro);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.1rem 0.5rem;
+      border-radius: 999px;
+      margin-left: auto;
+    }
+    .card p { font-size: 0.82rem; margin: 0; }
+
+    /* ── Badges ──────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .badge-blue   { background: var(--azul-bg);    color: var(--azul-claro); }
+    .badge-green  { background: var(--verde-bg);   color: var(--verde); }
+    .badge-red    { background: var(--rojo-bg);    color: var(--rojo); }
+    .badge-orange { background: var(--naranja-bg); color: var(--naranja); }
+
+    /* ── Alertas ─────────────────────────────────── */
+    .alert {
+      border-radius: 8px;
+      padding: 0.9rem 1.1rem;
+      margin: 1rem 0;
+      font-size: 0.875rem;
+    }
+    .alert-warning { background: var(--naranja-bg); border-left: 4px solid #f59e0b; color: var(--naranja); }
+    .alert-info    { background: var(--azul-bg);    border-left: 4px solid var(--azul-claro); color: var(--azul); }
+    .alert-success { background: var(--verde-bg);   border-left: 4px solid #22c55e; color: var(--verde); }
+    .alert-danger  { background: var(--rojo-bg);    border-left: 4px solid #ef4444; color: var(--rojo); }
+    .alert strong  { display: block; margin-bottom: 0.25rem; }
+
+    /* ── Diagramas ───────────────────────────────── */
+    .diagram-wrap {
+      background: var(--gris-bg);
+      border: 1px solid var(--gris-borde);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin: 1.25rem 0;
+      overflow-x: auto;
+    }
+    .diagram-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--texto-sub);
+      margin-bottom: 1rem;
+    }
+    .mermaid { text-align: center; }
+
+    /* ── Prompt para IA ──────────────────────────── */
+    .ai-prompt {
+      background: #1e1e2e;
+      color: #cdd6f4;
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+      line-height: 1.6;
+      margin: 1rem 0;
+      position: relative;
+    }
+    .ai-prompt .label {
+      display: inline-block;
+      background: #89b4fa;
+      color: #1e1e2e;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.1rem 0.5rem;
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+    }
+
+    /* ── Tabla ───────────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.855rem;
+    }
+    thead tr { background: var(--azul); color: #fff; }
+    th, td { padding: 0.65rem 0.9rem; text-align: left; border-bottom: 1px solid var(--gris-borde); }
+    tr:nth-child(even) td { background: var(--gris-bg); }
+
+    /* ── Separador ───────────────────────────────── */
+    hr { border: none; border-top: 1px solid var(--gris-borde); margin: 2.5rem 0; }
+
+    /* ── Fase 2 highlight ────────────────────────── */
+    .fase2-box {
+      border: 2px solid var(--azul-claro);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1.25rem 0;
+      background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+    }
+    .fase2-box h3 { margin-top: 0; }
+
+    /* ── Print ───────────────────────────────────── */
+    @media print {
+      body { max-width: 100%; padding: 1cm; }
+      .diagram-wrap { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     PORTADA
+════════════════════════════════════════════════════════ -->
+<div class="portada">
+  <div class="logo-badge">PROTEGEMESICOV</div>
+  <h1>Documento Técnico de Arquitectura del Sistema</h1>
+  <p class="subtitle">Plataforma SaaS Multi-Tenant de Gestión de Flota, Mantenimiento e Integración SICOV — Supertransporte Colombia</p>
+  <div class="meta">
+    <div>Versión <span>1.0</span></div>
+    <div>Fecha <span>Marzo 2026</span></div>
+    <div>Clasificación <span>Técnico — Interno</span></div>
+    <div>Dominio <span>https://sicov.protegeme.com</span></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     TABLA DE CONTENIDOS
+════════════════════════════════════════════════════════ -->
+<div class="toc">
+  <h3>Contenido</h3>
+  <ol>
+    <li><a href="#s1">Resumen Ejecutivo</a></li>
+    <li><a href="#s2">Arquitectura de Alto Nivel — Vista General</a></li>
+    <li><a href="#s3">Microservicios y Componentes de Infraestructura</a></li>
+    <li><a href="#s4">Arquitectura Funcional Multi-Tenant</a></li>
+    <li><a href="#s5">Flujos de Integración y Carga de Datos</a></li>
+    <li><a href="#s6">Base de Datos — MongoDB Atlas Enterprise</a></li>
+    <li><a href="#s7">Gestión de Archivos — MinIO</a></li>
+    <li><a href="#s8">Caché — Redis</a></li>
+    <li><a href="#s9">Infraestructura Actual (SSDNodes)</a></li>
+    <li><a href="#s10">Seguridad — Estado Actual y Riesgos</a></li>
+    <li><a href="#s11">Fase 2 — Migración a Oracle Cloud Infrastructure (OCI)</a></li>
+    <li><a href="#s12">Recomendaciones para Arquitectura IoT de Escala</a></li>
+    <li><a href="#s13">Apéndice — Prompts de Diagrama para Herramientas IA</a></li>
+  </ol>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     1. RESUMEN EJECUTIVO
+════════════════════════════════════════════════════════ -->
+<h2 id="s1">1. Resumen Ejecutivo</h2>
+<p>
+  <strong>PROTEGEMESICOV</strong> es una plataforma SaaS multi-tenant desarrollada para empresas de transporte vigiladas por
+  la Superintendencia de Transporte de Colombia. Permite la gestión integral de flotas de vehículos: alistamientos diarios,
+  mantenimientos preventivos y correctivos, control de conductores y proveedores, y reporte automático de datos al sistema
+  <strong>SICOV</strong> (Sistema de Información de Calidad del Operador de Transporte) mediante la API oficial de Supertransporte.
+</p>
+<p>
+  La plataforma está construida sobre una arquitectura de <strong>microservicios en contenedores Docker</strong>,
+  con <strong>7 APIs NestJS independientes</strong>, un frontend web en <strong>Vue 3</strong>, una aplicación móvil en
+  <strong>Flutter</strong>, almacenamiento de objetos con <strong>MinIO</strong>, caché con <strong>Redis</strong> y
+  base de datos <strong>MongoDB Atlas Enterprise</strong> con replicación y respaldos automáticos.
+</p>
+<p>
+  El sistema se encuentra actualmente en producción en el dominio <code>https://sicov.protegeme.com</code> con certificado
+  SSL, alojado en un servidor VPS de SSDNodes. La hoja de ruta contempla la migración a
+  <strong>Oracle Cloud Infrastructure (OCI)</strong> en una segunda fase, incorporando firewall perimetral,
+  separación de cargas de trabajo y mejoras de seguridad significativas.
+</p>
+
+<!-- ══════════════════════════════════════════════════════
+     2. ARQUITECTURA DE ALTO NIVEL
+════════════════════════════════════════════════════════ -->
+<h2 id="s2">2. Arquitectura de Alto Nivel — Vista General</h2>
+<p>
+  El siguiente diagrama muestra la arquitectura de componentes del sistema desde la perspectiva del cliente hasta la
+  persistencia de datos.
+</p>
+
+<div class="diagram-wrap">
+  <div class="diagram-title">Diagrama 1 — Arquitectura General del Sistema (C4 Level 2 simplificado)</div>
+  <div class="mermaid">
+graph TB
+    subgraph CLIENTS["🌐 Clientes Externos"]
+        direction LR
+        WEB["Navegador Web<br/>(Vue 3 SPA)"]
+        MOB["App Móvil<br/>(Flutter)"]
+        EXT["Sistema Externo<br/>(API Key / Token)"]
+    end
+
+    subgraph SSDNODES["☁️ Servidor SSDNodes — VPS Ubuntu"]
+        direction TB
+        SSL["🔒 SSL/HTTPS<br/>sicov.protegeme.com"]
+
+        subgraph DOCKER["🐳 Docker Compose · protegeme-net (bridge)"]
+            direction TB
+            WEBCON["Web :5173→80<br/>Vue 3 + Nginx"]
+
+            subgraph APIS["Microservicios NestJS"]
+                direction LR
+                AUTH["api-auth<br/>:4001"]
+                INC["api-incidents<br/>:4002"]
+                AUTHZ["api-authorizations<br/>:4003"]
+                MAINT["api-maintenance<br/>:4004"]
+                VEH["api-vehicle<br/>:4005"]
+                DRV["api-drivers<br/>:4006"]
+            end
+
+            MINIO["🗄️ MinIO<br/>Object Storage<br/>:9000 / :9001"]
+            REDIS["⚡ Redis 7<br/>Caché<br/>:6379"]
+        end
+    end
+
+    subgraph EXTERNAL["☁️ Servicios Externos"]
+        MONGO["🍃 MongoDB Atlas<br/>Enterprise M10+<br/>Replica Set 3 nodos"]
+        SICOV_API["📡 API Supertransporte<br/>SICOV"]
+    end
+
+    WEB -->|HTTPS| SSL
+    MOB -->|HTTPS| SSL
+    EXT -->|HTTPS + API Key| SSL
+
+    SSL --> WEBCON
+    SSL --> AUTH
+    SSL --> MAINT
+    SSL --> VEH
+    SSL --> DRV
+
+    MAINT -->|Cron cada hora| SICOV_API
+    MAINT --> MINIO
+    MAINT --> REDIS
+
+    AUTH --> MONGO
+    INC --> MONGO
+    AUTHZ --> MONGO
+    MAINT --> MONGO
+    VEH --> MONGO
+    DRV --> MONGO
+
+    style SSDNODES fill:#eff6ff,stroke:#1d4ed8,stroke-width:2px
+    style DOCKER fill:#f0fdf4,stroke:#22c55e,stroke-width:2px
+    style EXTERNAL fill:#fef3c7,stroke:#f59e0b,stroke-width:2px
+    style CLIENTS fill:#f5f3ff,stroke:#7c3aed,stroke-width:2px
+  </div>
+</div>
+
+<div class="alert alert-info">
+  <strong>Nota para herramientas IA (ChatGPT / Gemini):</strong>
+  El código Mermaid de arriba es válido para Mermaid.js v10+. Para regenerar el gráfico con mayor detalle visual,
+  copie el bloque <code>graph TB ... </code> y péguelo en <a href="https://mermaid.live" target="_blank">mermaid.live</a>
+  o use el prompt del <a href="#s13">Apéndice — Sección 13</a>.
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     3. MICROSERVICIOS Y COMPONENTES
+════════════════════════════════════════════════════════ -->
+<h2 id="s3">3. Microservicios y Componentes de Infraestructura</h2>
+
+<h3>3.1 Catálogo de Microservicios</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Servicio</th>
+      <th>Puerto</th>
+      <th>Tecnología</th>
+      <th>Responsabilidad Principal</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>api-auth</strong></td>
+      <td>4001</td>
+      <td>NestJS · MongoDB</td>
+      <td>Autenticación JWT, gestión de empresas (multi-tenant), gestión de usuarios (admin, operador, conductor, viewer)</td>
+    </tr>
+    <tr>
+      <td><strong>api-incidents</strong></td>
+      <td>4002</td>
+      <td>NestJS · MongoDB</td>
+      <td>Registro y seguimiento de incidentes viales de la flota</td>
+    </tr>
+    <tr>
+      <td><strong>api-authorizations</strong></td>
+      <td>4003</td>
+      <td>NestJS · MongoDB</td>
+      <td>Control de autorizaciones de viaje y habilitaciones operativas</td>
+    </tr>
+    <tr>
+      <td><strong>api-maintenance</strong></td>
+      <td>4004</td>
+      <td>NestJS · MongoDB · MinIO · Redis</td>
+      <td>Núcleo operativo: alistamientos, mantenimientos preventivos/correctivos, catálogos, programas, sincronización SICOV, ingesta externa (API Keys), auditoría</td>
+    </tr>
+    <tr>
+      <td><strong>api-vehicle</strong></td>
+      <td>4005</td>
+      <td>NestJS · MongoDB</td>
+      <td>CRUD de vehículos, activación de flota, contratos de habilitación, sincronización SICOV por vehículo</td>
+    </tr>
+    <tr>
+      <td><strong>api-drivers</strong></td>
+      <td>4006</td>
+      <td>NestJS · MongoDB</td>
+      <td>Gestión de conductores: licencias, vigencias, historial de asignaciones</td>
+    </tr>
+    <tr>
+      <td><strong>web (protegeme-app)</strong></td>
+      <td>5173→80</td>
+      <td>Vue 3 + Vite + PrimeVue · Nginx</td>
+      <td>Interfaz web SPA: panel superadmin, gestión de empresa, vehículos, mantenimientos, reportes, auditoría</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>3.2 Componentes de Infraestructura</h3>
+<div class="cards">
+  <div class="card">
+    <div class="card-header">🗄️ MinIO <span class="port">9000/9001</span></div>
+    <p>Almacenamiento de objetos compatible con S3. Gestiona logos de empresas, imágenes de vehículos, PDFs de mantenimiento y alistamientos. Bucket auto-inicializado en el arranque.</p>
+  </div>
+  <div class="card">
+    <div class="card-header">⚡ Redis 7 <span class="port">6379</span></div>
+    <p>Caché en memoria para consultas frecuentes: catálogos de tipos de mantenimiento, listas de vehículos activos, tokens de sesión temporales y resultados de reportes.</p>
+  </div>
+  <div class="card">
+    <div class="card-header">🍃 MongoDB Atlas <span class="port">TLS</span></div>
+    <p>Base de datos NoSQL en la nube. Versión Enterprise M10+ con replica set de 3 nodos, backups automáticos cada hora, cifrado en reposo y en tránsito.</p>
+  </div>
+  <div class="card">
+    <div class="card-header">🐳 Docker Compose <span class="port">bridge</span></div>
+    <p>Orquestación de todos los contenedores en una red interna <code>protegeme-net</code>. Configuración separada para desarrollo (<code>docker-compose.yml</code>) y producción (<code>docker-compose_prod.yml</code>).</p>
+  </div>
+  <div class="card">
+    <div class="card-header">🔒 SSL / HTTPS</div>
+    <p>Certificado SSL activo en el dominio <code>sicov.protegeme.com</code>. Toda comunicación cliente-servidor viaja cifrada. Los microservicios se comunican internamente sin TLS dentro de la red Docker.</p>
+  </div>
+  <div class="card">
+    <div class="card-header">📱 App Móvil Flutter</div>
+    <p>Aplicación móvil iOS/Android que consume directamente las APIs REST de <code>api-maintenance</code> y <code>api-auth</code> para registrar alistamientos y mantenimientos en campo.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     4. ARQUITECTURA FUNCIONAL MULTI-TENANT
+════════════════════════════════════════════════════════ -->
+<h2 id="s4">4. Arquitectura Funcional Multi-Tenant</h2>
+
+<h3>4.1 Modelo de Aislamiento por Empresa</h3>
+<p>
+  El sistema implementa el patrón <strong>Shared Database / Separate Collections Context</strong>: todas las empresas
+  comparten la misma instancia de MongoDB Atlas, pero cada documento lleva el campo <code>enterprise_id</code> como
+  clave de aislamiento. Todos los endpoints validan este campo desde el JWT del usuario autenticado, garantizando que
+  ninguna empresa acceda a datos de otra.
+</p>
+
+<div class="diagram-wrap">
+  <div class="diagram-title">Diagrama 2 — Modelo Multi-Tenant con Aislamiento por enterprise_id</div>
+  <div class="mermaid">
+graph LR
+    subgraph TOKEN["JWT Payload"]
+        J1["sub: userId<br/>role: admin<br/>enterprise_id: E001"]
+    end
+
+    subgraph MIDDLEWARE["Guard / Middleware"]
+        G1["JwtAuthGuard<br/>extrae enterprise_id"]
+    end
+
+    subgraph DB["MongoDB Atlas — Colección: enlistments"]
+        D1["{ enterprise_id: E001, placa: 'ABC123', ... }"]
+        D2["{ enterprise_id: E002, placa: 'XYZ789', ... }"]
+        D3["{ enterprise_id: E001, placa: 'DEF456', ... }"]
+    end
+
+    EMP1["🏢 Empresa A<br/>(E001 — Cootranstur)"]
+    EMP2["🏢 Empresa B<br/>(E002 — Expreso Sur)"]
+
+    EMP1 -->|Login → JWT| TOKEN
+    TOKEN --> MIDDLEWARE
+    MIDDLEWARE -->|find enterprise_id = E001| D1
+    MIDDLEWARE -->|find enterprise_id = E001| D3
+    MIDDLEWARE -.->|❌ Bloqueado| D2
+
+    EMP2 -->|Login → JWT E002| G2["JwtAuthGuard<br/>enterprise_id: E002"]
+    G2 -->|find enterprise_id = E002| D2
+
+    style D2 fill:#dcfce7
+    style MIDDLEWARE fill:#dbeafe
+    style G2 fill:#dbeafe
+  </div>
+</div>
+
+<h3>4.2 Roles de Usuario por Empresa</h3>
+<table>
+  <thead><tr><th>Rol</th><th>Acceso</th></tr></thead>
+  <tbody>
+    <tr><td><span class="badge badge-red">superadmin</span></td><td>Acceso total al sistema. Gestiona empresas, activa/desactiva planes, genera tokens API, ve auditoría global.</td></tr>
+    <tr><td><span class="badge badge-blue">admin</span></td><td>Administra su propia empresa: vehículos, conductores, mantenimientos, proveedores, personal.</td></tr>
+    <tr><td><span class="badge badge-blue">operator</span></td><td>Registra alistamientos y mantenimientos. No puede configurar la empresa.</td></tr>
+    <tr><td><span class="badge badge-orange">viewer</span></td><td>Consulta de información. Solo lectura.</td></tr>
+    <tr><td><span class="badge badge-green">driver</span></td><td>Acceso desde la app móvil. Registra su propio alistamiento previo al turno.</td></tr>
+  </tbody>
+</table>
+
+<h3>4.3 Módulos Funcionales del Sistema</h3>
+<div class="cards">
+  <div class="card">
+    <div class="card-header">🚗 Gestión de Vehículos</div>
+    <p>Registro de flota con placa, clase, modelo, número interno, propietario. Activación individual o masiva con fecha de habilitación. Soporte a SOAT, revisión técnico-mecánica.</p>
+  </div>
+  <div class="card">
+    <div class="card-header">👤 Gestión de Conductores</div>
+    <p>Datos personales, número y vigencia de licencia, asignación a vehículos, historial de turnos.</p>
+  </div>
+  <div class="card">
+    <div class="card-header">📋 Alistamientos</div>
+    <p>Protocolo de revisión diaria del vehículo antes de salir a ruta. Items configurables por empresa. Generación de PDF. Reporte automático a SICOV.</p>
+  </div>
+  <div class="card">
+    <div class="card-header">🔧 Mantenimiento Preventivo</div>
+    <p>Programas periódicos por vehículo/clase. Calendario de mantenimientos. Registro de ejecución con partes y observaciones.</p>
+  </div>
+  <div class="card">
+    <div class="card-header">🛠️ Mantenimiento Correctivo</div>
+    <p>Registro de fallas, diagnóstico, intervención y cierre. Asignación a proveedor externo.</p>
+  </div>
+  <div class="card">
+    <div class="card-header">🏭 Proveedores de Servicio</div>
+    <p>Catálogo de talleres y centros especializados por empresa. Asignados a órdenes de mantenimiento correctivo.</p>
+  </div>
+  <div class="card">
+    <div class="card-header">🏢 Gestión de Empresa</div>
+    <p>Configuración de formatos PDF (alistamiento, preventivo, correctivo), consecutivos, logo, datos del centro especializado y del ingeniero mecánico responsable.</p>
+  </div>
+  <div class="card">
+    <div class="card-header">📊 Auditoría y Reportes</div>
+    <p>Log de acciones por usuario. Reporte de actividad de vehículos. Dashboard de cumplimiento por empresa.</p>
+  </div>
+</div>
+
+<h3>4.4 Ciclo de Vida de una Empresa en la Plataforma</h3>
+<div class="diagram-wrap">
+  <div class="diagram-title">Diagrama 3 — Estados de una Empresa (Tenant)</div>
+  <div class="mermaid">
+stateDiagram-v2
+    [*] --> Creada : Superadmin crea empresa
+    Creada --> UsuarioAdmin : Se crea usuario admin inicial
+    UsuarioAdmin --> Activa : Se activan vehículos con contrato
+    Activa --> Inactiva : Desactivación (no pago, sanción)\nRegistra motivo + fecha
+    Inactiva --> Activa : Reactivación por Superadmin
+    Activa --> [*] : Baja definitiva
+    Inactiva --> [*] : Baja definitiva
+
+    note right of Inactiva
+        Los usuarios de la empresa
+        NO pueden iniciar sesión.
+        El sistema retorna el motivo
+        de desactivación al intentar login.
+    end note
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     5. FLUJOS DE INTEGRACIÓN
+════════════════════════════════════════════════════════ -->
+<h2 id="s5">5. Flujos de Integración y Carga de Datos</h2>
+
+<h3>5.1 Sincronización Automática con SICOV (Supertransporte)</h3>
+<p>
+  El módulo <code>SicovSyncModule</code> dentro de <code>api-maintenance</code> ejecuta un proceso <strong>Cron cada hora</strong>
+  que procesa una cola de operaciones pendientes (<code>sicov_sync_queue</code>) y las envía a la API oficial de Supertransporte
+  usando las credenciales (<code>vigiladoId</code> + <code>vigiladoToken</code>) de cada empresa.
+</p>
+<div class="diagram-wrap">
+  <div class="diagram-title">Diagrama 4 — Flujo de Sincronización SICOV</div>
+  <div class="mermaid">
+sequenceDiagram
+    participant APP as App Móvil / Web
+    participant API as api-maintenance
+    participant QUEUE as Cola SICOV<br/>(MongoDB)
+    participant CRON as CronJob (cada hora)
+    participant SICOV as API Supertransporte
+
+    APP->>API: POST /enlistments (alistamiento)
+    API->>API: Deduplica códigos SICOV<br/>del alistamiento
+    API->>QUEUE: Encola registro pendiente
+    API-->>APP: 201 Created
+
+    CRON->>QUEUE: Consulta pendientes por empresa
+    loop Por cada empresa con pendientes
+        CRON->>SICOV: POST actividades (vigiladoId + Token)
+        SICOV-->>CRON: 200 OK / Error
+        alt Éxito
+            CRON->>QUEUE: Marca como enviado
+        else Fallo
+            CRON->>QUEUE: Incrementa reintentos
+        end
+    end
+  </div>
+</div>
+
+<h3>5.2 Ingesta Externa — API para Terceros</h3>
+<p>
+  El módulo <code>ExternalIngestionModule</code> permite que empresas con sistemas propios (ERP, software de taller)
+  envíen datos a la plataforma mediante una <strong>API Key por empresa</strong> sin necesidad de autenticación JWT.
+  Soporta dos modos:
+</p>
+<ul>
+  <li><strong>Tiempo real</strong>: un registro por petición (<code>POST /external/enlistment</code>, <code>POST /external/preventive</code>, <code>POST /external/corrective</code>).</li>
+  <li><strong>Batch</strong>: array de registros en una sola petición (<code>POST /external/batch/enlistments</code>, etc.). El sistema retorna el resultado de cada ítem individualmente.</li>
+</ul>
+
+<div class="diagram-wrap">
+  <div class="diagram-title">Diagrama 5 — Ingesta Externa con API Key</div>
+  <div class="mermaid">
+sequenceDiagram
+    participant ERP as Sistema Externo (ERP)
+    participant GW as api-maintenance<br/>ApiKeyGuard
+    participant DB as MongoDB Atlas
+    participant SICOV as Cola SICOV
+
+    ERP->>GW: POST /external/batch/enlistments<br/>Headers: x-api-key: &lt;TOKEN_EMPRESA&gt;
+    GW->>GW: Valida API Key → identifica empresa
+    loop Por cada registro del batch
+        GW->>DB: Inserta alistamiento (enterprise_id auto)
+        GW->>SICOV: Encola sincronización
+    end
+    GW-->>ERP: 207 Multi-Status<br/>[{index:0, status:'created'}, ...]
+  </div>
+</div>
+
+<h3>5.3 Carga desde App Móvil (Flutter)</h3>
+<p>
+  La app móvil consume directamente las APIs REST con JWT. El flujo típico de un conductor en ruta es:
+</p>
+<ol>
+  <li>Login → obtiene JWT con <code>enterprise_id</code> embebido.</li>
+  <li>Selecciona vehículo asignado → consulta catálogo de ítems de alistamiento (habilitados para su empresa).</li>
+  <li>Completa el formulario de alistamiento (checklist de 11 códigos SICOV) → <code>POST /enlistments</code>.</li>
+  <li>La plataforma encola automáticamente el reporte a Supertransporte.</li>
+  <li>Opcionalmente registra mantenimiento preventivo o correctivo desde el taller.</li>
+</ol>
+
+<!-- ══════════════════════════════════════════════════════
+     6. MONGODB ATLAS ENTERPRISE
+════════════════════════════════════════════════════════ -->
+<h2 id="s6">6. Base de Datos — MongoDB Atlas Enterprise</h2>
+
+<div class="alert alert-success">
+  <strong>¿Por qué MongoDB Atlas Enterprise y no Community?</strong>
+</div>
+
+<p>
+  La plataforma utiliza <strong>MongoDB Atlas Enterprise</strong> (tier M10 o superior), lo que aporta garantías
+  críticas para una plataforma regulada como SICOV:
+</p>
+
+<table>
+  <thead><tr><th>Característica Atlas Enterprise</th><th>Valor para PROTEGEMESICOV</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Replica Set de 3 nodos (primario + 2 secundarios)</td>
+      <td>Alta disponibilidad: si cae el nodo primario, la elección automática garantiza continuidad en &lt;30 segundos. Sin pérdida de datos.</td>
+    </tr>
+    <tr>
+      <td>Backups automáticos cada hora (Continuous Cloud Backup)</td>
+      <td>Punto de recuperación (RPO) de máximo 1 hora. Frente a un borrado accidental de alistamientos o mantenimientos, se puede restaurar al estado exacto anterior al incidente.</td>
+    </tr>
+    <tr>
+      <td>Cifrado en reposo (Encryption at Rest)</td>
+      <td>Los datos sensibles de conductores, licencias y operaciones cumplen los requisitos de protección de datos exigidos por la normativa colombiana (Ley 1581 Habeas Data).</td>
+    </tr>
+    <tr>
+      <td>Cifrado en tránsito (TLS obligatorio)</td>
+      <td>Toda conexión entre los microservicios y MongoDB viaja cifrada, incluso dentro de la misma región de la nube.</td>
+    </tr>
+    <tr>
+      <td>Network Peering / IP Allowlist</td>
+      <td>Solo las IPs del servidor de producción tienen acceso al cluster. Mitiga ataques de fuerza bruta a la base de datos.</td>
+    </tr>
+    <tr>
+      <td>Atlas Search (Lucene integrado)</td>
+      <td>Disponible para búsquedas avanzadas en historial de mantenimientos y conductores sin necesidad de un motor de búsqueda externo.</td>
+    </tr>
+    <tr>
+      <td>Performance Advisor y Auto-Indexing</td>
+      <td>Sugiere índices automáticamente basado en los patrones de consulta reales, optimizando los filtros más usados (por <code>enterprise_id + active</code>, <code>placa</code>, etc.).</td>
+    </tr>
+    <tr>
+      <td>Auditoría de base de datos</td>
+      <td>Log completo de operaciones de lectura/escritura. Requerido para demostrar cumplimiento ante Supertransporte.</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ══════════════════════════════════════════════════════
+     7. MINIO
+════════════════════════════════════════════════════════ -->
+<h2 id="s7">7. Gestión de Archivos — MinIO</h2>
+<p>
+  <strong>MinIO</strong> es un servidor de almacenamiento de objetos compatible con la API de Amazon S3, desplegado
+  como contenedor Docker en el mismo host. Gestiona todos los archivos binarios de la plataforma:
+</p>
+<ul>
+  <li>Logos de empresas</li>
+  <li>Imágenes de vehículos</li>
+  <li>PDFs generados de alistamientos (formato configurable por empresa)</li>
+  <li>PDFs de mantenimientos preventivos y correctivos</li>
+  <li>Documentos adjuntos (SOAT, RTM, licencias)</li>
+</ul>
+<p>
+  El frontend accede a los archivos a través de un endpoint proxy (<code>/files/proxy?url=...</code>) que agrega
+  el token de autorización, evitando exponer directamente las credenciales de MinIO al navegador.
+</p>
+<div class="alert alert-warning">
+  <strong>Riesgo actual:</strong> MinIO almacena sus datos en un volumen Docker montado en el disco local del VPS
+  (<code>./data/minio</code>). Si el servidor falla sin respaldo, los archivos se perderían. Ver recomendación
+  en <a href="#s11">Sección 11 (Fase 2 OCI)</a>.
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     8. REDIS
+════════════════════════════════════════════════════════ -->
+<h2 id="s8">8. Caché — Redis 7</h2>
+<p>
+  Redis se despliega como contenedor Docker (imagen <code>redis:7-alpine</code>) dentro de la misma red interna.
+  Se utiliza para reducir la latencia en consultas frecuentes y repetitivas:
+</p>
+<ul>
+  <li><strong>Catálogos de alistamiento y mantenimiento</strong>: los ítems configurados por empresa (raramente cambian) se cachean para evitar roundtrips a MongoDB en cada petición de la app móvil.</li>
+  <li><strong>Listados de vehículos activos</strong> por empresa: útiles en los formularios de selección del operador.</li>
+  <li><strong>Resultados de dashboard</strong>: métricas agregadas con TTL de minutos para no recalcular en cada refresh.</li>
+  <li><strong>Rate limiting</strong>: contadores de peticiones por API Key de terceros para prevenir abuso.</li>
+</ul>
+<div class="alert alert-warning">
+  <strong>Estado actual:</strong> Redis no tiene configuración de persistencia (<code>appendonly</code>) ni contraseña (<code>requirepass</code>) en el entorno de desarrollo. En producción debe activarse autenticación y, en la Fase 2, migrarse a Oracle Cache con OCI o Redis gestionado.
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     9. INFRAESTRUCTURA ACTUAL
+════════════════════════════════════════════════════════ -->
+<h2 id="s9">9. Infraestructura Actual — SSDNodes VPS</h2>
+
+<div class="diagram-wrap">
+  <div class="diagram-title">Diagrama 6 — Topología de Red Actual (SSDNodes)</div>
+  <div class="mermaid">
+graph TB
+    INTERNET((Internet))
+    SSL["🔒 Certbot / Let's Encrypt\nsicov.protegeme.com"]
+    INTERNET --> SSL
+
+    subgraph VPS["🖥️ VPS SSDNodes — Ubuntu — IP Pública Expuesta"]
+        direction TB
+        NOTE["⚠️ Sin Firewall de Aplicación (WAF)\n⚠️ Sin IDS/IPS\n⚠️ Puertos 4001–4006 potencialmente accesibles"]
+        NGINX["Nginx (Reverse Proxy)\npuerto 80/443"]
+        DC["Docker Compose\nprotegeme-net (bridge)"]
+        NGINX --> DC
+    end
+
+    SSL --> NGINX
+
+    subgraph ALMACENAMIENTO["💾 Almacenamiento Local (Volúmenes Docker)"]
+        M["./data/minio  →  MinIO"]
+        U["./data/uploads  →  Archivos temporales"]
+    end
+
+    DC --> ALMACENAMIENTO
+    DC -->|TLS| MONGO_ATLAS["☁️ MongoDB Atlas\n(nube externa)"]
+
+    style VPS fill:#fff7ed,stroke:#f59e0b,stroke-width:2px
+    style NOTE fill:#fee2e2,stroke:#ef4444,color:#991b1b
+  </div>
+</div>
+
+<p>
+  El servidor VPS corre Ubuntu con Docker y Nginx como reverse proxy. El certificado SSL es gestionado por
+  <strong>Certbot (Let's Encrypt)</strong>, con renovación automática cada 90 días.
+</p>
+<p>
+  <strong>Configuración de recursos estimada (producción actual):</strong>
+</p>
+<table>
+  <thead><tr><th>Componente</th><th>CPU</th><th>RAM estimada</th><th>Disco</th></tr></thead>
+  <tbody>
+    <tr><td>7 microservicios NestJS</td><td>Multi-core compartido</td><td>~700 MB total</td><td>~150 MB imagen</td></tr>
+    <tr><td>MinIO</td><td>Bajo</td><td>~128 MB</td><td>Variable (datos)</td></tr>
+    <tr><td>Redis 7</td><td>Muy bajo</td><td>~30–60 MB</td><td>In-memory</td></tr>
+    <tr><td>Nginx + Web</td><td>Muy bajo</td><td>~20 MB</td><td>~50 MB imagen</td></tr>
+    <tr><td><strong>Total aproximado</strong></td><td>–</td><td><strong>~1 GB RAM</strong></td><td>–</td></tr>
+  </tbody>
+</table>
+
+<!-- ══════════════════════════════════════════════════════
+     10. SEGURIDAD
+════════════════════════════════════════════════════════ -->
+<h2 id="s10">10. Seguridad — Estado Actual y Riesgos</h2>
+
+<div class="alert alert-success">
+  <strong>Medidas de seguridad implementadas:</strong>
+  <ul style="margin-top:0.5rem; margin-bottom:0;">
+    <li>Comunicación HTTPS con SSL/TLS activo en el dominio</li>
+    <li>Autenticación JWT con expiración configurable</li>
+    <li>Contraseñas hasheadas con <strong>bcrypt (salt 10)</strong></li>
+    <li>Aislamiento de datos por <code>enterprise_id</code> en todos los endpoints</li>
+    <li>API Keys con hash para sistemas de terceros</li>
+    <li>MongoDB Atlas con IP Allowlist y TLS obligatorio</li>
+    <li>Validación de correo único por usuario para recuperación de contraseña segura</li>
+    <li>Índices sparse-unique en campos sensibles (usuario, correo)</li>
+    <li>Forzado de cambio de contraseña en primer login (<code>must_change_password</code>)</li>
+    <li>Control de empresas activas/inactivas con bloqueo de login</li>
+  </ul>
+</div>
+
+<div class="alert alert-danger">
+  <strong>Riesgos identificados en la infraestructura actual:</strong>
+  <ul style="margin-top:0.5rem; margin-bottom:0;">
+    <li><strong>Sin firewall de red (WAF/NGFW)</strong>: los puertos de los microservicios podrían estar expuestos directamente a Internet sin filtrado. Un escaneo con Nmap revelaría todos los servicios.</li>
+    <li><strong>Sin IDS/IPS</strong>: no hay detección de intrusiones ni bloqueo de ataques de fuerza bruta a nivel de red.</li>
+    <li><strong>Redis sin contraseña</strong>: si el puerto 6379 es accesible externamente, Redis puede ser comprometido.</li>
+    <li><strong>MinIO en disco local</strong>: sin respaldo externo independiente del VPS. Una falla de disco implica pérdida total de archivos.</li>
+    <li><strong>Sin backup del sistema de archivos</strong>: solo MongoDB tiene respaldo automático (Atlas). Los archivos en MinIO y los volúmenes Docker no tienen política de respaldo.</li>
+    <li><strong>Certificado Let's Encrypt</strong>: gratuito pero con vencimiento cada 90 días. Requiere monitoreo de la renovación automática.</li>
+  </ul>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     11. FASE 2 — ORACLE OCI
+════════════════════════════════════════════════════════ -->
+<h2 id="s11">11. Fase 2 — Migración a Oracle Cloud Infrastructure (OCI)</h2>
+
+<p>
+  La migración a OCI representa un salto cualitativo en seguridad, disponibilidad y capacidad de escala.
+  A continuación se detallan las decisiones arquitectónicas recomendadas para esta fase.
+</p>
+
+<div class="diagram-wrap">
+  <div class="diagram-title">Diagrama 7 — Arquitectura Objetivo en Oracle OCI (Fase 2)</div>
+  <div class="mermaid">
+graph TB
+    INTERNET((🌐 Internet))
+
+    subgraph OCI["☁️ Oracle Cloud Infrastructure — Región us-ashburn-1 (o sa-bogota)"]
+        direction TB
+
+        subgraph VCN["🔗 Virtual Cloud Network (VCN)"]
+            direction TB
+
+            WAF["🛡️ OCI WAF + Load Balancer\n(SSL Termination)\nsicov.protegeme.com"]
+
+            subgraph PUB["Subred Pública"]
+                LB["Load Balancer\npuerto 443"]
+            end
+
+            subgraph PRIV_APP["Subred Privada — Aplicación"]
+                direction LR
+                K8S["☸️ OCI Kubernetes (OKE)\nPods: api-auth, api-maintenance\napi-vehicle, api-drivers\napi-incidents, api-authorizations\nWeb (Vue 3)"]
+            end
+
+            subgraph PRIV_DATA["Subred Privada — Datos"]
+                REDIS_OCI["⚡ OCI Cache (Redis)\nGestionado + HA"]
+                OBJ["🗄️ OCI Object Storage\n(reemplaza MinIO)\nS3-compatible\nResponsability: Oracle"]
+            end
+
+            SG["🔒 Security Groups\n(reglas por servicio)"]
+            NSG["🧱 Network Security Groups\n(reemplaza UFW/iptables)"]
+        end
+
+        MONGO_PEER["🍃 MongoDB Atlas\n(VNet Peering con OCI)"]
+        BASTION["🔑 OCI Bastion\n(acceso SSH seguro\nsin IP pública expuesta)"]
+    end
+
+    subgraph MONITORING["📊 Observabilidad"]
+        APM["OCI APM / Grafana"]
+        LOGGING["OCI Logging Analytics"]
+        ALERTS["OCI Notifications\n(alertas email/SMS)"]
+    end
+
+    INTERNET --> WAF --> LB --> K8S
+    K8S --> REDIS_OCI
+    K8S --> OBJ
+    K8S -->|VNet Peering TLS| MONGO_PEER
+    K8S --> APM
+    K8S --> LOGGING
+    BASTION -.->|Admin SSH| K8S
+
+    style OCI fill:#f0f9ff,stroke:#0ea5e9,stroke-width:2px
+    style PRIV_DATA fill:#f0fdf4,stroke:#22c55e,stroke-width:2px
+    style PRIV_APP fill:#eff6ff,stroke:#3b82f6,stroke-width:2px
+    style MONITORING fill:#fef3c7,stroke:#f59e0b,stroke-width:2px
+  </div>
+</div>
+
+<h3>11.1 Componentes Recomendados en OCI</h3>
+
+<div class="fase2-box">
+  <h3>🛡️ 1. Firewall y Protección Perimetral</h3>
+  <p>
+    <strong>OCI WAF (Web Application Firewall)</strong> frente al Load Balancer. Protege contra OWASP Top 10:
+    inyección SQL, XSS, CSRF, bots, DDoS en capa 7. Reglas predefinidas para APIs REST.
+    Complementar con <strong>Security Lists</strong> y <strong>Network Security Groups</strong> para
+    bloquear todo tráfico que no venga del Load Balancer hacia la subred privada.
+  </p>
+</div>
+
+<div class="fase2-box">
+  <h3>☸️ 2. OCI Kubernetes Engine (OKE) — Separación de Cargas</h3>
+  <p>
+    En lugar de un único VPS, se recomienda migrar los microservicios a <strong>OKE</strong>
+    (Kubernetes gestionado por Oracle). Beneficios:
+  </p>
+  <ul>
+    <li>Escalado horizontal automático (<code>HorizontalPodAutoscaler</code>): si el tráfico de alistamientos aumenta en hora pico, <code>api-maintenance</code> escala automáticamente.</li>
+    <li>Rolling deployments sin downtime.</li>
+    <li>Aislamiento de servicios: cada microservicio en su propio namespace con Network Policies.</li>
+    <li>Secrets cifrados con OCI Vault (no más archivos <code>.env</code> en disco).</li>
+  </ul>
+  <p>
+    <strong>Alternativa más económica (si el presupuesto es limitado):</strong> dos VMs OCI Compute:
+    una para el backend (todos los microservicios en Docker Compose) y otra para el almacenamiento (MinIO →
+    Object Storage), con un Load Balancer delante y Security Groups configurados correctamente.
+    Este enfoque ya resuelve el problema del firewall y la separación de datos.
+  </p>
+</div>
+
+<div class="fase2-box">
+  <h3>🗄️ 3. OCI Object Storage en lugar de MinIO local</h3>
+  <p>
+    Se recomienda <strong>reemplazar MinIO por OCI Object Storage</strong>, que es:
+  </p>
+  <ul>
+    <li><strong>Compatible con la API S3</strong>: el código no necesita cambios, solo cambiar las credenciales y el endpoint.</li>
+    <li><strong>Durabilidad 99.999999999% (11 nueves)</strong>: Oracle garantiza redundancia geográfica automática.</li>
+    <li><strong>Sin gestión de disco</strong>: no hay volúmenes que mantener ni riesgo de llenado de disco.</li>
+    <li><strong>Pre-Authenticated Requests</strong>: generación de URLs firmadas para acceso temporal a archivos (evita el proxy actual).</li>
+    <li><strong>Lifecycle Policies</strong>: archivado automático de PDFs viejos a OCI Archive Storage (costo ~10x menor).</li>
+    <li><strong>Integrado con OCI WAF</strong>: las descargas de archivos también pasan por el firewall.</li>
+  </ul>
+</div>
+
+<div class="fase2-box">
+  <h3>⚡ 4. Redis Gestionado (OCI Cache)</h3>
+  <p>
+    <strong>OCI Cache</strong> es Redis Enterprise gestionado por Oracle. Elimina la necesidad de
+    administrar el contenedor, activa persistencia (<code>AOF</code>), replicación activo-pasivo y
+    failover automático. También permite configurar contraseña y TLS desde la consola OCI sin tocar
+    configuración de Docker.
+  </p>
+</div>
+
+<div class="fase2-box">
+  <h3>🔑 5. OCI Bastion — Acceso Administrativo Seguro</h3>
+  <p>
+    En lugar de exponer SSH en la IP pública del servidor, <strong>OCI Bastion</strong> provee un túnel
+    SSH efímero auditado. El acceso al servidor requiere autenticación MFA en la consola OCI antes de
+    abrir el túnel. Todos los accesos quedan registrados con usuario, fecha y hora.
+  </p>
+</div>
+
+<div class="fase2-box">
+  <h3>🔒 6. OCI Vault — Gestión de Secretos</h3>
+  <p>
+    Los secretos actuales están en archivos <code>.env</code> en el servidor. En OCI Fase 2,
+    todas las cadenas de conexión (MongoDB URI, JWT Secret, MinIO keys, SICOV tokens) se almacenan
+    en <strong>OCI Vault</strong> con HSM (Hardware Security Module). Los microservicios los recuperan
+    en tiempo de arranque via API, sin que existan en disco ni en el repositorio de código.
+  </p>
+</div>
+
+<div class="fase2-box">
+  <h3>📊 7. Observabilidad — APM + Logging</h3>
+  <p>
+    <strong>OCI Application Performance Monitoring</strong> + <strong>OCI Logging Analytics</strong> permiten:
+  </p>
+  <ul>
+    <li>Trazas distribuidas entre microservicios (detección de cuellos de botella).</li>
+    <li>Centralización de logs con búsqueda en tiempo real.</li>
+    <li>Alertas proactivas: si <code>api-maintenance</code> supera 2 segundos de latencia o la cola SICOV acumula más de 100 pendientes, se envía notificación por email/SMS.</li>
+    <li>Dashboard de salud del sistema en tiempo real.</li>
+  </ul>
+</div>
+
+<h3>11.2 Plan de Migración Sugerido (Fases)</h3>
+<table>
+  <thead><tr><th>Fase</th><th>Acción</th><th>Prioridad</th></tr></thead>
+  <tbody>
+    <tr><td>2.1</td><td>Provisionar VCN, subredes pública/privada, Security Groups en OCI</td><td><span class="badge badge-red">Alta</span></td></tr>
+    <tr><td>2.2</td><td>Configurar OCI WAF + Load Balancer con SSL. Apuntar DNS a OCI.</td><td><span class="badge badge-red">Alta</span></td></tr>
+    <tr><td>2.3</td><td>Migrar MinIO → OCI Object Storage. Actualizar variables de entorno en microservicios.</td><td><span class="badge badge-red">Alta</span></td></tr>
+    <tr><td>2.4</td><td>Desplegar microservicios en 2 VMs OCI (backend + datos) con Docker Compose. Remover VPS SSDNodes.</td><td><span class="badge badge-orange">Media</span></td></tr>
+    <tr><td>2.5</td><td>Migrar Redis → OCI Cache gestionado. Activar autenticación y TLS.</td><td><span class="badge badge-orange">Media</span></td></tr>
+    <tr><td>2.6</td><td>Configurar OCI Vault para secretos. Eliminar archivos .env del servidor.</td><td><span class="badge badge-orange">Media</span></td></tr>
+    <tr><td>2.7</td><td>Activar OCI Bastion para acceso SSH auditado. Desactivar SSH directo.</td><td><span class="badge badge-orange">Media</span></td></tr>
+    <tr><td>2.8</td><td>Integrar OCI APM + Logging Analytics. Configurar alertas.</td><td><span class="badge badge-blue">Baja</span></td></tr>
+    <tr><td>2.9</td><td>Migrar a OKE (Kubernetes) cuando la escala lo justifique (&gt;20 empresas activas).</td><td><span class="badge badge-blue">Baja</span></td></tr>
+  </tbody>
+</table>
+
+<!-- ══════════════════════════════════════════════════════
+     12. RECOMENDACIONES IoT
+════════════════════════════════════════════════════════ -->
+<h2 id="s12">12. Recomendaciones para Arquitectura IoT de Escala</h2>
+
+<p>
+  PROTEGEMESICOV está posicionada como una plataforma de gestión de flota. La siguiente evolución natural
+  es incorporar <strong>telemetría en tiempo real desde los vehículos (IoT)</strong>: localización GPS,
+  acelerómetros, sensores de motor (OBD-II), consumo de combustible. Estas son las recomendaciones
+  desde la perspectiva de arquitectura IoT:
+</p>
+
+<h3>12.1 Protocolo de Comunicación para Dispositivos IoT</h3>
+<ul>
+  <li>
+    <strong>MQTT sobre TLS (puerto 8883)</strong>: protocolo estándar industrial para IoT. Consumo de batería
+    mínimo. El dispositivo GPS/OBD del vehículo publica en un topic como
+    <code>fleet/{enterprise_id}/{vehicle_id}/telemetry</code>. Un broker MQTT (e.g., <strong>EMQX</strong>
+    o <strong>HiveMQ</strong>) gestiona miles de conexiones concurrentes.
+  </li>
+  <li>
+    <strong>No usar REST para telemetría continua</strong>: una petición HTTP por cada dato de GPS
+    (cada 5 segundos × 100 vehículos = 1.200 req/min) satura la API. MQTT mantiene una conexión
+    persistente por dispositivo.
+  </li>
+</ul>
+
+<h3>12.2 Ingesta de Telemetría — Pipeline</h3>
+<div class="diagram-wrap">
+  <div class="diagram-title">Diagrama 8 — Pipeline IoT Recomendado (Fase 3)</div>
+  <div class="mermaid">
+graph LR
+    subgraph VEHICLE["🚌 Vehículo"]
+        GPS["Dispositivo GPS\n+ OBD-II"]
+    end
+
+    subgraph BROKER["📡 MQTT Broker\n(EMQX / HiveMQ)"]
+        TOPIC["Topic: fleet/EMP/VEH/telemetry"]
+    end
+
+    subgraph STREAM["⚡ Stream Processing"]
+        KAFKA["Apache Kafka\no OCI Streaming"]
+        FLINK["Apache Flink\no OCI Functions\n(detección de alertas)"]
+    end
+
+    subgraph STORAGE["💾 Almacenamiento"]
+        TS["Time-Series DB\n(InfluxDB / TimescaleDB)\nDatos de telemetría"]
+        MONGO2["MongoDB Atlas\nEventos y alertas\nprocesados"]
+    end
+
+    subgraph APP["🖥️ Plataforma SICOV"]
+        WS["WebSocket Server\n(tiempo real en UI)"]
+        API2["api-maintenance\n(alertas + historial)"]
+    end
+
+    GPS -->|MQTT TLS| BROKER
+    BROKER --> KAFKA
+    KAFKA --> FLINK
+    FLINK -->|Datos crudos| TS
+    FLINK -->|Alertas: exceso velocidad\nfrenada brusca| MONGO2
+    MONGO2 --> API2
+    TS --> WS
+    WS -->|WebSocket| Browser["Navegador Web\n(mapa en tiempo real)"]
+
+    style VEHICLE fill:#f5f3ff,stroke:#7c3aed
+    style STREAM fill:#fef3c7,stroke:#f59e0b
+  </div>
+</div>
+
+<h3>12.3 Recomendaciones Adicionales de Arquitectura para Escala IoT</h3>
+
+<h4>API Gateway</h4>
+<p>
+  Con múltiples microservicios expuestos, se recomienda introducir un <strong>API Gateway</strong>
+  (Kong, AWS API Gateway o el Load Balancer de OCI con routing por path) para:
+  centralizar autenticación, rate limiting por empresa, versionado de API, y reducir
+  la superficie de ataque (solo el gateway tiene IP pública).
+</p>
+
+<h4>Event-Driven Architecture para Alistamientos Masivos</h4>
+<p>
+  Cuando múltiples conductores cargan alistamientos simultáneamente (hora pico antes de salida de rutas),
+  el uso de una <strong>cola de mensajes</strong> (OCI Queue / RabbitMQ) desacopla la recepción del
+  procesamiento y la sincronización SICOV, evitando timeouts y mejorando la experiencia del conductor.
+  El patrón <code>SicovSyncQueue</code> ya implementado en la plataforma es el primer paso en esta dirección.
+</p>
+
+<h4>Caché Multi-Nivel</h4>
+<p>
+  Además de Redis para datos calientes, implementar caché a nivel del API Gateway (TTL corto para
+  endpoints de catálogos) y caché en el cliente móvil (Flutter Hive) para funcionamiento offline
+  en zonas sin cobertura.
+</p>
+
+<h4>Base de Datos de Series Temporales</h4>
+<p>
+  Los datos de GPS, velocidad y métricas de motor crecen exponencialmente con el tiempo. MongoDB no
+  está optimizado para este tipo de datos. Se recomienda <strong>InfluxDB</strong> o
+  <strong>TimescaleDB</strong> (extensión de PostgreSQL) para telemetría, manteniendo MongoDB
+  para los documentos de negocio (alistamientos, mantenimientos, empresas).
+</p>
+
+<h4>Autenticación de Dispositivos IoT</h4>
+<p>
+  Cada dispositivo GPS debe autenticarse con un <strong>certificado X.509 único</strong> (no usuario/contraseña).
+  OCI IoT Hub o EMQX soportan autenticación mutual TLS (mTLS) con PKI, garantizando que solo dispositivos
+  autorizados publiquen datos de telemetría.
+</p>
+
+<h4>Cumplimiento Normativo y Datos de Conducción</h4>
+<p>
+  Los datos de telemetría de conductores (velocidad, frenadas, rutas) pueden estar sujetos a la
+  <strong>Ley 1581 de Habeas Data</strong> en Colombia. Se recomienda implementar políticas de
+  retención (e.g., purga automática de telemetría de GPS después de 12 meses), cifrado de
+  identificadores de conductor en la capa de telemetría y consentimiento explícito del conductor
+  al inicio del turno.
+</p>
+
+<!-- ══════════════════════════════════════════════════════
+     13. APÉNDICE — PROMPTS IA
+════════════════════════════════════════════════════════ -->
+<h2 id="s13">13. Apéndice — Prompts para Generación de Diagramas con IA</h2>
+<p>
+  Use los siguientes prompts en <strong>ChatGPT, Gemini, Claude</strong> o herramientas como
+  <strong>Eraser.io, Lucidchart IA, Whimsical IA</strong> para regenerar o personalizar los diagramas
+  de este documento con mayor detalle visual.
+</p>
+
+<h4>Prompt 1 — Arquitectura General del Sistema</h4>
+<div class="ai-prompt">
+  <span class="label">PROMPT PARA IA — DIAGRAMA DE ARQUITECTURA GENERAL</span><br/><br/>
+  Crea un diagrama profesional de arquitectura de software para el sistema PROTEGEMESICOV.<br/>
+  El sistema es una plataforma SaaS multi-tenant para gestión de flota de transporte en Colombia.<br/><br/>
+  Componentes a mostrar:<br/>
+  - CLIENTES: Navegador Web (Vue 3 SPA), App Móvil Flutter, Sistema ERP externo con API Key<br/>
+  - SERVIDOR (VPS SSDNodes, Ubuntu + Docker Compose):<br/>
+    - Nginx Reverse Proxy con SSL/TLS (sicov.protegeme.com)<br/>
+    - 7 contenedores Docker en red bridge "protegeme-net":<br/>
+      * api-auth :4001 (NestJS) — Autenticación JWT, usuarios, empresas<br/>
+      * api-incidents :4002 (NestJS) — Incidentes viales<br/>
+      * api-authorizations :4003 (NestJS) — Autorizaciones de viaje<br/>
+      * api-maintenance :4004 (NestJS) — Mantenimientos, alistamientos, SICOV sync (cron hora)<br/>
+      * api-vehicle :4005 (NestJS) — Vehículos y flota<br/>
+      * api-drivers :4006 (NestJS) — Conductores<br/>
+      * web :5173 (Vue 3 / Nginx) — Frontend SPA<br/>
+    - MinIO :9000/:9001 — Object Storage S3-compatible<br/>
+    - Redis 7 :6379 — Caché en memoria<br/>
+  - SERVICIOS EXTERNOS:<br/>
+    - MongoDB Atlas Enterprise (Replica Set 3 nodos, backups/hora)<br/>
+    - API Supertransporte SICOV (destino del cron de sincronización)<br/>
+  Usa colores distintos por tipo de componente. Incluye flechas con labels que muestren el protocolo.
+</div>
+
+<h4>Prompt 2 — Arquitectura Fase 2 Oracle OCI</h4>
+<div class="ai-prompt">
+  <span class="label">PROMPT PARA IA — MIGRACIÓN A ORACLE OCI</span><br/><br/>
+  Crea un diagrama de arquitectura cloud para la Fase 2 del sistema PROTEGEMESICOV en Oracle OCI.<br/><br/>
+  Componentes a mostrar:<br/>
+  - Internet → OCI WAF (Web Application Firewall) → OCI Load Balancer con SSL Termination<br/>
+  - VCN con dos subredes:<br/>
+    * Subred Pública: Load Balancer<br/>
+    * Subred Privada App: OKE Kubernetes con pods para los 7 microservicios NestJS + Vue frontend<br/>
+    * Subred Privada Datos: OCI Cache (Redis gestionado), OCI Object Storage (reemplaza MinIO)<br/>
+  - OCI Bastion para acceso SSH administrativo seguro (sin IP pública expuesta)<br/>
+  - OCI Vault para gestión de secretos (reemplaza archivos .env)<br/>
+  - MongoDB Atlas Enterprise con VNet Peering hacia OCI<br/>
+  - OCI APM + OCI Logging Analytics para observabilidad<br/>
+  - API Supertransporte SICOV como destino externo del cron de sincronización<br/>
+  Usa el estilo visual de arquitectura Oracle Cloud. Incluye íconos de seguridad donde corresponda.
+</div>
+
+<h4>Prompt 3 — Flujo Multi-Tenant</h4>
+<div class="ai-prompt">
+  <span class="label">PROMPT PARA IA — DIAGRAMA MULTI-TENANT</span><br/><br/>
+  Crea un diagrama de secuencia que muestre el aislamiento multi-tenant del sistema PROTEGEMESICOV.<br/><br/>
+  Participantes:<br/>
+  - Empresa A (Cootranstur) — usuario admin con enterprise_id: E001<br/>
+  - Empresa B (Expreso Sur) — usuario admin con enterprise_id: E002<br/>
+  - JWT Auth Guard (NestJS middleware)<br/>
+  - MongoDB Atlas (colección "enlistments")<br/><br/>
+  Flujo:<br/>
+  1. Empresa A hace login → recibe JWT con enterprise_id: E001<br/>
+  2. Empresa A consulta alistamientos → JWT Guard extrae enterprise_id → query filtra solo E001<br/>
+  3. Empresa B hace login → recibe JWT con enterprise_id: E002<br/>
+  4. Empresa B intenta acceder con enterprise_id: E001 → el Guard bloquea la petición (403 Forbidden)<br/>
+  5. Empresa B consulta sus propios alistamientos → query filtra solo E002<br/>
+  Incluye notas explicativas sobre el campo enterprise_id en cada paso.
+</div>
+
+<h4>Prompt 4 — Pipeline IoT Fase 3</h4>
+<div class="ai-prompt">
+  <span class="label">PROMPT PARA IA — PIPELINE IoT TELEMETRÍA</span><br/><br/>
+  Crea un diagrama de arquitectura de flujo de datos IoT para la Fase 3 del sistema PROTEGEMESICOV.<br/><br/>
+  Componentes:<br/>
+  - Dispositivos: GPS + OBD-II en cada vehículo del bus (100+ dispositivos concurrentes)<br/>
+  - Protocolo: MQTT sobre TLS, broker EMQX o HiveMQ<br/>
+  - Topics MQTT: fleet/{enterprise_id}/{vehicle_id}/telemetry<br/>
+  - Stream Processing: Apache Kafka (o OCI Streaming) → Apache Flink (detección de alertas)<br/>
+  - Almacenamiento: InfluxDB para series de tiempo GPS/velocidad + MongoDB Atlas para alertas procesadas<br/>
+  - Presentación: WebSocket Server → Dashboard web en tiempo real con mapa de flota<br/>
+  - Seguridad: autenticación mTLS con certificados X.509 por dispositivo<br/>
+  Usa iconos de IoT y muestra claramente el flujo de datos desde el vehículo hasta el dashboard.
+</div>
+
+<hr />
+
+<p style="text-align:center; font-size: 0.8rem; color: #94a3b8; margin-top: 2rem;">
+  PROTEGEMESICOV — Documento Técnico de Arquitectura v1.0 — Marzo 2026<br/>
+  Generado por Claude Code (Anthropic) · Para uso interno del equipo de desarrollo y arquitectura
+</p>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#dbeafe',
+      primaryTextColor: '#1e3a8a',
+      primaryBorderColor: '#1d4ed8',
+      lineColor: '#64748b',
+      secondaryColor: '#f0fdf4',
+      tertiaryColor: '#fef3c7',
+      fontFamily: 'Segoe UI, system-ui, sans-serif',
+      fontSize: '13px',
+    },
+    flowchart: { curve: 'basis', padding: 20 },
+    sequence: { actorMargin: 60, messageMargin: 30 },
+  });
+</script>
+
+</body>
+</html>

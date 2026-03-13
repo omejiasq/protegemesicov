@@ -17,6 +17,14 @@
           @click="exportExcel"
         />
         <Button
+          v-if="pendingSicovCount === 0 && hasUndatedSyncRecords"
+          label="Marcar fechas SICOV"
+          icon="pi pi-database"
+          class="p-button-outlined p-button-secondary"
+          v-tooltip="'Establece fechaSyncSicov = fechaCreación en registros existentes'"
+          @click="migrateSyncDates"
+        />
+        <Button
           label="Nuevo Alistamiento"
           icon="pi pi-plus"
           class="btn-dark-green"
@@ -24,6 +32,28 @@
         />
       </div>
     </div>
+
+<!-- ===================== -->
+<!-- BANNER CONTINGENCIA -->
+<!-- ===================== -->
+<div
+  v-if="pendingSicovCount > 0"
+  class="mx-3 mt-2 p-3 border-round"
+  style="background:#fff3cd; border:1px solid #ffc107; color:#856404;"
+>
+  <div class="flex align-items-center gap-2">
+    <i class="pi pi-exclamation-triangle text-xl"></i>
+    <div>
+      <strong>Plan de contingencia activo:</strong>
+      {{ pendingSicovCount }} alistamiento{{ pendingSicovCount > 1 ? 's' : '' }}
+      pendiente{{ pendingSicovCount > 1 ? 's' : '' }} de envío a la Supertransporte.
+      <span class="ml-2 text-sm">
+        Los PDF de estos alistamientos sirven como soporte oficial mientras se sincroniza.
+        El sistema reintentará automáticamente cada hora.
+      </span>
+    </div>
+  </div>
+</div>
 
 <!-- ===================== -->
 <!-- FILTROS -->
@@ -102,10 +132,49 @@
         <Column field="placa" header="Placa" sortable />
         <Column field="nombresConductor" header="Conductor" sortable />
         <Column field="nombresResponsable" header="Responsable" sortable />
-        <Column header="Fecha" sortable>
+        <Column header="Fecha local" sortable>
           <template #body="{ data }">{{ fmtDate(data.createdAt) }}</template>
         </Column>
-        
+
+        <Column header="Sincronización SICOV">
+          <template #body="{ data }">
+            <div class="flex flex-column gap-1">
+              <!-- Badge de estado -->
+              <Tag
+                v-if="data.sicov_sync_status === 'synced'"
+                value="Sincronizado"
+                severity="success"
+                style="font-size:0.7rem"
+              />
+              <Tag
+                v-else-if="data.sicov_sync_status === 'pending'"
+                value="Pendiente SICOV"
+                severity="warning"
+                style="font-size:0.7rem"
+              />
+              <Tag
+                v-else-if="data.sicov_sync_status === 'failed'"
+                value="Error sync"
+                severity="danger"
+                style="font-size:0.7rem"
+              />
+              <Tag
+                v-else-if="data.sicov_sync_status === 'demo'"
+                value="Demo"
+                severity="info"
+                style="font-size:0.7rem"
+              />
+              <!-- Fecha de sync -->
+              <span v-if="data.fechaSyncSicov" class="text-xs text-gray-500">
+                {{ fmtDate(data.fechaSyncSicov) }}
+              </span>
+              <span v-else-if="data.sicov_sync_status === 'pending'" class="text-xs text-orange-500">
+                Sin enviar aún
+              </span>
+            </div>
+          </template>
+        </Column>
+
         <Column header="Con falla" sortable :sortFunction="sortByFailure">
         <template #body="{ data }">
           <Tag
@@ -312,6 +381,7 @@ import Button from "../../components/ui/Button.vue";
 /* 👇 SOLO AQUÍ */
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import { http } from "../../api/http";
 
 
 const toast = useToast();
@@ -597,9 +667,21 @@ function exportExcel() {
     Conductor: r.nombresConductor || "",
     Documento: r.numeroIdentificacion || "",
     Responsable: r.nombresResponsable || "",
-    Fecha: r.createdAt
-      ? new Date(r.createdAt).toLocaleDateString()
+    "Fecha creación local": r.createdAt
+      ? new Date(r.createdAt).toLocaleString('es-CO')
       : "",
+    "Estado SICOV": r.sicov_sync_status === 'synced'
+      ? 'Sincronizado'
+      : r.sicov_sync_status === 'pending'
+        ? 'Pendiente SICOV'
+        : r.sicov_sync_status === 'failed'
+          ? 'Error sync'
+          : r.sicov_sync_status === 'demo'
+            ? 'Demo'
+            : r.sicov_sync_status || '',
+    "Fecha envío SICOV": r.fechaSyncSicov
+      ? new Date(r.fechaSyncSicov).toLocaleString('es-CO')
+      : "Sin sincronizar",
     Estado: r.estado ? "ACTIVO" : "INACTIVO",
   }));
 
@@ -985,6 +1067,31 @@ const loading = computed(() => store.enlistmentList.loading);
 const rows = computed(() => (store.enlistmentList.items || []).map(normalize));
 
 const rowsFiltered = computed(() => rows.value);
+
+const pendingSicovCount = computed(() =>
+  rows.value.filter((r: any) => r.sicov_sync_status === 'pending').length
+)
+
+// Detecta si hay registros synced sin fechaSyncSicov (necesitan migración)
+const hasUndatedSyncRecords = computed(() =>
+  rows.value.some((r: any) => r.sicov_sync_status === 'synced' && !r.fechaSyncSicov)
+)
+
+async function migrateSyncDates() {
+  try {
+    const res = await http.post(`${import.meta.env.VITE_API_MAINTENANCE_URL}/sicov-sync/migrate-sync-dates`, {})
+    const d = res.data
+    store.showToast?.({
+      severity: 'success',
+      summary: 'Migración completada',
+      detail: `Alistamientos: ${d.enlistments} · Preventivos: ${d.preventives} · Correctivos: ${d.correctives}`,
+      life: 5000,
+    })
+    await store.loadEnlistments?.()
+  } catch {
+    store.showToast?.({ severity: 'error', summary: 'Error', detail: 'No se pudo ejecutar la migración', life: 4000 })
+  }
+}
 
 
 const maintenanceOptsType3 = computed(() =>
