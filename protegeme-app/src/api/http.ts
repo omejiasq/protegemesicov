@@ -46,6 +46,11 @@ http.interceptors.response.use(
     const status = error.response?.status;
     if (status === 401) {
       localStorage.removeItem('access_token');
+      localStorage.removeItem('token2');
+      // Redirigir al login si no estamos ya en esa ruta
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.replace('/login');
+      }
     }
     return Promise.reject(error);
   }

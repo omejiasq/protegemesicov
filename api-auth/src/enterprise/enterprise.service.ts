@@ -96,9 +96,14 @@ export class EnterpriseService {
     logo?: string;
     specialized_center_name?: string;
     specialized_center_document_number?: string;
+    specialized_center_document_type?: number;
     mechanic_document_type?: number;
     mechanic_document_number?: string;
     mechanic_name?: string;
+    default_inspector_id?: string | null;
+    default_inspector_document_type?: number | null;
+    default_inspector_document_number?: string;
+    default_inspector_name?: string;
   }) {
     if (!isValidObjectId(id)) {
       throw new BadRequestException('Invalid enterprise id');
@@ -106,7 +111,7 @@ export class EnterpriseService {
     const updated = await this.enterpriseModel.findByIdAndUpdate(
       id,
       { $set: dto },
-      { new: true, runValidators: true },
+      { new: true, runValidators: false, strict: false },
     );
     if (!updated) throw new NotFoundException('Enterprise not found');
     return updated;

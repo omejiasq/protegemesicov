@@ -86,6 +86,35 @@
     </div>
 
     <!-- ══════════════════════════════════════
+         INSPECTOR POR DEFECTO
+    ══════════════════════════════════════ -->
+    <div class="section">Inspector por Defecto (Alistamientos)</div>
+    <p class="section-hint">
+      Este inspector se auto-completará en la app móvil al ingresar una placa para crear un alistamiento.
+    </p>
+    <div class="grid">
+
+      <div class="field full">
+        <label>Inspector por defecto</label>
+        <select v-model="selectedInspectorId">
+          <option value="">— Sin inspector por defecto —</option>
+          <option
+            v-for="i in inspectors"
+            :key="i._id"
+            :value="i._id"
+          >
+            {{ i.nombre }} — {{ i.documentNumber }}
+          </option>
+        </select>
+        <small v-if="!inspectors.length && !loadingData" class="section-hint" style="margin-top:6px">
+          No hay usuarios con rol Inspector.
+          <router-link to="/staff">Crear inspector aquí.</router-link>
+        </small>
+      </div>
+
+    </div>
+
+    <!-- ══════════════════════════════════════
          INGENIERO MECÁNICO
     ══════════════════════════════════════ -->
     <div class="section">Ingeniero Mecánico</div>
@@ -142,6 +171,13 @@
       </button>
     </div>
 
+    <!-- Toast de confirmación -->
+    <transition name="toast-fade">
+      <div v-if="saveSuccess" class="toast-success">
+        <i class="pi pi-check-circle" /> Cambios guardados correctamente
+      </div>
+    </transition>
+
   </form>
 </template>
 
@@ -151,11 +187,20 @@ import axios from 'axios'
 import { useAuthStore } from '../stores/authStore'
 import { AuthserviceApi } from '../api/auth.service'
 import { MaintenanceserviceApi } from '../api/maintenance.service'
+import { StaffServiceApi } from '../api/staff.service'
 
 const authStore = useAuthStore()
 const loading = ref(false)
 const loadingData = ref(true)
 const errors = ref<any>({})
+const saveSuccess = ref(false)
+let saveSuccessTimer: ReturnType<typeof setTimeout> | null = null
+
+function showSaveSuccess() {
+  saveSuccess.value = true
+  if (saveSuccessTimer) clearTimeout(saveSuccessTimer)
+  saveSuccessTimer = setTimeout(() => { saveSuccess.value = false }, 3000)
+}
 
 // ── Logo ────────────────────────────────────────────────────────────────
 const logoPreviewUrl = ref<string | null>(null)   // blob URL shown in <img>
@@ -223,6 +268,10 @@ onBeforeUnmount(() => {
   if (blobUrlToRevoke) URL.revokeObjectURL(blobUrlToRevoke)
 })
 
+// ── Inspectors ───────────────────────────────────────────────────────────
+const inspectors = ref<Array<{ _id: string; nombre: string; documentNumber: string; document_type: number | null }>>([])
+const selectedInspectorId = ref<string>('')  // '' = sin inspector
+
 // ── Form ────────────────────────────────────────────────────────────────
 const documentTypeOptions = [
   { label: 'Cédula de ciudadanía', value: 1 },
@@ -248,15 +297,36 @@ onMounted(async () => {
   try {
     const id = authStore.enterpriseId
     if (!id) return
-    const { data } = await AuthserviceApi.getEnterprise(id)
-    form.value = {
-      specialized_center_name:            data.specialized_center_name            ?? '',
-      specialized_center_document_number: data.specialized_center_document_number ?? '',
-      mechanic_document_type:             data.mechanic_document_type             ?? null,
-      mechanic_document_number:           data.mechanic_document_number           ?? '',
-      mechanic_name:                      data.mechanic_name                      ?? '',
+
+    const [enterpriseRes, staffRes] = await Promise.allSettled([
+      AuthserviceApi.getEnterprise(id),
+      StaffServiceApi.list({ roleType: 'operator', active: true }),
+    ])
+
+    if (staffRes.status === 'fulfilled') {
+      const raw = staffRes.value.data
+      const items: any[] = raw?.data ?? raw?.items ?? (Array.isArray(raw) ? raw : [])
+      inspectors.value = items.map((u: any) => ({
+        _id:            u._id,
+        nombre:         [u.usuario?.nombre, u.usuario?.apellido].filter(Boolean).join(' '),
+        documentNumber: u.usuario?.documentNumber ?? '',
+        document_type:  u.usuario?.document_type  ?? null,
+      }))
     }
-    if (data.logo) await loadCurrentLogo(data.logo)
+
+    if (enterpriseRes.status === 'fulfilled') {
+      const data = enterpriseRes.value.data
+      form.value = {
+        specialized_center_name:            data.specialized_center_name            ?? '',
+        specialized_center_document_number: data.specialized_center_document_number ?? '',
+        mechanic_document_type:             data.mechanic_document_type             ?? null,
+        mechanic_document_number:           data.mechanic_document_number           ?? '',
+        mechanic_name:                      data.mechanic_name                      ?? '',
+      }
+      // <select> con v-model no tiene timing issues — asignación directa
+      selectedInspectorId.value = data.default_inspector_id ?? ''
+      if (data.logo) loadCurrentLogo(data.logo)
+    }
   } catch (e) {
     console.error('Error cargando empresa:', e)
   } finally {
@@ -288,6 +358,12 @@ async function onSubmit() {
   try {
     const id = authStore.enterpriseId
     if (!id) throw new Error('No hay empresa activa en sesión')
+    // Resolver datos del inspector seleccionado
+    const inspectorId = selectedInspectorId.value || null
+    const inspector = inspectorId
+      ? (inspectors.value.find(i => i._id === inspectorId) ?? null)
+      : null
+
     await AuthserviceApi.updateEnterpriseProfile(id, {
       specialized_center_name:            form.value.specialized_center_name,
       specialized_center_document_type:   12,
@@ -295,8 +371,12 @@ async function onSubmit() {
       mechanic_document_type:             form.value.mechanic_document_type,
       mechanic_document_number:           form.value.mechanic_document_number,
       mechanic_name:                      form.value.mechanic_name,
+      default_inspector_id:               inspectorId,
+      default_inspector_document_type:    inspector?.document_type  ?? null,
+      default_inspector_document_number:  inspector?.documentNumber ?? '',
+      default_inspector_name:             inspector?.nombre         ?? '',
     })
-    alert('Datos de la empresa actualizados correctamente')
+    showSaveSuccess()
   } catch (e: any) {
     alert(e?.response?.data?.message || 'Error al guardar los datos')
   } finally {
@@ -383,6 +463,29 @@ input:focus, select:focus {
 .btn-secondary:hover { background: #e5e7eb; transform: translateY(-1px); }
 .error { border: 1.8px solid #dc2626 !important; background: #fef2f2; }
 .error-text { color: #dc2626; font-size: 12px; margin-top: 4px; }
+.section-hint { font-size: 12px; color: #6b7280; margin: -6px 0 12px; }
+
+/* ── Toast de confirmación ── */
+.toast-success {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  background: #16a34a;
+  color: #fff;
+  padding: 14px 22px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 8px 24px rgba(22, 163, 74, 0.35);
+  z-index: 1000;
+}
+.toast-fade-enter-active,
+.toast-fade-leave-active { transition: all 0.3s ease; }
+.toast-fade-enter-from,
+.toast-fade-leave-to { opacity: 0; transform: translateY(12px); }
 @media (max-width: 640px) {
   .actions { justify-content: center; flex-direction: column; }
   .btn-primary, .btn-secondary { width: 100%; }

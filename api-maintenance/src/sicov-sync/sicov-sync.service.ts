@@ -93,10 +93,13 @@ export class SicovSyncService {
   }
 
   // ===========================================================
-  // CRON: cada hora intenta sincronizar pendientes
+  // CRON: cada hora intenta sincronizar pendientes del día
   // ===========================================================
   @Cron(CronExpression.EVERY_HOUR)
   async processPendingBatch(): Promise<void> {
+    // 1. Primero expirar registros pendientes de días anteriores
+    await this.expireOldPendingInternal();
+
     const pendingCount = await this.queueModel.countDocuments({
       status: { $in: ['pending', 'phase1_complete'] },
     });
@@ -130,6 +133,15 @@ export class SicovSyncService {
     this.logger.log(
       `[SICOV-SYNC] Batch completado: ${synced} sincronizados, ${failed} con error`,
     );
+  }
+
+  // ===========================================================
+  // CRON: a la 1 AM diaria, expirar pendientes de días anteriores
+  // ===========================================================
+  @Cron('0 1 * * *')
+  async expireOldPendingCron(): Promise<void> {
+    const count = await this.expireOldPendingInternal();
+    this.logger.log(`[SICOV-EXPIRE] Cron diario: ${count} alistamiento(s) expirado(s)`);
   }
 
   // ===========================================================
@@ -504,6 +516,63 @@ export class SicovSyncService {
         `SICOV rechazó el detalle (status=${res.status}): ${res.error ?? 'error desconocido'}`,
       );
     }
+  }
+
+  // ===========================================================
+  // EXPIRACIÓN: alistamientos pendientes de días anteriores
+  // ===========================================================
+
+  /**
+   * Expira todos los alistamientos con sicov_sync_status='pending' cuyo
+   * día de creación ya pasó. Los marca como inactivos (estado=false) y
+   * cambia su estado a 'expired' para que no vuelvan a procesarse.
+   *
+   * También marca como 'failed' los ítems de la cola que correspondan
+   * a alistamientos de días anteriores, para que no se reintenten.
+   *
+   * Es seguro ejecutarlo repetidamente (idempotente).
+   */
+  async expireOldPendingEnlistments(): Promise<{ expired: number }> {
+    const count = await this.expireOldPendingInternal();
+    return { expired: count };
+  }
+
+  private async expireOldPendingInternal(): Promise<number> {
+    // Inicio del día actual a medianoche hora Colombia (UTC-5 = UTC+05:00 offset inverso)
+    const now = new Date();
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0); // medianoche hora del servidor
+
+    const result = await this.enlistmentModel.updateMany(
+      {
+        sicov_sync_status: 'pending',
+        createdAt: { $lt: startOfToday },
+      },
+      { $set: { sicov_sync_status: 'expired', estado: false } },
+    );
+
+    if (result.modifiedCount > 0) {
+      // Marcar los ítems de la cola como fallidos para que no se reintenten
+      await this.queueModel.updateMany(
+        {
+          status: { $in: ['pending', 'phase1_complete'] },
+          recordType: 'enlistment',
+          createdAt: { $lt: startOfToday },
+        },
+        {
+          $set: {
+            status: 'failed',
+            lastError: 'Expirado: el día de creación ya pasó y no fue sincronizado',
+          },
+        },
+      );
+
+      this.logger.warn(
+        `[SICOV-EXPIRE] ${result.modifiedCount} alistamiento(s) pendiente(s) marcado(s) como expirado(s)`,
+      );
+    }
+
+    return result.modifiedCount;
   }
 
   private getDetailModel(

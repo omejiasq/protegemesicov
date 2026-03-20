@@ -25,6 +25,23 @@
           @click="migrateSyncDates"
         />
         <Button
+          v-if="pendingSicovCount > 0"
+          label="Sincronizar ahora"
+          icon="pi pi-sync"
+          class="p-button-outlined p-button-warning"
+          :loading="syncing"
+          v-tooltip="'Envía a Supertransporte todos los alistamientos pendientes del día'"
+          @click="syncNow"
+        />
+        <Button
+          label="Expirar anteriores"
+          icon="pi pi-ban"
+          class="p-button-outlined p-button-danger"
+          :loading="expiring"
+          v-tooltip="'Marca como inactivos los alistamientos pendientes de días anteriores (ya no se enviarán a Supertransporte)'"
+          @click="expireOldPending"
+        />
+        <Button
           label="Nuevo Alistamiento"
           icon="pi pi-plus"
           class="btn-dark-green"
@@ -41,17 +58,27 @@
   class="mx-3 mt-2 p-3 border-round"
   style="background:#fff3cd; border:1px solid #ffc107; color:#856404;"
 >
-  <div class="flex align-items-center gap-2">
-    <i class="pi pi-exclamation-triangle text-xl"></i>
-    <div>
-      <strong>Plan de contingencia activo:</strong>
-      {{ pendingSicovCount }} alistamiento{{ pendingSicovCount > 1 ? 's' : '' }}
-      pendiente{{ pendingSicovCount > 1 ? 's' : '' }} de envío a la Supertransporte.
-      <span class="ml-2 text-sm">
-        Los PDF de estos alistamientos sirven como soporte oficial mientras se sincroniza.
-        El sistema reintentará automáticamente cada hora.
-      </span>
+  <div class="flex align-items-center justify-content-between gap-2 flex-wrap">
+    <div class="flex align-items-center gap-2">
+      <i class="pi pi-exclamation-triangle text-xl"></i>
+      <div>
+        <strong>Plan de contingencia activo:</strong>
+        {{ pendingSicovCount }} alistamiento{{ pendingSicovCount > 1 ? 's' : '' }}
+        pendiente{{ pendingSicovCount > 1 ? 's' : '' }} de envío a la Supertransporte del día de hoy.
+        <span class="ml-2 text-sm">
+          Los PDF sirven como soporte oficial. El sistema reintenta automáticamente cada hora.
+        </span>
+      </div>
     </div>
+    <button
+      class="p-button p-button-sm p-button-warning"
+      style="background:#ffc107;border:none;color:#333;padding:6px 14px;border-radius:4px;cursor:pointer;font-weight:600;"
+      :disabled="syncing"
+      @click="syncNow"
+    >
+      <i :class="syncing ? 'pi pi-spin pi-spinner' : 'pi pi-sync'" style="margin-right:5px"></i>
+      {{ syncing ? 'Sincronizando...' : 'Sincronizar ahora' }}
+    </button>
   </div>
 </div>
 
@@ -164,12 +191,21 @@
                 severity="info"
                 style="font-size:0.7rem"
               />
+              <Tag
+                v-else-if="data.sicov_sync_status === 'expired'"
+                value="Expirado"
+                severity="danger"
+                style="font-size:0.7rem"
+              />
               <!-- Fecha de sync -->
               <span v-if="data.fechaSyncSicov" class="text-xs text-gray-500">
                 {{ fmtDate(data.fechaSyncSicov) }}
               </span>
               <span v-else-if="data.sicov_sync_status === 'pending'" class="text-xs text-orange-500">
                 Sin enviar aún
+              </span>
+              <span v-else-if="data.sicov_sync_status === 'expired'" class="text-xs text-red-500">
+                No enviado — día expirado
               </span>
             </div>
           </template>
@@ -678,7 +714,9 @@ function exportExcel() {
           ? 'Error sync'
           : r.sicov_sync_status === 'demo'
             ? 'Demo'
-            : r.sicov_sync_status || '',
+            : r.sicov_sync_status === 'expired'
+              ? 'Expirado (no enviado)'
+              : r.sicov_sync_status || '',
     "Fecha envío SICOV": r.fechaSyncSicov
       ? new Date(r.fechaSyncSicov).toLocaleString('es-CO')
       : "Sin sincronizar",
@@ -1072,6 +1110,9 @@ const pendingSicovCount = computed(() =>
   rows.value.filter((r: any) => r.sicov_sync_status === 'pending').length
 )
 
+const syncing = ref(false)
+const expiring = ref(false)
+
 // Detecta si hay registros synced sin fechaSyncSicov (necesitan migración)
 const hasUndatedSyncRecords = computed(() =>
   rows.value.some((r: any) => r.sicov_sync_status === 'synced' && !r.fechaSyncSicov)
@@ -1090,6 +1131,45 @@ async function migrateSyncDates() {
     await store.loadEnlistments?.()
   } catch {
     store.showToast?.({ severity: 'error', summary: 'Error', detail: 'No se pudo ejecutar la migración', life: 4000 })
+  }
+}
+
+async function syncNow() {
+  syncing.value = true
+  try {
+    await http.post(`${import.meta.env.VITE_API_MAINTENANCE_URL}/sicov-sync/trigger-batch`, {})
+    toast.add({
+      severity: 'success',
+      summary: 'Sincronización ejecutada',
+      detail: 'Se procesaron los alistamientos pendientes del día. Recargando lista...',
+      life: 4000,
+    })
+    await refresh()
+  } catch {
+    toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo ejecutar la sincronización', life: 4000 })
+  } finally {
+    syncing.value = false
+  }
+}
+
+async function expireOldPending() {
+  expiring.value = true
+  try {
+    const res = await http.post(`${import.meta.env.VITE_API_MAINTENANCE_URL}/sicov-sync/expire-old-pending`, {})
+    const count = res.data?.expired ?? 0
+    toast.add({
+      severity: count > 0 ? 'warn' : 'info',
+      summary: 'Expiración completada',
+      detail: count > 0
+        ? `${count} alistamiento(s) de días anteriores marcado(s) como inactivos. Ya no se enviarán a Supertransporte.`
+        : 'No hay alistamientos pendientes de días anteriores.',
+      life: 5000,
+    })
+    if (count > 0) await refresh()
+  } catch {
+    toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo ejecutar la expiración', life: 4000 })
+  } finally {
+    expiring.value = false
   }
 }
 

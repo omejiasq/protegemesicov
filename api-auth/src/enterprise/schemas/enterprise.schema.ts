@@ -81,6 +81,19 @@ export class Enterprise {
   @Prop({ type: String, default: '' })
   mechanic_name?: string;
 
+  // ── Inspector por defecto (alistamientos) ──────────────
+  @Prop({ type: String, default: null })
+  default_inspector_id?: string | null;          // _id del usuario inspector
+
+  @Prop({ type: Number, default: null })
+  default_inspector_document_type?: number | null;
+
+  @Prop({ type: String, default: '' })
+  default_inspector_document_number?: string;
+
+  @Prop({ type: String, default: '' })
+  default_inspector_name?: string;
+
 }
 
 export const EnterpriseSchema = SchemaFactory.createForClass(Enterprise);

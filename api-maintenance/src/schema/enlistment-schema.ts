@@ -39,16 +39,18 @@ export class EnlistmentDetail {
 
   /**
    * Estado de sincronización con SICOV.
-   * - pending: guardado localmente, SICOV no disponible al momento de crear
-   * - synced:  enviado correctamente a SICOV
-   * - failed:  superó el máximo de reintentos, requiere intervención manual
+   * - pending:  guardado localmente, SICOV no disponible al momento de crear
+   * - synced:   enviado correctamente a SICOV
+   * - failed:   superó el máximo de reintentos, requiere intervención manual
+   * - demo:     modo demo, no se envía a SICOV
+   * - expired:  no fue sincronizado el día de creación; ya no se enviará a SICOV
    */
   @Prop({
-    enum: ['pending', 'synced', 'failed', 'demo'],
+    enum: ['pending', 'synced', 'failed', 'demo', 'expired'],
     default: 'synced',
     index: true,
   })
-  sicov_sync_status!: 'pending' | 'synced' | 'failed' | 'demo';
+  sicov_sync_status!: 'pending' | 'synced' | 'failed' | 'demo' | 'expired';
 
   /**
    * Origen del registro.

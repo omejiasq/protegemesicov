@@ -69,6 +69,22 @@ export class SicovSyncController {
   }
 
   /**
+   * Expira manualmente los alistamientos pendientes cuyo día de creación
+   * ya pasó. Los marca como inactivos (estado=false) y sicov_sync_status='expired'.
+   *
+   * POST /sicov-sync/expire-old-pending
+   */
+  @Post('expire-old-pending')
+  async expireOldPending() {
+    const result = await this.syncService.expireOldPendingEnlistments();
+    return {
+      ok: true,
+      message: `${result.expired} alistamiento(s) expirado(s)`,
+      expired: result.expired,
+    };
+  }
+
+  /**
    * Reparación masiva de transacciones huérfanas en SICOV.
    *
    * Body:

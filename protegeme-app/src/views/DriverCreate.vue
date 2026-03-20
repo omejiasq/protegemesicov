@@ -162,7 +162,7 @@ const onSubmit = async () => {
   loading.value = true
 
   try {
-    await driversStore.create({
+    const payload: any = {
       usuario: form.value.documentNumber,
       password: 'Ach153*De',
       firstName: form.value.firstName,
@@ -172,7 +172,13 @@ const onSubmit = async () => {
       enterprise_id: authStore.enterprise_id,
       documentType: form.value.documentType,
       documentNumber: form.value.documentNumber,
-    })
+    }
+    if (form.value.no_licencia_conduccion)
+      payload.no_licencia_conduccion = form.value.no_licencia_conduccion
+    if (form.value.vencimiento_licencia_conduccion)
+      payload.vencimiento_licencia_conduccion = form.value.vencimiento_licencia_conduccion
+
+    await driversStore.create(payload)
 
     alert('Conductor creado correctamente')
     router.push({ name: 'drivers' })

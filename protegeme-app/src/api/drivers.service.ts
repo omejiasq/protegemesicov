@@ -10,7 +10,7 @@ export const DriversserviceApi = {
     http.get(`${baseURL}/users/drivers/${id}`),
 
   create: (data: any) =>
-    http.post(`${baseURL}/users`, data),
+    http.post(`${baseURL}/users/`, data),
 
   update: (id: string, data: any) =>
     http.put(`${baseURL}/users/${id}`, data),

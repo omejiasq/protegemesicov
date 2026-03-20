@@ -97,22 +97,20 @@
         <div class="grid">
           <div class="field">
             <label>Conductor Principal</label>
-            <select v-model="form.driver_id">
-              <option :value="null">Sin asignar</option>
-              <option v-for="d in drivers" :key="d._id" :value="d._id">
-                {{ d.nombre }}
-              </option>
-            </select>
+            <DriverSearchInput
+              v-model="form.driver_id"
+              :drivers="drivers"
+              placeholder="Buscar por N° documento o nombre..."
+            />
           </div>
 
           <div class="field">
             <label>Conductor Secundario</label>
-            <select v-model="form.driver2_id">
-              <option :value="null">Sin asignar</option>
-              <option v-for="d in drivers" :key="d._id" :value="d._id">
-                {{ d.nombre }}
-              </option>
-            </select>
+            <DriverSearchInput
+              v-model="form.driver2_id"
+              :drivers="drivers"
+              placeholder="Buscar por N° documento o nombre..."
+            />
           </div>
         </div>
 
@@ -224,6 +222,7 @@ import { ref, onMounted } from 'vue'
 import { useVehiclesStore } from '../stores/vehiclesStore'
 import { useDriversStore } from '../stores/driversStore'
 import { useRouter } from 'vue-router'
+import DriverSearchInput from '../components/DriverSearchInput.vue'
 
 const vehiclesStore = useVehiclesStore()
 const driversStore = useDriversStore()
@@ -277,6 +276,7 @@ const loadDrivers = async () => {
   drivers.value = items.map(d => ({
     _id: d._id,
     nombre: [d.usuario.nombre, d.usuario.apellido].filter(Boolean).join(' '),
+    documentNumber: d.usuario?.documentNumber ?? '',
   }))
 }
 
