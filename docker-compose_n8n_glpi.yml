@@ -1,0 +1,75 @@
+version: '3.9'
+
+services:
+  mariadb:
+    image: mariadb:11
+    container_name: mariadb
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: glpidb
+      MYSQL_USER: glpiuser
+      MYSQL_PASSWORD: glpipass
+    volumes:
+      - ./db_data:/var/lib/mysql
+    networks:
+      - backend
+
+  glpi:
+    image: diouxx/glpi:latest
+    container_name: glpi
+    restart: always
+    ports:
+      - "127.0.0.1:8080:80"
+    environment:
+      - TIMEZONE=America/Bogota
+    volumes:
+      - ./glpi_data:/var/www/html/glpi
+    depends_on:
+      - mariadb
+    networks:
+      - backend
+
+  n8n:
+    image: n8nio/n8n
+    container_name: n8n
+    restart: always
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      - GENERIC_TIMEZONE=America/Bogota
+      - N8N_HOST=n8n.protegeme.com.co
+      - N8N_PROTOCOL=https
+      - WEBHOOK_URL=https://n8n.protegeme.com.co/
+      - N8N_SECURE_COOKIE=true
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=TuClaveSegura123
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+      - ./n8n_files:/home/node/.n8n-files
+    networks:
+      - backend
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: phpmyadmin
+    restart: always
+    ports:
+      - "127.0.0.1:8081:80"
+    environment:
+      - PMA_HOST=mariadb
+      - PMA_USER=glpiuser
+      - PMA_PASSWORD=glpipass
+    depends_on:
+      - mariadb
+    networks:
+      - backend
+
+networks:
+  backend:
+
+volumes:
+  db_data:
+  glpi_data:
+  n8n_data:

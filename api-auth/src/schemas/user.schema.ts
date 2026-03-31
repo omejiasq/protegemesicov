@@ -115,10 +115,19 @@ export class User {
   @Prop({ type: String, default: null }) no_licencia_conduccion?: string;
   @Prop({ type: Date, default: null })
   vencimiento_licencia_conduccion?: Date;
+  @Prop({ type: String, default: null }) categoria_licencia?: string; // e.g. C1, C2, B2, B3
 
   /** Obliga al usuario a cambiar su contraseña en el próximo inicio de sesión */
   @Prop({ type: Boolean, default: false })
   must_change_password: boolean;
+
+  /**
+   * Permisos de menú específicos para este usuario.
+   * Si está vacío ([]) → hereda los permisos de la empresa.
+   * Si tiene valores → usa exactamente estas claves (subconjunto de las de la empresa).
+   */
+  @Prop({ type: [String], default: [] })
+  menu_permissions: string[];
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

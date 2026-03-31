@@ -104,4 +104,27 @@ export class EnterpriseController {
   get(@Param('id') id: string) {
     return this.enterpriseService.findById(id);
   }
+
+  /** GET /enterprise/:id/menu-permissions */
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/menu-permissions')
+  getMenuPermissions(@Param('id') id: string) {
+    return this.enterpriseService.getMenuPermissions(id);
+  }
+
+  /** PATCH /enterprise/:id/menu-permissions — admin de la empresa o superadmin */
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/menu-permissions')
+  setMenuPermissions(
+    @Param('id') id: string,
+    @Body('keys') keys: string[],
+    @Req() req: any,
+  ) {
+    const isOwnEnterprise = req.user.enterprise_id === id;
+    const isSuperAdmin = req.user.role === 'superadmin';
+    if (!isOwnEnterprise && !isSuperAdmin) {
+      throw new ForbiddenException('Sin permiso para modificar esta empresa');
+    }
+    return this.enterpriseService.setMenuPermissions(id, keys);
+  }
 }

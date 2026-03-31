@@ -22,6 +22,14 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
 
+  // FUEC — vista de impresión/PDF (sin layout, requiere auth)
+  {
+    path: "/fuec/:id/print",
+    name: "fuec-print",
+    component: () => import("../views/maintenance/FuecPrint.vue"),
+    meta: { requiresAuth: true },
+  },
+
   // RUTAS PRIVADAS ENVUELTAS POR EL LAYOUT
   {
     path: "/",
@@ -170,6 +178,12 @@ const routes: RouteRecordRaw[] = [
       },
 
       {
+        path: "maintenance/fuec",
+        name: "maintenance/fuec",
+        component: () => import("../views/maintenance/Fuec.vue"),
+      },
+
+      {
         path: "maintenance/suppliers",
         name: "maintenance/suppliers",
         component: () => import("../views/maintenance/Suppliers.vue"),
@@ -188,11 +202,24 @@ const routes: RouteRecordRaw[] = [
         component: () => import("../views/AuditReport.vue"),
       },
 
+      // ─── PERMISOS DE MENÚ (admin) ───
+      {
+        path: "enterprise/menu-permissions",
+        name: "menu-permissions",
+        component: () => import("../views/MenuPermissions.vue"),
+      },
+
       // ─── SUPERADMIN ───
       {
         path: "admin/enterprises",
         name: "admin-enterprises",
         component: () => import("../views/admin/EnterpriseManagement.vue"),
+        meta: { requiresSuperAdmin: true },
+      },
+      {
+        path: "admin/menu-catalog",
+        name: "admin-menu-catalog",
+        component: () => import("../views/admin/MenuCatalog.vue"),
         meta: { requiresSuperAdmin: true },
       },
 

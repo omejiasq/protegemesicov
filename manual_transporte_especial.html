@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual de Usuario — Transporte Especial | ProtegeMeSICOV</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; color: #1e293b; font-size: 15px; line-height: 1.6; }
+
+    /* ── Portada ── */
+    .cover {
+      background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 60%, #0ea5e9 100%);
+      color: white; padding: 60px 40px; text-align: center;
+    }
+    .cover .logo { font-size: 13px; letter-spacing: 3px; opacity: .7; margin-bottom: 16px; text-transform: uppercase; }
+    .cover h1 { font-size: 34px; font-weight: 800; margin-bottom: 12px; }
+    .cover .subtitle { font-size: 18px; opacity: .85; margin-bottom: 8px; }
+    .cover .badge-cover {
+      display: inline-block; background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.3); border-radius: 999px;
+      padding: 5px 18px; font-size: 13px; margin-top: 20px; letter-spacing: 1px;
+    }
+
+    /* ── Layout ── */
+    .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* ── TOC ── */
+    .toc { background: white; border-radius: 14px; padding: 28px 32px; margin-bottom: 40px; box-shadow: 0 2px 12px rgba(0,0,0,.07); }
+    .toc h2 { font-size: 16px; color: #1e3a8a; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .toc ol { padding-left: 20px; }
+    .toc li { margin-bottom: 6px; }
+    .toc a { color: #2563eb; text-decoration: none; font-size: 14px; }
+    .toc a:hover { text-decoration: underline; }
+
+    /* ── Secciones ── */
+    .section { background: white; border-radius: 14px; padding: 32px; margin-bottom: 32px; box-shadow: 0 2px 12px rgba(0,0,0,.07); }
+    .section-number {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 34px; height: 34px; background: #1e3a8a; color: white;
+      border-radius: 50%; font-size: 15px; font-weight: 700; margin-right: 10px; flex-shrink: 0;
+    }
+    .section-header { display: flex; align-items: center; margin-bottom: 20px; }
+    .section-header h2 { font-size: 20px; font-weight: 700; color: #1e3a8a; }
+    .section p { margin-bottom: 12px; color: #374151; }
+
+    /* ── Steps ── */
+    .steps { counter-reset: step; }
+    .step {
+      display: flex; gap: 16px; margin-bottom: 20px;
+      padding-bottom: 20px; border-bottom: 1px solid #f1f5f9;
+    }
+    .step:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .step-num {
+      counter-increment: step;
+      flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
+      background: #dbeafe; color: #1d4ed8; font-weight: 700; font-size: 14px;
+      display: flex; align-items: center; justify-content: center; margin-top: 2px;
+    }
+    .step-content h4 { font-size: 15px; font-weight: 700; color: #111827; margin-bottom: 6px; }
+    .step-content p { font-size: 14px; color: #4b5563; margin-bottom: 0; }
+
+    /* ── Field hint ── */
+    .field-hint {
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+      padding: 10px 14px; margin: 10px 0; font-size: 13px; color: #475569;
+    }
+    .field-hint strong { color: #1e40af; }
+
+    /* ── Alertas ── */
+    .alert { border-radius: 10px; padding: 14px 18px; margin: 16px 0; font-size: 14px; display: flex; gap: 10px; align-items: flex-start; }
+    .alert-icon { font-size: 18px; flex-shrink: 0; }
+    .alert-info { background: #eff6ff; border-left: 4px solid #3b82f6; color: #1e40af; }
+    .alert-success { background: #f0fdf4; border-left: 4px solid #22c55e; color: #15803d; }
+    .alert-warning { background: #fffbeb; border-left: 4px solid #f59e0b; color: #92400e; }
+    .alert-danger  { background: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b; }
+
+    /* ── Tabla de campos ── */
+    .field-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+    .field-table th { background: #1e3a8a; color: white; padding: 9px 12px; text-align: left; }
+    .field-table td { padding: 8px 12px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+    .field-table tr:hover td { background: #f8fafc; }
+    .required { color: #dc2626; font-weight: 700; }
+    .optional { color: #6b7280; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .badge-blue    { background: #dbeafe; color: #1d4ed8; }
+    .badge-green   { background: #d1fae5; color: #065f46; }
+    .badge-yellow  { background: #fef3c7; color: #92400e; }
+    .badge-red     { background: #fee2e2; color: #991b1b; }
+    .badge-gray    { background: #f3f4f6; color: #374151; }
+
+    /* ── Diagrama de flujo ── */
+    .flow { display: flex; align-items: center; flex-wrap: wrap; gap: 0; margin: 20px 0; }
+    .flow-step {
+      background: #eff6ff; border: 2px solid #bfdbfe; border-radius: 10px;
+      padding: 10px 16px; font-size: 13px; font-weight: 600; color: #1e40af; text-align: center; min-width: 110px;
+    }
+    .flow-step.done { background: #f0fdf4; border-color: #86efac; color: #15803d; }
+    .flow-arrow { font-size: 18px; color: #94a3b8; padding: 0 6px; }
+
+    /* ── Comparativa SICOV ── */
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+    .compare-card { border-radius: 10px; padding: 18px; }
+    .compare-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+    .compare-card.carretera { background: #eff6ff; border: 1px solid #bfdbfe; }
+    .compare-card.carretera h4 { color: #1d4ed8; }
+    .compare-card.especial { background: #f0fdf4; border: 1px solid #86efac; }
+    .compare-card.especial h4 { color: #15803d; }
+    .compare-card ul { padding-left: 18px; font-size: 13px; color: #374151; }
+    .compare-card li { margin-bottom: 5px; }
+
+    /* ── Nota al pie ── */
+    .footer-note { text-align: center; color: #94a3b8; font-size: 12px; margin-top: 60px; padding-top: 20px; border-top: 1px solid #e5e7eb; }
+
+    @media (max-width: 600px) {
+      .cover h1 { font-size: 24px; }
+      .compare { grid-template-columns: 1fr; }
+      .flow { flex-direction: column; }
+      .flow-arrow { transform: rotate(90deg); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- PORTADA -->
+<div class="cover">
+  <div class="logo">ProtegeMeSICOV</div>
+  <h1>Manual de Usuario</h1>
+  <div class="subtitle">Módulo de Transporte Especial</div>
+  <p style="opacity:.7; font-size:14px; margin-top:8px;">Gestión de FUEC, vehículos y registros sin reporte a Supertransporte</p>
+  <div class="badge-cover">Versión 1.0 — Marzo 2026</div>
+</div>
+
+<div class="container">
+
+  <!-- TABLA DE CONTENIDO -->
+  <div class="toc">
+    <h2>📋 Contenido</h2>
+    <ol>
+      <li><a href="#s1">¿Qué es Transporte Especial en el sistema?</a></li>
+      <li><a href="#s2">Paso 1 — Crear la empresa de Transporte Especial (superadmin)</a></li>
+      <li><a href="#s3">Paso 2 — Acceder con las credenciales de la empresa</a></li>
+      <li><a href="#s4">Paso 3 — Registrar conductores</a></li>
+      <li><a href="#s5">Paso 4 — Crear un vehículo de tipo Especial</a></li>
+      <li><a href="#s6">Paso 5 — Crear un FUEC</a></li>
+      <li><a href="#s7">Paso 6 — Registrar alistamientos (sin SICOV)</a></li>
+      <li><a href="#s8">Paso 7 — Registrar mantenimientos preventivos (sin SICOV)</a></li>
+      <li><a href="#s9">Diferencias con Transporte de Carretera</a></li>
+      <li><a href="#s10">Preguntas frecuentes</a></li>
+    </ol>
+  </div>
+
+  <!-- SECCIÓN 1 -->
+  <div class="section" id="s1">
+    <div class="section-header">
+      <span class="section-number">1</span>
+      <h2>¿Qué es Transporte Especial en el sistema?</h2>
+    </div>
+
+    <p>El sistema maneja tres tipos de habilitación de empresas ante el Ministerio de Transporte:</p>
+
+    <div class="compare">
+      <div class="compare-card carretera">
+        <h4>🛣️ Carretera</h4>
+        <ul>
+          <li>Transporte intermunicipal de pasajeros</li>
+          <li>Reporta alistamientos y mantenimientos a Supertransporte vía API SICOV</li>
+          <li>Los vehículos requieren habilitación manual por parte de IT Fusion</li>
+          <li>Se generan consecutivos EL-YYYY-XXXX y EM-YYYY-XXXX</li>
+        </ul>
+      </div>
+      <div class="compare-card especial">
+        <h4>🚌 Transporte Especial</h4>
+        <ul>
+          <li>Escolar, empresarial, turístico, eventos</li>
+          <li><strong>No reporta a Supertransporte por API</strong></li>
+          <li>Los vehículos se activan automáticamente al crearlos</li>
+          <li>Genera FUEC (Formato Único de Extracto de Contrato)</li>
+          <li>Los registros de mantenimiento quedan locales en el sistema</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="alert alert-info">
+      <span class="alert-icon">ℹ️</span>
+      <div>Las empresas de tipo <strong>Mixto</strong> tienen ambos tipos de vehículos. Cada vehículo define individualmente si es Carretera o Especial al momento de crearlo.</div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 2 -->
+  <div class="section" id="s2">
+    <div class="section-header">
+      <span class="section-number">2</span>
+      <h2>Paso 1 — Crear la empresa (superadmin)</h2>
+    </div>
+
+    <p>Este paso lo realiza el administrador de IT Fusion desde el panel superadmin.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Ingresar al panel superadmin</h4>
+          <p>Acceda a la aplicación web con las credenciales de superadmin y navegue a <strong>Administración → Empresas</strong>.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Hacer clic en "Nueva Empresa"</h4>
+          <p>Se abre el formulario de creación. Complete los datos básicos de la empresa.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Seleccionar el tipo de habilitación</h4>
+          <p>En la sección <em>"Tipo de habilitación"</em> seleccione:</p>
+          <div class="field-hint">
+            <strong>Tipo de habilitación →</strong> <span class="badge badge-green">Transporte Especial (no reporta a Supertransporte)</span>
+          </div>
+          <p>Para empresas mixtas seleccione <strong>Mixto</strong>. Cada vehículo luego define su tipo individualmente.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Dejar vacíos VigiladoId y VigiladoToken</h4>
+          <p>Las empresas de Transporte Especial <strong>no tienen</strong> estos campos. Déjelos en blanco — no son necesarios ni se usarán.</p>
+          <div class="alert alert-warning">
+            <span class="alert-icon">⚠️</span>
+            <div>Si por error se llena el VigiladoId, el sistema intentará conectar con Supertransporte para los vehículos de Carretera. Para empresas 100% Especial, estos campos deben quedar vacíos.</div>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Guardar la empresa y crear el usuario administrador</h4>
+          <p>Después de guardar la empresa, cree el usuario administrador con su correo. El sistema enviará automáticamente un correo con las credenciales de acceso.</p>
+        </div>
+      </div>
+    </div>
+
+    <table class="field-table" style="margin-top:20px;">
+      <thead><tr><th>Campo</th><th>Valor recomendado</th><th>Requerido</th></tr></thead>
+      <tbody>
+        <tr><td>Nombre empresa</td><td>Nombre legal completo</td><td class="required">Sí</td></tr>
+        <tr><td>NIT</td><td>NIT sin dígito de verificación</td><td class="required">Sí</td></tr>
+        <tr><td>Tipo de habilitación</td><td><span class="badge badge-green">ESPECIAL</span></td><td class="required">Sí</td></tr>
+        <tr><td>Paquete</td><td>enterprise o basic según contrato</td><td class="required">Sí</td></tr>
+        <tr><td>VigiladoId</td><td>Dejar vacío</td><td class="optional">No aplica</td></tr>
+        <tr><td>VigiladoToken</td><td>Dejar vacío</td><td class="optional">No aplica</td></tr>
+        <tr><td>Teléfono, dirección</td><td>Datos de contacto</td><td class="optional">Opcional</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- SECCIÓN 3 -->
+  <div class="section" id="s3">
+    <div class="section-header">
+      <span class="section-number">3</span>
+      <h2>Paso 2 — Acceder con las credenciales de la empresa</h2>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Revisar el correo electrónico</h4>
+          <p>Al crear el usuario administrador, el sistema envía automáticamente un correo con:</p>
+          <ul style="padding-left:18px; font-size:14px; color:#374151; margin-top:6px;">
+            <li>Nombre de usuario (generalmente el número de documento)</li>
+            <li>Contraseña temporal</li>
+            <li>Enlace a la plataforma</li>
+          </ul>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Ingresar a la plataforma web</h4>
+          <p>Abra el navegador y acceda a la URL de la plataforma. Ingrese el <strong>usuario</strong> y la <strong>contraseña temporal</strong>.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Cambiar la contraseña</h4>
+          <p>En el primer inicio de sesión el sistema le pedirá cambiar la contraseña. Elija una contraseña segura de mínimo 8 caracteres.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Verificar el tipo de empresa</h4>
+          <p>En el panel principal verá sus módulos disponibles. Las empresas de Transporte Especial verán el módulo <strong>FUEC</strong> en el menú lateral, en la sección de Mantenimiento.</p>
+          <div class="alert alert-success">
+            <span class="alert-icon">✅</span>
+            <div>Si no ve el módulo FUEC, contacte a soporte técnico para verificar el tipo de habilitación de su empresa.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="alert alert-warning">
+      <span class="alert-icon">⚠️</span>
+      <div><strong>Si olvidó su contraseña:</strong> en la pantalla de login haga clic en <em>"¿Olvidó su contraseña?"</em> e ingrese su usuario o correo. Recibirá una nueva contraseña temporal en su correo registrado.</div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 4 -->
+  <div class="section" id="s4">
+    <div class="section-header">
+      <span class="section-number">4</span>
+      <h2>Paso 3 — Registrar conductores</h2>
+    </div>
+
+    <p>Antes de crear un FUEC necesita tener conductores registrados en el sistema. Esto le permite pre-llenar los datos del conductor automáticamente en cada FUEC.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Ir a Personal → Conductores</h4>
+          <p>En el menú lateral navegue a la sección de conductores de su empresa.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Crear nuevo conductor</h4>
+          <p>Complete los datos básicos del conductor. Para el FUEC son especialmente importantes:</p>
+          <table class="field-table">
+            <thead><tr><th>Campo</th><th>Descripción</th><th>Requerido para FUEC</th></tr></thead>
+            <tbody>
+              <tr><td>Nombre completo</td><td>Nombres y apellidos</td><td class="required">Sí</td></tr>
+              <tr><td>Número de documento</td><td>Cédula de ciudadanía</td><td class="required">Sí</td></tr>
+              <tr><td>N° Licencia de conducción</td><td>Número de la licencia</td><td class="required">Sí</td></tr>
+              <tr><td>Categoría de licencia</td><td>C1, C2, B2, B3, etc.</td><td class="required">Sí (FUEC)</td></tr>
+              <tr><td>Vencimiento de licencia</td><td>Fecha de vencimiento</td><td class="required">Sí (FUEC)</td></tr>
+              <tr><td>Teléfono</td><td>Número de contacto</td><td class="optional">Opcional</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="alert alert-info">
+      <span class="alert-icon">ℹ️</span>
+      <div>Si no registra el conductor previamente, podrá igualmente ingresar sus datos manualmente al momento de crear el FUEC. Sin embargo, registrarlo en el sistema le ahorra tiempo y evita errores de digitación.</div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 5 -->
+  <div class="section" id="s5">
+    <div class="section-header">
+      <span class="section-number">5</span>
+      <h2>Paso 4 — Crear un vehículo de tipo Especial</h2>
+    </div>
+
+    <div class="alert alert-success">
+      <span class="alert-icon">✅</span>
+      <div><strong>Ventaja clave:</strong> Los vehículos de tipo <em>Especial</em> se activan automáticamente al crearlos. <strong>No es necesario contactar a IT Fusion para habilitar el vehículo</strong> — queda disponible de inmediato para registrar FUEC, alistamientos y mantenimientos.</div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Ir a Vehículos → Crear Vehículo</h4>
+          <p>En el menú lateral navegue a la sección de vehículos y haga clic en "Nuevo Vehículo".</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Seleccionar Tipo de Servicio: ESPECIAL</h4>
+          <p>Este es el campo más importante. En el formulario seleccione:</p>
+          <div class="field-hint">
+            <strong>Tipo de servicio →</strong> <span class="badge badge-green">Especial (no reporta a Supertransporte)</span>
+          </div>
+          <p>Al seleccionar <em>Especial</em>, el vehículo quedará activo inmediatamente y sus alistamientos y mantenimientos NO se enviarán a Supertransporte.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Completar los datos del vehículo</h4>
+          <p>Para el FUEC son importantes los documentos del vehículo. Complete:</p>
+          <table class="field-table">
+            <thead><tr><th>Campo</th><th>Descripción</th><th>Para FUEC</th></tr></thead>
+            <tbody>
+              <tr><td>Placa</td><td>6 caracteres alfanuméricos</td><td class="required">Obligatorio</td></tr>
+              <tr><td>Clase</td><td>Bus, Buseta, Microbús, Van, etc.</td><td class="required">Importante</td></tr>
+              <tr><td>Marca / Modelo</td><td>Marca y año del modelo</td><td class="optional">Recomendado</td></tr>
+              <tr><td>Color</td><td>Color del vehículo</td><td class="optional">Opcional</td></tr>
+              <tr><td>N° SOAT + Vencimiento</td><td>Número y fecha de vencimiento del SOAT</td><td class="required">FUEC (aparece en el documento)</td></tr>
+              <tr><td>N° RTM + Vencimiento</td><td>Revisión técnico-mecánica</td><td class="required">FUEC (aparece en el documento)</td></tr>
+              <tr><td>N° Tarjeta de operación + Vencimiento</td><td>Tarjeta de operación del vehículo</td><td class="required">FUEC (aparece en el documento)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Guardar el vehículo</h4>
+          <p>Haga clic en "Guardar". El vehículo queda activo inmediatamente — sin esperar correo de habilitación.</p>
+          <div class="alert alert-success">
+            <span class="alert-icon">✅</span>
+            <div>El vehículo aparece en la lista con estado <span class="badge badge-green">Activo</span>. Ya puede usarse para crear FUECs, registrar alistamientos y mantenimientos.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 6 -->
+  <div class="section" id="s6">
+    <div class="section-header">
+      <span class="section-number">6</span>
+      <h2>Paso 5 — Crear un FUEC</h2>
+    </div>
+
+    <p>El <strong>Formato Único de Extracto de Contrato</strong> es el documento obligatorio para cada servicio de transporte especial. Se genera desde la plataforma y puede imprimirse o enviarse digitalmente al conductor.</p>
+
+    <div class="flow">
+      <div class="flow-step done">Vehículo activo</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step done">Conductor registrado</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">Crear FUEC (borrador)</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">Emitir FUEC</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">Entrega al conductor</div>
+    </div>
+
+    <div class="steps" style="margin-top:20px;">
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Ir a Mantenimiento → FUEC</h4>
+          <p>En el menú lateral haga clic en <strong>FUEC</strong> dentro de la sección Mantenimiento.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Hacer clic en "Nuevo FUEC"</h4>
+          <p>Se abre el formulario de creación. El sistema asignará automáticamente el número de FUEC consecutivo (ej: <code>FUEC-2026-0001</code>).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Completar los datos del contrato</h4>
+          <table class="field-table">
+            <thead><tr><th>Campo</th><th>Descripción</th><th>Requerido</th></tr></thead>
+            <tbody>
+              <tr><td>Nombre del contratante</td><td>Empresa o persona que contrató el servicio</td><td class="required">Sí</td></tr>
+              <tr><td>NIT / Cédula contratante</td><td>Identificación del contratante</td><td class="required">Sí</td></tr>
+              <tr><td>Descripción del servicio</td><td>Ej: "Transporte escolar institución X"</td><td class="required">Sí</td></tr>
+              <tr><td>Origen</td><td>Municipio o dirección de salida</td><td class="required">Sí</td></tr>
+              <tr><td>Destino</td><td>Municipio o dirección de llegada</td><td class="required">Sí</td></tr>
+              <tr><td>Fecha del servicio</td><td>Fecha en que se realiza el servicio</td><td class="required">Sí</td></tr>
+              <tr><td>Hora</td><td>Hora de salida</td><td class="required">Sí</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Seleccionar el vehículo</h4>
+          <p>Elija el vehículo de la lista desplegable. El sistema cargará automáticamente los datos del vehículo (SOAT, RTM, tarjeta de operación) en el FUEC.</p>
+          <div class="alert alert-warning">
+            <span class="alert-icon">⚠️</span>
+            <div>Solo aparecen en la lista los vehículos que están activos. Si no ve el vehículo, verifique que fue creado como tipo ESPECIAL y está en estado activo.</div>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Seleccionar o ingresar el conductor</h4>
+          <p>Tiene dos opciones:</p>
+          <ul style="padding-left:18px; font-size:14px; color:#374151; margin: 6px 0;">
+            <li><strong>Desde el listado:</strong> Seleccione el conductor registrado en el sistema. Sus datos (cédula, licencia, categoría, vencimiento) se pre-llenan automáticamente.</li>
+            <li><strong>Manual:</strong> Ingrese los datos directamente en los campos de conductor.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Crear como Borrador</h4>
+          <p>Haga clic en <strong>"Crear FUEC"</strong>. El FUEC se guarda en estado <span class="badge badge-yellow">Borrador</span>. Puede revisarlo y editarlo antes de emitirlo.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Emitir el FUEC</h4>
+          <p>Una vez revisado, haga clic en el botón <strong>Emitir</strong> (ícono de envío). El FUEC cambia a estado <span class="badge badge-green">Emitido</span> y ya no puede modificarse.</p>
+          <div class="alert alert-danger">
+            <span class="alert-icon">🚫</span>
+            <div>Un FUEC emitido no puede editarse. Si hay un error, debe anularlo e indicar el motivo, y crear uno nuevo.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="font-size:15px; color:#1e3a8a; margin: 20px 0 10px;">Estados del FUEC</h3>
+    <table class="field-table">
+      <thead><tr><th>Estado</th><th>Significado</th><th>Puede editarse</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge badge-yellow">Borrador</span></td><td>Creado, pendiente de emisión</td><td>✅ Sí</td></tr>
+        <tr><td><span class="badge badge-green">Emitido</span></td><td>Documento oficial entregado al conductor</td><td>❌ No</td></tr>
+        <tr><td><span class="badge badge-red">Anulado</span></td><td>Cancelado con motivo registrado</td><td>❌ No</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- SECCIÓN 7 -->
+  <div class="section" id="s7">
+    <div class="section-header">
+      <span class="section-number">7</span>
+      <h2>Paso 6 — Registrar alistamientos (sin SICOV)</h2>
+    </div>
+
+    <div class="alert alert-success">
+      <span class="alert-icon">✅</span>
+      <div>El proceso de alistamiento en la app móvil es <strong>idéntico</strong> al de transporte de carretera. La única diferencia es que el registro <strong>no se envía a Supertransporte</strong> — queda guardado localmente en la plataforma para trazabilidad interna.</div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>El conductor o inspector abre la app móvil</h4>
+          <p>Inicia sesión con sus credenciales. Verá el menú de alistamientos.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Seleccionar la placa del vehículo</h4>
+          <p>Ingrese o seleccione la placa del vehículo a alistar. Si el vehículo está activo (tipo ESPECIAL), el sistema lo acepta sin restricciones.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Diligenciar el formulario de alistamiento</h4>
+          <p>Complete los ítems con los valores correspondientes (C = Cumple, N/C = No Cumple, N/A = No Aplica). Puede agregar observaciones y fotos de evidencia por ítem.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Guardar el alistamiento</h4>
+          <p>El registro se guarda en el sistema con estado <span class="badge badge-gray">no_aplica</span> en el campo de sincronización SICOV. Esto indica que es un vehículo de transporte especial y el envío a Supertransporte no aplica.</p>
+          <div class="field-hint">
+            <strong>Nota técnica:</strong> El campo <code>sicov_sync_status = 'no_aplica'</code> diferencia estos registros de los de carretera. No generará reintentos ni alertas de fallo SICOV.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p>Desde la <strong>app web</strong> podrá consultar todos los alistamientos registrados, filtrarlos por fecha, placa o conductor, y generar reportes en PDF.</p>
+  </div>
+
+  <!-- SECCIÓN 8 -->
+  <div class="section" id="s8">
+    <div class="section-header">
+      <span class="section-number">8</span>
+      <h2>Paso 7 — Registrar mantenimientos preventivos (sin SICOV)</h2>
+    </div>
+
+    <div class="alert alert-success">
+      <span class="alert-icon">✅</span>
+      <div>Al igual que los alistamientos, los mantenimientos preventivos y correctivos de vehículos Especial se guardan solo localmente. <strong>No se envían a Supertransporte.</strong></div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Ir a Mantenimiento → Preventivo (o Correctivo)</h4>
+          <p>Desde la app web navegue a la sección de mantenimientos.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Crear un nuevo mantenimiento</h4>
+          <p>Seleccione la placa del vehículo, la fecha, el técnico responsable y complete los ítems del formulario de mantenimiento.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Adjuntar foto de evidencia (recomendado)</h4>
+          <p>Para mantenimientos correctivos realizados en talleres externos, adjunte la foto de la factura del taller. Esta evidencia fotográfica:</p>
+          <ul style="padding-left:18px; font-size:14px; color:#374151; margin-top:6px;">
+            <li>Sirve como respaldo documental</li>
+            <li>Evita que el taller deba ingresar al sistema</li>
+            <li>Puede usarse en auditorías internas</li>
+          </ul>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h4>Guardar el mantenimiento</h4>
+          <p>El registro queda guardado en la plataforma. El estado de sincronización es <span class="badge badge-gray">no_aplica</span> — no hay integración con Supertransporte para este tipo de empresa.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 9 -->
+  <div class="section" id="s9">
+    <div class="section-header">
+      <span class="section-number">9</span>
+      <h2>Diferencias con Transporte de Carretera</h2>
+    </div>
+
+    <table class="field-table">
+      <thead>
+        <tr>
+          <th>Aspecto</th>
+          <th>🛣️ Carretera</th>
+          <th>🚌 Especial</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Reporte a Supertransporte</td>
+          <td>✅ Automático vía API SICOV</td>
+          <td>❌ No aplica</td>
+        </tr>
+        <tr>
+          <td>Activación de vehículos</td>
+          <td>Manual por IT Fusion (correo de solicitud)</td>
+          <td>Automática al crear el vehículo</td>
+        </tr>
+        <tr>
+          <td>VigiladoId / VigiladoToken</td>
+          <td>Obligatorio</td>
+          <td>No aplica</td>
+        </tr>
+        <tr>
+          <td>FUEC</td>
+          <td>❌ No aplica</td>
+          <td>✅ Disponible en el sistema</td>
+        </tr>
+        <tr>
+          <td>Alistamientos</td>
+          <td>Se envían a SICOV</td>
+          <td>Solo registro local</td>
+        </tr>
+        <tr>
+          <td>Mantenimientos preventivos</td>
+          <td>Se envían a SICOV</td>
+          <td>Solo registro local</td>
+        </tr>
+        <tr>
+          <td>Estado sync en registros</td>
+          <td>synced / pending / failed</td>
+          <td>no_aplica</td>
+        </tr>
+        <tr>
+          <td>Campo tipo_servicio en vehículo</td>
+          <td>CARRETERA</td>
+          <td>ESPECIAL</td>
+        </tr>
+        <tr>
+          <td>Correo a IT Fusion al crear vehículo</td>
+          <td>✅ Se envía automáticamente</td>
+          <td>❌ No se envía (activación automática)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- SECCIÓN 10 -->
+  <div class="section" id="s10">
+    <div class="section-header">
+      <span class="section-number">10</span>
+      <h2>Preguntas frecuentes</h2>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:16px;">
+
+      <div style="border-left:3px solid #3b82f6; padding-left:16px;">
+        <p style="font-weight:700; color:#1e3a8a; margin-bottom:4px;">¿Puedo tener vehículos de carretera y especial en la misma empresa?</p>
+        <p style="font-size:14px;">Sí. Configure la empresa como tipo <strong>Mixto</strong>. Al crear cada vehículo seleccione el tipo de servicio correspondiente (CARRETERA o ESPECIAL). Cada vehículo opera de forma independiente.</p>
+      </div>
+
+      <div style="border-left:3px solid #3b82f6; padding-left:16px;">
+        <p style="font-weight:700; color:#1e3a8a; margin-bottom:4px;">¿El FUEC reemplaza algún registro ante el Ministerio de Transporte?</p>
+        <p style="font-size:14px;">El FUEC generado en el sistema sirve como respaldo interno. La empresa debe gestionar directamente con el Ministerio de Transporte cualquier obligación regulatoria del FUEC físico según el Decreto 174 de 2001 y sus modificatorias. El sistema facilita la generación y almacenamiento del documento.</p>
+      </div>
+
+      <div style="border-left:3px solid #3b82f6; padding-left:16px;">
+        <p style="font-weight:700; color:#1e3a8a; margin-bottom:4px;">¿Qué pasa si por error creo un vehículo Especial con tipo CARRETERA?</p>
+        <p style="font-size:14px;">El vehículo quedará en estado pendiente de habilitación y se enviará un correo a IT Fusion. Contacte a soporte para que se ajuste el tipo de servicio del vehículo en el sistema.</p>
+      </div>
+
+      <div style="border-left:3px solid #3b82f6; padding-left:16px;">
+        <p style="font-weight:700; color:#1e3a8a; margin-bottom:4px;">¿Puedo anular un FUEC equivocado?</p>
+        <p style="font-size:14px;">Sí. En la lista de FUECs haga clic en el ícono de anulación (🚫), ingrese el motivo y confirme. El FUEC queda con estado <span class="badge badge-red">Anulado</span> con el motivo registrado. Luego cree uno nuevo.</p>
+      </div>
+
+      <div style="border-left:3px solid #3b82f6; padding-left:16px;">
+        <p style="font-weight:700; color:#1e3a8a; margin-bottom:4px;">¿Los registros de alistamiento y mantenimiento se pueden exportar?</p>
+        <p style="font-size:14px;">Sí, desde la app web puede generar reportes en PDF de los registros. Use los filtros de fecha, placa y estado para acotar la información.</p>
+      </div>
+
+      <div style="border-left:3px solid #3b82f6; padding-left:16px;">
+        <p style="font-weight:700; color:#1e3a8a; margin-bottom:4px;">¿Para qué sirven los campos "Observación" y "Plan de Acción" en los mantenimientos?</p>
+        <p style="font-size:14px;">
+          <strong>Observación:</strong> registre la condición encontrada o la falla detectada. Ej: <em>"Presión de llanta delantera izquierda baja, 85 PSI"</em>.<br/>
+          <strong>Plan de Acción:</strong> en preventivo, la acción programada; en correctivo, lo que se realizó. Ej: <em>"Se reemplazó empaque de tapa válvulas y se ajustaron tornillos con torquímetro"</em>.
+        </p>
+      </div>
+
+      <div style="border-left:3px solid #3b82f6; padding-left:16px;">
+        <p style="font-weight:700; color:#1e3a8a; margin-bottom:4px;">¿A qué correo contactar para soporte?</p>
+        <p style="font-size:14px;">Para solicitudes de habilitación, deshabilitación o soporte técnico contacte a: <strong>edgar.mejia@itfusion.co</strong></p>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="footer-note">
+    <p>ProtegeMeSICOV — Manual de Usuario Transporte Especial v1.0 | Marzo 2026</p>
+    <p style="margin-top:4px;">IT Fusion S.A.S. | edgar.mejia@itfusion.co</p>
+  </div>
+
+</div>
+</body>
+</html>

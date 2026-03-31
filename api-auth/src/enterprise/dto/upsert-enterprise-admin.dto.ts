@@ -69,4 +69,8 @@ export class UpsertEnterpriseAdminDto {
   @IsOptional()
   @IsObject()
   formato_preventivo?: Record<string, any>;
+
+  @IsOptional()
+  @IsIn(['CARRETERA', 'ESPECIAL', 'MIXTO'])
+  tipo_habilitacion?: 'CARRETERA' | 'ESPECIAL' | 'MIXTO';
 }

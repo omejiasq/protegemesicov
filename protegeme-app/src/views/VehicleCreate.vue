@@ -16,6 +16,14 @@
           </div>
 
           <div class="field">
+            <label>Tipo de servicio *</label>
+            <select v-model="form.tipo_servicio">
+              <option value="CARRETERA">Carretera (reporta a Supertransporte)</option>
+              <option value="ESPECIAL">Especial (no reporta a Supertransporte)</option>
+            </select>
+          </div>
+
+          <div class="field">
             <label>Clase</label>
             <input v-model="form.clase" type="text" />
           </div>
@@ -233,6 +241,7 @@ const drivers = ref([])
 
 const form = ref({
   placa: '',
+  tipo_servicio: 'CARRETERA' as 'CARRETERA' | 'ESPECIAL',
   clase: '',
   marca: '',
   linea: '',

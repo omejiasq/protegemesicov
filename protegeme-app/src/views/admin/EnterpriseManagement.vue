@@ -133,6 +133,19 @@
             </div>
           </div>
 
+          <!-- Tipo de habilitación -->
+          <div class="section-title">Tipo de habilitación</div>
+          <div class="grid">
+            <div class="field">
+              <label>Tipo de habilitación</label>
+              <select v-model="form.tipo_habilitacion">
+                <option value="CARRETERA">Carretera (reporta a Supertransporte)</option>
+                <option value="ESPECIAL">Transporte Especial (no reporta a Supertransporte)</option>
+                <option value="MIXTO">Mixto (carretera + especial)</option>
+              </select>
+            </div>
+          </div>
+
           <!-- Integración Supertransporte -->
           <div class="section-title">Integración Supertransporte</div>
           <div class="grid">
@@ -646,6 +659,7 @@ interface Enterprise {
   formato_alistamiento?: Record<string, any>
   formato_correctivo?: Record<string, any>
   formato_preventivo?: Record<string, any>
+  tipo_habilitacion?: 'CARRETERA' | 'ESPECIAL' | 'MIXTO'
   active: boolean
   admin: boolean
 }
@@ -674,6 +688,7 @@ const emptyForm = () => ({
   phone_number: '',
   movil_number: '',
   packageType: 'enterprise',
+  tipo_habilitacion: 'CARRETERA' as 'CARRETERA' | 'ESPECIAL' | 'MIXTO',
   vigiladoId: null as number | null,
   vigiladoToken: '',
   format_enlistment_consecutive: 'EL-{YYYY}-{0001}',
@@ -862,6 +877,7 @@ function openEdit(ent: Enterprise) {
     phone_number: ent.phone_number ?? '',
     movil_number: ent.movil_number ?? '',
     packageType: ent.packageType ?? 'enterprise',
+    tipo_habilitacion: (ent.tipo_habilitacion as any) ?? 'CARRETERA',
     vigiladoId: ent.vigiladoId ?? null,
     vigiladoToken: ent.vigiladoToken ?? '',
     format_enlistment_consecutive: ent.format_enlistment_consecutive ?? 'EL-{YYYY}-{0001}',

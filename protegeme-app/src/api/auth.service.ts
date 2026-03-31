@@ -29,4 +29,30 @@ export const AuthserviceApi = {
   // Listar usuarios admin de una empresa (superadmin)
   getEnterpriseAdmins: (enterpriseId: string) =>
     http.get(`${baseURL}/users/by-enterprise/${enterpriseId}`),
+
+  // Búsqueda de conductores por cédula o nombre (autocomplete)
+  searchDrivers: (search: string) =>
+    http.get(`${baseURL}/users/drivers`, { params: { search, active: true, numero_items: 10 } }),
+
+  // Listar staff de la empresa (admin, operator, viewer)
+  getEnterpriseStaff: (params?: any) =>
+    http.get(`${baseURL}/users/staff`, { params }),
+
+  // Permisos de menú por usuario
+  getUserMenuPermissions: (userId: string) =>
+    http.get(`${baseURL}/users/${userId}/menu-permissions`),
+  setUserMenuPermissions: (userId: string, keys: string[]) =>
+    http.patch(`${baseURL}/users/${userId}/menu-permissions`, { keys }),
+
+  // Permisos de menú por empresa
+  getEnterpriseMenuPermissions: (enterpriseId: string) =>
+    http.get(`${baseURL}/enterprise/${enterpriseId}/menu-permissions`),
+  setEnterpriseMenuPermissions: (enterpriseId: string, keys: string[]) =>
+    http.patch(`${baseURL}/enterprise/${enterpriseId}/menu-permissions`, { keys }),
+
+  // Catálogo de menú (superadmin)
+  getMenuCatalog: () => http.get(`${baseURL}/menu-catalog`),
+  createMenuCatalogItem: (data: any) => http.post(`${baseURL}/menu-catalog`, data),
+  updateMenuCatalogItem: (id: string, data: any) => http.patch(`${baseURL}/menu-catalog/${id}`, data),
+  deleteMenuCatalogItem: (id: string) => http.delete(`${baseURL}/menu-catalog/${id}`),
 };

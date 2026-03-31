@@ -109,4 +109,30 @@ export class PreventiveController {
     });
   }
 
+  // ======================================================
+  // MARCAR COMO EJECUTADO (dispara SICOV)
+  // ======================================================
+  @Patch(':id/execute')
+  async execute(
+    @Param('id') id: string,
+    @Body() body: { executedAt?: string },
+    @Req() req: any,
+  ) {
+    const user = req.user as JwtUser;
+    const authHeader = req.headers.authorization;
+    const jwt = authHeader?.startsWith('Bearer ')
+      ? authHeader.split(' ')[1]
+      : undefined;
+
+    const executedAt = body.executedAt ? new Date(body.executedAt) : new Date();
+
+    return this.svc.markAsExecuted(id, executedAt, {
+      enterprise_id: user.enterprise_id,
+      sub: user.sub,
+      vigiladoId: user.vigiladoId,
+      vigiladoToken: user.vigiladoToken,
+      jwt,
+    });
+  }
+
 }

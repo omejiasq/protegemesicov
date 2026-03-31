@@ -15,6 +15,7 @@ export class UserRef {
     nombre?: string;
     apellido?: string;
     usuario?: string;
+    documentNumber?: string;
   };
 
   @Prop({ type: String })
@@ -25,6 +26,11 @@ export class UserRef {
 
   @Prop({ type: Boolean, default: true })
   active: boolean;
+
+  // Campos del conductor para FUEC
+  @Prop({ type: String, default: null }) no_licencia_conduccion?: string;
+  @Prop({ type: Date, default: null })   vencimiento_licencia_conduccion?: Date;
+  @Prop({ type: String, default: null }) categoria_licencia?: string;
 }
 
 export const UserRefSchema = SchemaFactory.createForClass(UserRef);

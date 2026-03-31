@@ -77,8 +77,13 @@ export class VehiclesService {
       nivelServicio: Number(dto.nivelServicio),
       clase: dto.clase ?? null,
 
+      tipo_servicio: dto.tipo_servicio === 'ESPECIAL' ? 'ESPECIAL' : 'CARRETERA',
+
       estado: dto.estado ?? false,
-      active: dto.active ?? false,
+      // Vehículos ESPECIAL se auto-activan (no requieren habilitación SICOV)
+      active: dto.tipo_servicio === 'ESPECIAL' ? true : (dto.active ?? false),
+      sicov_sync_enabled: dto.tipo_servicio === 'ESPECIAL' ? false : true,
+      fecha_activacion: dto.tipo_servicio === 'ESPECIAL' ? new Date() : null,
 
       driver_id: dto.driver_id
         ? new Types.ObjectId(dto.driver_id)
@@ -138,8 +143,10 @@ export class VehiclesService {
 
     });
 
-    // Notificar a los administradores de la empresa por correo
-    this.notifyAdminsNewVehicle(vehicle.toObject(), user).catch(() => { /* no bloquear */ });
+    // Vehículos CARRETERA requieren habilitación manual → notificar
+    if (vehicle.tipo_servicio !== 'ESPECIAL') {
+      this.notifyAdminsNewVehicle(vehicle.toObject(), user).catch(() => { /* no bloquear */ });
+    }
 
     // Registrar en auditoría
     this.auditModel.create({

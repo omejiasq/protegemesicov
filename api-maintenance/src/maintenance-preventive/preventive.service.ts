@@ -84,10 +84,13 @@ async create(
 
   // ---------------------------------------------------
   // 2. Crear mantenimiento base (LOCAL + intento SICOV)
+  //    Si es planeación (isPlanned=true) o empresa ESPECIAL, omitir SICOV
   // ---------------------------------------------------
   let sicovMaintenanceDown = false;
+  const isPlanned = !!(dto as any).isPlanned;
+  const esEspecial = (user as any)?.tipo_habilitacion === 'ESPECIAL';
 
-  if (!mantenimientoIdLocal) {
+  if (!isPlanned && !mantenimientoIdLocal) {
     const maintPayload = {
       placa: dto.placa,
       tipoId: 1 as const,
@@ -97,6 +100,8 @@ async create(
     const userForMaintenance = {
       ...user,
       vigiladoId,
+      // Empresas ESPECIAL no reportan a SICOV
+      ...(esEspecial ? { demoMode: true } : {}),
     };
 
     const { doc, externalId, sicovDown } = await this.maintenanceService.create(
@@ -120,7 +125,7 @@ async create(
       mantenimientoIdExterno = Number(externalId);
     }
   }
-  else if (/^\d+$/.test(String(mantenimientoIdLocal))) {
+  else if (!isPlanned && /^\d+$/.test(String(mantenimientoIdLocal))) {
     mantenimientoIdExterno = Number(mantenimientoIdLocal);
   }
 
@@ -145,9 +150,12 @@ async create(
     detalleActividades: dto.detalleActividades,
     
     evidencia_foto: dto.evidencia_foto ?? null,
+    no_licencia_conduccion: dto.no_licencia_conduccion ?? null,
+    vencimiento_licencia_conduccion: dto.vencimiento_licencia_conduccion ?? null,
 
+    isPlanned,
     estado: true,
-    sicov_sync_status: sicovMaintenanceDown ? 'pending' : 'synced',
+    sicov_sync_status: esEspecial ? 'no_aplica' : isPlanned ? 'planned' : (sicovMaintenanceDown ? 'pending' : 'synced'),
     source: (dto as any).source ?? 'frontend',
   });
 
@@ -681,5 +689,104 @@ async getFullReportByPreventiveId(
 
   return report;
 }
-  
+
+// ======================================================
+// MARCAR COMO EJECUTADO → dispara envío a SICOV
+// ======================================================
+async markAsExecuted(
+  id: string,
+  executedAt: Date,
+  user?: {
+    enterprise_id?: string;
+    sub?: string;
+    vigiladoId?: number;
+    vigiladoToken?: string;
+    jwt?: string;
+  },
+) {
+  const doc = await this.model.findOne({
+    _id: id,
+    enterprise_id: user?.enterprise_id,
+    isPlanned: true,
+  });
+
+  if (!doc) throw new NotFoundException('Preventivo planeado no encontrado');
+
+  // Actualizar fecha de ejecución
+  doc.executedAt = executedAt;
+  doc.isPlanned = false;
+
+  const vigiladoId = user?.vigiladoId ?? Number(process.env.SICOV_VIGILADO_ID);
+
+  // Ahora sí crear en SICOV
+  let mantenimientoIdExterno: number | null = null;
+  let sicovDown = false;
+
+  try {
+    const { doc: maintDoc, externalId, sicovDown: down } = await this.maintenanceService.create(
+      { placa: doc.placa, tipoId: 1 as const, vigiladoId },
+      { ...user, vigiladoId },
+      { awaitExternal: true },
+    );
+
+    const localId = (maintDoc as any)?._id ?? (maintDoc as any)?.id;
+    if (localId) doc.mantenimientoId = String(localId);
+    if (externalId) mantenimientoIdExterno = Number(externalId);
+    sicovDown = !!down;
+  } catch {
+    sicovDown = true;
+  }
+
+  doc.sicov_sync_status = sicovDown ? 'pending' : 'synced';
+  await doc.save();
+
+  // Enviar detalle a SICOV si hay externalId
+  if (!sicovDown && mantenimientoIdExterno) {
+    try {
+      await this.external.guardarPreventivo({
+        mantenimientoId: mantenimientoIdExterno,
+        nit: doc.nit,
+        razonSocial: doc.razonSocial,
+        tipoIdentificacion: doc.tipoIdentificacion,
+        numeroIdentificacion: doc.numeroIdentificacion,
+        nombresResponsable: doc.nombresResponsable,
+        detalleActividades: doc.detalleActividades,
+        fecha: doc.fecha,
+        hora: doc.hora,
+        vigiladoId: String(vigiladoId),
+        vigiladoToken: user?.vigiladoToken,
+      });
+    } catch {
+      await this.model.updateOne(
+        { _id: doc._id },
+        { $set: { sicov_sync_status: 'pending' } },
+      );
+      await this.sicovSync.enqueue({
+        enterprise_id: user?.enterprise_id ?? '',
+        recordType: 'preventive',
+        localMaintenanceId: doc.mantenimientoId,
+        localDetailId: String(doc._id),
+        maintenancePayload: {
+          placa: doc.placa,
+          tipoId: 1,
+          vigiladoId: String(vigiladoId),
+          vigiladoToken: user?.vigiladoToken,
+        },
+        detailPayload: {
+          nit: doc.nit,
+          razonSocial: doc.razonSocial,
+          tipoIdentificacion: doc.tipoIdentificacion,
+          numeroIdentificacion: doc.numeroIdentificacion,
+          nombresResponsable: doc.nombresResponsable,
+          detalleActividades: doc.detalleActividades,
+          fecha: doc.fecha,
+          hora: doc.hora,
+        },
+      });
+    }
+  }
+
+  return doc;
+}
+
 }

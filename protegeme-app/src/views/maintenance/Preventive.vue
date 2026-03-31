@@ -1,20 +1,23 @@
 <template>
   <div class="bolt-wrap">
 
-    <!-- ===================== -->
-    <!-- TOOLBAR -->
-    <!-- ===================== -->
+    <!-- ===================== TOOLBAR ===================== -->
     <div class="bolt-toolbar bolt-card">
       <div>
-        <h2 class="title">Listado de Mantenimientos Preventivos</h2>
+        <h2 class="title">Mantenimientos Preventivos</h2>
       </div>
-
       <div class="actions">
         <Button
           label="Exportar Excel"
           icon="pi pi-file-excel"
           class="btn-blue"
           @click="exportExcel"
+        />
+        <Button
+          label="Planificación masiva"
+          icon="pi pi-calendar-plus"
+          class="btn-orange"
+          @click="showBulk = true"
         />
         <Button
           label="Nuevo Preventivo"
@@ -25,158 +28,205 @@
       </div>
     </div>
 
-    <!-- ================= FILTROS ================= -->
-    <div class="p-4 bg-white mb-3 rounded">
-      <div class="grid gap-3 md:grid-cols-4">
+    <!-- ===================== PANEL: PRÓXIMOS A VENCER ===================== -->
+    <div class="expiry-panel">
+      <div class="expiry-card red" @click="applyExpiryFilter('vencidos')">
+        <i class="pi pi-exclamation-circle expiry-icon" />
         <div>
-          <label>Placa</label>
-          <input
-            v-model="filters.placa"
-            class="p-inputtext w-full"
-            placeholder="ABC123"
-          />
+          <div class="expiry-num">{{ expiryStats.vencidos }}</div>
+          <div class="expiry-label">Vencidos</div>
         </div>
-
+      </div>
+      <div class="expiry-card orange" @click="applyExpiryFilter('7dias')">
+        <i class="pi pi-clock expiry-icon" />
         <div>
-          <label>Fecha desde</label>
-          <input
-            type="date"
-            v-model="filters.fechaDesde"
-            class="p-inputtext w-full"
-          />
+          <div class="expiry-num">{{ expiryStats.vence7 }}</div>
+          <div class="expiry-label">Vencen en 7 días</div>
         </div>
-
+      </div>
+      <div class="expiry-card yellow" @click="applyExpiryFilter('30dias')">
+        <i class="pi pi-calendar expiry-icon" />
         <div>
-          <label>Fecha hasta</label>
-          <input
-            type="date"
-            v-model="filters.fechaHasta"
-            class="p-inputtext w-full"
-          />
+          <div class="expiry-num">{{ expiryStats.vence30 }}</div>
+          <div class="expiry-label">Vencen en 30 días</div>
         </div>
-
-        <div class="flex gap-2 items-end">
-          <button class="p-button p-button-primary" @click="fetchData">
-            Filtrar
-          </button>
-          <button class="p-button p-button-secondary" @click="onClear">
-            Limpiar
-          </button>
+      </div>
+      <div class="expiry-card blue" @click="applyExpiryFilter('planeados')">
+        <i class="pi pi-list-check expiry-icon" />
+        <div>
+          <div class="expiry-num">{{ expiryStats.planeados }}</div>
+          <div class="expiry-label">Planeados pendientes</div>
+        </div>
+      </div>
+      <div class="expiry-card green" @click="applyExpiryFilter('')">
+        <i class="pi pi-check-circle expiry-icon" />
+        <div>
+          <div class="expiry-num">{{ expiryStats.ejecutados }}</div>
+          <div class="expiry-label">Ejecutados (activos)</div>
         </div>
       </div>
     </div>
 
-    <!-- ================= GRID ================= -->
+    <!-- ===================== FILTROS ===================== -->
+    <div class="p-4 bg-white mb-3 rounded">
+      <div class="grid gap-3 md:grid-cols-5">
+        <div>
+          <label>Placa</label>
+          <input v-model="filters.placa" class="p-inputtext w-full" placeholder="ABC123" />
+        </div>
+        <div>
+          <label>Fecha desde</label>
+          <input type="date" v-model="filters.fechaDesde" class="p-inputtext w-full" />
+        </div>
+        <div>
+          <label>Fecha hasta</label>
+          <input type="date" v-model="filters.fechaHasta" class="p-inputtext w-full" />
+        </div>
+        <div>
+          <label>Estado</label>
+          <select v-model="filters.estado" class="p-inputtext w-full">
+            <option value="">Todos</option>
+            <option value="planeado">Planeados</option>
+            <option value="ejecutado">Ejecutados</option>
+            <option value="vencido">Vencidos</option>
+          </select>
+        </div>
+        <div class="flex gap-2 items-end">
+          <button class="p-button p-button-primary" @click="fetchData">Filtrar</button>
+          <button class="p-button p-button-secondary" @click="onClear">Limpiar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== GRID ===================== -->
     <EjsGrid
       ref="gridRef"
       :dataSource="tableData"
-      height="600"
+      height="520"
       :allowPaging="true"
       :pageSettings="{ pageSize: 15 }"
       :allowSorting="true"
       :allowExcelExport="true"
-      :allowPdfExport="true"
       :toolbar="toolbar"
       :toolbarClick="toolbarClick"
     >
       <e-columns>
-
-        <e-column field="Placa" headerText="Placa" width="25" />
-        <e-column field="Fecha_ejecutada" headerText="Fecha ejecución" width="30" />
-        <e-column field="Fecha_vencimiento" headerText="Fecha vencimiento" width="30" />
-        <e-column field="Fecha_creacion" headerText="Fecha creación" width="30" />
-        
-
-        <e-column field="Taller" headerText="Taller" width="20" />
-        <e-column field="Mecanico" headerText="Mecánico" width="20" />
-        <e-column field="Estado" headerText="Estado" width="20" />
-        <e-column
-          headerText="Reporte"
-          width="30"
-          textAlign="Center"
-          :allowSorting="false"
-          :allowFiltering="false"
-          :allowGrouping="false"
-          :allowResizing="false"
-          :allowEditing="false"
-          template="reportTemplate"
+        <e-column field="Placa" headerText="Placa" width="100" />
+        <e-column field="Estado" headerText="Estado" width="130" template="estadoTemplate" />
+        <e-column field="Fecha_planeada" headerText="Fecha planeada" width="150" />
+        <e-column field="Fecha_ejecutada" headerText="Fecha ejecutada" width="150" />
+        <e-column field="Fecha_vencimiento" headerText="Vencimiento" width="150" />
+        <e-column field="Taller" headerText="Taller" width="160" />
+        <e-column field="Mecanico" headerText="Mecánico" width="150" />
+        <e-column headerText="Acciones" width="130" textAlign="Center"
+          :allowSorting="false" :allowFiltering="false"
+          template="accionesTemplate"
         />
-
       </e-columns>
 
-   <!-- ✅ SLOT VA AQUÍ DENTRO -->
-    <template #reportTemplate="{ data }">
-      <Button
-        icon="pi pi-file-pdf"
-        class="p-button-text p-button-info p-button-sm"
-        @click="goToReport(data)"
-      />
-    </template>
+      <template #estadoTemplate="{ data }">
+        <span :class="['estado-badge', `estado-${data._estadoClave}`]">
+          {{ data.Estado }}
+        </span>
+      </template>
 
+      <template #accionesTemplate="{ data }">
+        <div class="acciones-cell">
+          <Button
+            icon="pi pi-file-pdf"
+            class="p-button-text p-button-info p-button-sm"
+            title="Ver reporte"
+            @click="goToReport(data)"
+          />
+          <Button
+            v-if="data._estadoClave === 'planeado'"
+            icon="pi pi-check"
+            class="p-button-text p-button-success p-button-sm"
+            title="Marcar como ejecutado"
+            @click="marcarEjecutado(data)"
+          />
+          <Button
+            v-if="data._estadoClave === 'ejecutado'"
+            icon="pi pi-image"
+            class="p-button-text p-button-warning p-button-sm"
+            title="Subir evidencia del taller"
+            @click="abrirEvidencia(data)"
+          />
+        </div>
+      </template>
     </EjsGrid>
 
-    <!-- ================= MODAL DETALLE ================= -->
-    <p-dialog
-      v-model:visible="showDetail"
-      modal
-      header="Detalle del mantenimiento"
-      style="width: 60vw"
-    >
+    <!-- ===================== MODAL DETALLE ===================== -->
+    <p-dialog v-model:visible="showDetail" modal header="Detalle del mantenimiento" style="width: 60vw">
       <div v-if="selected">
         <p><b>Placa:</b> {{ selected.Placa }}</p>
-        <p><b>Fecha:</b> {{ formatDate(selected.Fecha) }}</p>
         <p><b>Taller:</b> {{ selected.Taller }}</p>
         <p><b>Mecánico:</b> {{ selected.Mecanico }}</p>
         <p><b>Estado:</b> {{ selected.Estado }}</p>
       </div>
     </p-dialog>
 
-    <!-- ================= MODAL NUEVO ================= -->
-    <!-- ✅ CORRECTO -->
-    <PreventiveCreateDialog
-      v-model:visible="showCreate"
-      @save="saveFromDialog"
+    <!-- ===================== MODAL NUEVO ===================== -->
+    <PreventiveCreateDialog v-model:visible="showCreate" @save="saveFromDialog" />
+
+    <!-- ===================== MODAL PLANIFICACIÓN MASIVA ===================== -->
+    <PreventiveBulkPlanDialog v-model:visible="showBulk" @done="fetchData" />
+
+    <!-- ===================== MODAL EVIDENCIA + IA ===================== -->
+    <EvidenceUploadDialog
+      v-model:visible="showEvidence"
+      :maintenance="selectedForEvidence"
+      @saved="fetchData"
     />
+
+    <!-- ===================== MODAL CONFIRMAR EJECUTADO ===================== -->
+    <p-dialog v-model:visible="showExecuteDialog" modal header="Marcar como ejecutado" style="width: 420px">
+      <div v-if="selectedForExecute" class="execute-dialog-body">
+        <p>Vehículo: <b>{{ selectedForExecute.Placa }}</b></p>
+        <p class="execute-note">
+          Al confirmar, este mantenimiento se enviará a <b>Supertransporte</b> con la fecha de ejecución indicada.
+        </p>
+        <div class="field mt-3">
+          <label>Fecha de ejecución real</label>
+          <input type="date" v-model="executeDate" class="p-inputtext w-full" />
+        </div>
+      </div>
+      <template #footer>
+        <Button label="Cancelar" class="p-button-text" @click="showExecuteDialog = false" />
+        <Button label="Confirmar ejecución" icon="pi pi-check" class="btn-dark-green"
+          :loading="executingSicov" @click="confirmExecute" />
+      </template>
+    </p-dialog>
+
   </div>
 </template>
 
 <script lang="ts">
-import { ref, provide, onMounted } from "vue";
+import { ref, computed, provide, onMounted, reactive } from "vue";
 import Button from "primevue/button";
-
-/* ===== Syncfusion ===== */
 import {
-  GridComponent,
-  ColumnsDirective,  // ← ESTA AQUÍ
-  ColumnDirective,   // ← ESTA AQUÍ
-  Page,
-  Sort,
-  Toolbar,
-  ExcelExport,
-  PdfExport
+  GridComponent, ColumnsDirective, ColumnDirective,
+  Page, Sort, Toolbar, ExcelExport, PdfExport
 } from "@syncfusion/ej2-vue-grids";
-
-/* ===== Store ===== */
 import { useMaintenanceStore } from "../../stores/maintenanceStore";
+import { MaintenanceserviceApi } from "../../api/maintenance.service";
 import PreventiveCreateDialog from "../../components/preventives/PreventiveCreateDialog.vue";
-
+import PreventiveBulkPlanDialog from "../../components/preventives/PreventiveBulkPlanDialog.vue";
+import EvidenceUploadDialog from "../../components/preventives/EvidenceUploadDialog.vue";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-
 import { useRouter } from "vue-router";
-
 
 export default {
   name: "PreventiveMaintenance",
-
   components: {
     EjsGrid: GridComponent,
-    EColumns: ColumnsDirective,    // ← REGISTRADO
-    EColumn: ColumnDirective,      // ← REGISTRADO
+    EColumns: ColumnsDirective,
+    EColumn: ColumnDirective,
     Button,
     PreventiveCreateDialog,
-    //"e-columns": { template: "<slot />" },
-    //"e-column": { template: "<slot />" },
+    PreventiveBulkPlanDialog,
+    EvidenceUploadDialog,
   },
 
   setup() {
@@ -184,90 +234,179 @@ export default {
 
     const gridRef = ref<any>(null);
     const tableData = ref<any[]>([]);
-
+    const rawItems = ref<any[]>([]);
     const showDetail = ref(false);
     const showCreate = ref(false);
+    const showBulk = ref(false);
+    const showExecuteDialog = ref(false);
+    const showEvidence = ref(false);
     const selected = ref<any>(null);
-
+    const selectedForExecute = ref<any>(null);
+    const selectedForEvidence = ref<any>(null);
+    const executeDate = ref(new Date().toISOString().slice(0, 10));
+    const executingSicov = ref(false);
     const router = useRouter();
+    const store = useMaintenanceStore();
+    const toolbar = ref([]);
 
-    const goToReport = (row: any) => {
-          router.push({
-            name: "preventive-report",
-            params: { id: row._id }
-          });
-    };
+    const filters = ref({ placa: "", fechaDesde: "", fechaHasta: "", estado: "" });
 
+    // ── Estadísticas de vencimiento ────────────────────────
+    const now = new Date();
+    const in7 = new Date(now); in7.setDate(in7.getDate() + 7);
+    const in30 = new Date(now); in30.setDate(in30.getDate() + 30);
 
-    const filters = ref({
-      placa: "",
-      fechaDesde: "",
-      fechaHasta: ""
+    const expiryStats = computed(() => {
+      const items = rawItems.value;
+      return {
+        vencidos: items.filter(i => !i.isPlanned && i.dueDate && new Date(i.dueDate) < now && !i.executedAt).length,
+        vence7:   items.filter(i => !i.isPlanned && i.dueDate && new Date(i.dueDate) >= now && new Date(i.dueDate) <= in7).length,
+        vence30:  items.filter(i => !i.isPlanned && i.dueDate && new Date(i.dueDate) > in7 && new Date(i.dueDate) <= in30).length,
+        planeados: items.filter(i => i.isPlanned).length,
+        ejecutados: items.filter(i => !i.isPlanned && i.executedAt && i.estado).length,
+      };
     });
 
-    const toolbar = ref([]);
-    const store = useMaintenanceStore();
+    function applyExpiryFilter(tipo: string) {
+      filters.value.estado = tipo === "vencidos" ? "vencido"
+        : tipo === "planeados" ? "planeado"
+        : tipo === "7dias" || tipo === "30dias" ? "ejecutado"
+        : "";
+      filters.value.placa = "";
+      applyLocalFilter();
+    }
 
-    const showDetailModal = (rowData: any) => {
-      selected.value = rowData;
-      showDetail.value = true;
-    };
+    function getEstadoClave(item: any): string {
+      if (item.isPlanned) return "planeado";
+      const due = item.dueDate ? new Date(item.dueDate) : null;
+      if (due && due < now) return "vencido";
+      return "ejecutado";
+    }
 
+    function getEstadoLabel(clave: string): string {
+      if (clave === "planeado") return "Planeado";
+      if (clave === "vencido") return "Vencido";
+      return "Ejecutado";
+    }
+
+    // ── Navegación ──────────────────────────────────────────
+    const goToReport = (row: any) => router.push({ name: "preventive-report", params: { id: row._id } });
+
+    // ── Marcar como ejecutado ───────────────────────────────
+    function marcarEjecutado(row: any) {
+      selectedForExecute.value = row;
+      executeDate.value = new Date().toISOString().slice(0, 10);
+      showExecuteDialog.value = true;
+    }
+
+    function abrirEvidencia(row: any) {
+      selectedForEvidence.value = row;
+      showEvidence.value = true;
+    }
+
+    async function confirmExecute() {
+      if (!selectedForExecute.value) return;
+      executingSicov.value = true;
+      try {
+        await MaintenanceserviceApi.executePreventive(
+          selectedForExecute.value._id,
+          executeDate.value
+        );
+        showExecuteDialog.value = false;
+        await fetchData();
+      } catch {
+        alert("Error al marcar como ejecutado. Intente de nuevo.");
+      } finally {
+        executingSicov.value = false;
+      }
+    }
+
+    // ── Formato de fecha ────────────────────────────────────
+    function formatDT(value?: string | Date) {
+      if (!value) return "";
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return "";
+      return new Intl.DateTimeFormat("es-CO", {
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", hour12: false,
+        timeZone: "America/Bogota",
+      }).format(d);
+    }
+
+    function formatDate(d: Date | null) {
+      if (!d) return "";
+      return d.toISOString().slice(0, 10);
+    }
+
+    // ── Fetch datos ─────────────────────────────────────────
+    async function fetchData() {
+      try {
+        const params = {
+          numero_items: 200,
+          page: 1,
+          placa: filters.value.placa || undefined,
+          fechaDesde: filters.value.fechaDesde || undefined,
+          fechaHasta: filters.value.fechaHasta || undefined,
+        };
+        await store.preventiveFetchList(params);
+        rawItems.value = store.preventiveList.items ?? [];
+        applyLocalFilter();
+      } catch {
+        tableData.value = [];
+      }
+    }
+
+    function applyLocalFilter() {
+      let items = rawItems.value;
+      if (filters.value.estado) {
+        items = items.filter(i => getEstadoClave(i) === filters.value.estado);
+      }
+      tableData.value = items.map((item: any) => {
+        const clave = getEstadoClave(item);
+        return {
+          _id: item._id,
+          _estadoClave: clave,
+          Placa: item.placa,
+          Estado: getEstadoLabel(clave),
+          Fecha_planeada: formatDT(item.scheduledAt),
+          Fecha_ejecutada: item.isPlanned ? "—" : formatDT(item.executedAt),
+          Fecha_vencimiento: formatDT(item.dueDate),
+          Taller: item.razonSocial ?? "",
+          Mecanico: item.nombresResponsable ?? "",
+        };
+      });
+    }
+
+    // ── Acciones toolbar ────────────────────────────────────
     const onClear = () => {
-      filters.value = {
-        placa: "",
-        fechaDesde: "",
-        fechaHasta: ""
-      };
+      filters.value = { placa: "", fechaDesde: "", fechaHasta: "", estado: "" };
       fetchData();
     };
 
     const toolbarClick = (args: any) => {
-      if (args.item.id === "Grid_pdfexport") {
-        gridRef.value?.pdfExport();
-      } else if (args.item.id === "Grid_excelexport") {
-        gridRef.value?.excelExport();
-      }
+      if (args.item.id === "Grid_pdfexport") gridRef.value?.pdfExport();
+      else if (args.item.id === "Grid_excelexport") gridRef.value?.excelExport();
     };
-
-    const formatDate = (d: Date | null) => {
-      if (!d) return "";
-      return d.toISOString().slice(0, 10);
-    };
-
-    const dateAccessor = (_field: string, data: any) => {
-      if (!data.Fecha) return "";
-      const d = new Date(data.Fecha);
-      return d.toISOString().slice(0, 10); // yyyy-MM-dd
-    };
-
 
     function exportExcel() {
       if (!tableData.value.length) return;
-
       const data = tableData.value.map((r: any) => ({
         Placa: r.Placa,
-        Fecha: formatDate(r.Fecha),
+        Estado: r.Estado,
+        "Fecha planeada": r.Fecha_planeada,
+        "Fecha ejecutada": r.Fecha_ejecutada,
+        Vencimiento: r.Fecha_vencimiento,
         Taller: r.Taller,
         Mecánico: r.Mecanico,
-        Estado: r.Estado
       }));
-
-      const worksheet = XLSX.utils.json_to_sheet(data);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Mantenimientos");
-
-      const excelBuffer = XLSX.write(workbook, {
-        bookType: "xlsx",
-        type: "array"
-      });
-
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Preventivos");
       saveAs(
-        new Blob([excelBuffer], {
-          type:
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        new Blob([XLSX.write(wb, { bookType: "xlsx", type: "array" })], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         }),
-        `mantenimientos_${Date.now()}.xlsx`
+        `preventivos_${Date.now()}.xlsx`
       );
     }
 
@@ -277,390 +416,107 @@ export default {
       await fetchData();
     }
 
-    const toYMD = (value: any): string => {
-      if (!value) return "";
-
-      const d = value instanceof Date ? value : new Date(value);
-
-      if (isNaN(d.getTime())) return "";
-
-      const y = d.getUTCFullYear();
-      const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-      const day = String(d.getUTCDate()).padStart(2, "0");
-
-      return `${y}-${m}-${day}`;
-    };
-
-function formatDateTimeLocal(value?: string | Date) {
-  if (!value) return '';
-
-  const d = new Date(value);
-  if (isNaN(d.getTime())) return '';
-
-  return new Intl.DateTimeFormat('es-CO', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: 'America/Bogota',
-  }).format(d);
-}
-
- const fetchData = async () => {
-  try {
-    const params = {
-      numero_items: 15,
-      page: 1,
-      placa: filters.value.placa || undefined,
-      fechaDesde: filters.value.fechaDesde || undefined,
-      fechaHasta: filters.value.fechaHasta || undefined
-    };
-
-    await store.preventiveFetchList(params);
-
-    tableData.value = store.preventiveList.items.map((item: any) => {
-      return {
-        _id: item._id,  // ← AGREGAR ESTO
-        Placa: item.placa,
-        //Fecha: toYMD(item.fecha), // 👈 YA FORMATEADA
-        Fecha_ejecutada: formatDateTimeLocal(item.executedAt || item.executedAt),
-        Fecha_vencimiento: formatDateTimeLocal(item.dueDate || item.dueDate),
-        Fecha_creacion: formatDateTimeLocal(item.createdAt || item.createdAt),
-
-        Taller: item.taller || item.razonSocial || "",
-        Mecanico: item.mecanico || item.nombresResponsable || "",
-        Estado: item.estado ? "Activo" : "Inactivo"
-      };
-    });
-
-  } catch (error) {
-    console.error("Error cargando datos", error);
-    tableData.value = [];
-  }
-};
-
-
     onMounted(fetchData);
 
     return {
-      gridRef,
-      tableData,
-      filters,
-      toolbar,
-      showDetail,
-      showCreate,
-      selected,
-      showDetailModal,
-      onClear,
-      toolbarClick,
-      fetchData,
-      exportExcel,
-      saveFromDialog,
-      formatDate,
-      goToReport
+      gridRef, tableData, filters, toolbar, showDetail, showCreate, showBulk,
+      showExecuteDialog, selectedForExecute, executeDate, executingSicov,
+      selected, expiryStats,
+      onClear, toolbarClick, fetchData, exportExcel,
+      saveFromDialog, formatDate, goToReport,
+      marcarEjecutado, confirmExecute, applyExpiryFilter, abrirEvidencia,
+      showEvidence, selectedForEvidence,
     };
-  }
+  },
 };
 </script>
 
-
-
 <style scoped>
+.bolt-wrap { display: grid; gap: 1rem; }
 
-
-.control-section {
-  background: #f9fafb;
-  padding: 1.5rem;
-}
-
-.bolt-wrap {
-  display: grid;
-  gap: 1rem;
-}
-
-/* Cards claras con sombra suave */
 .bolt-card {
-  background: #ffffff !important;
-  color: #111111 !important;
-  border: 1px solid rgba(17, 17, 17, 0.06);
+  background: #fff !important;
+  color: #111 !important;
+  border: 1px solid rgba(17,17,17,0.06);
   border-radius: 0.75rem;
-  box-shadow: 0 2px 8px rgba(17, 17, 17, 0.05);
+  box-shadow: 0 2px 8px rgba(17,17,17,0.05);
 }
-
-/* Toolbar */
 .bolt-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem 1rem;
 }
-.bolt-toolbar .title {
-  margin: 0;
-  font-weight: 700;
-}
-.bolt-toolbar .subtitle {
-  margin: 0.125rem 0 0;
-  color: #6b7280;
-  font-size: 0.9rem;
-}
+.bolt-toolbar .title { margin: 0; font-weight: 700; }
+.actions { display: flex; gap: 0.75rem; align-items: center; }
 
-/* Input con ícono dentro */
-:deep(.p-input-icon-left) {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  width: 100%;
-}
-:deep(.p-input-icon-left > i) {
-  position: absolute;
-  left: 0.75rem;
-}
-:deep(.p-input-icon-left .p-inputtext) {
-  padding-left: 2.5rem;
-  background: #fff !important;
-  color: #111 !important;
-}
-
-/* =====================================
-   TABLA ACTIVIDADES – MODERNA SUAVE
-   ===================================== */
-.activities-table {
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 6px 18px rgba(13, 110, 253, 0.12);
-}
-
-/* Header */
-.activities-table :deep(.p-datatable-thead > tr > th) {
-  background: linear-gradient(
-    135deg,
-    #e7f1ff,
-    #dbeafe
-  );
-  color: #1e3a8a !important;
-  font-weight: 600;
-  font-size: 0.9rem;
-  padding: 0.75rem;
-  border: none;
-}
-
-/* Redondeo SOLO arriba */
-.activities-table :deep(.p-datatable-thead > tr > th:first-child) {
-  border-top-left-radius: 12px;
-}
-.activities-table :deep(.p-datatable-thead > tr > th:last-child) {
-  border-top-right-radius: 12px;
-}
-
-/* Texto header (forzado) */
-.activities-table :deep(.p-datatable-thead span),
-.activities-table :deep(.p-datatable-thead div) {
-  color: #1e3a8a !important;
-}
-
-/* Body */
-.activities-table :deep(.p-datatable-tbody > tr > td) {
-  background: #ffffff;
-  padding: 0.7rem;
-  font-size: 0.9rem;
-}
-
-/* Hover sutil */
-.activities-table :deep(.p-datatable-tbody > tr:hover) {
-  background: #f8fbff;
-}
-
-/* Checkbox centrado */
-.activities-table :deep(.p-datatable-tbody > tr > td:first-child) {
-  text-align: center;
-}
-
-/* Quitar líneas duras */
-.activities-table :deep(.p-datatable-tbody > tr > td) {
-  border-bottom: 1px solid #eef2ff;
-}
-
-
-
-/* DataTable en blanco: cabecera, filas y paginador */
-.bolt-card :deep(.p-datatable),
-.bolt-card :deep(.p-datatable-wrapper),
-.bolt-card :deep(.p-datatable-header),
-.bolt-card :deep(.p-datatable-thead > tr > th),
-.bolt-card :deep(.p-datatable-tbody > tr),
-.bolt-card :deep(.p-datatable-tbody > tr > td),
-.bolt-card :deep(.p-paginator),
-.bolt-card :deep(.p-paginator .p-paginator-pages .p-paginator-page),
-.bolt-card :deep(.p-paginator .p-paginator-prev),
-.bolt-card :deep(.p-paginator .p-paginator-next),
-.bolt-card :deep(.p-paginator .p-paginator-first),
-.bolt-card :deep(.p-paginator .p-paginator-last) {
-  background: #ffffff !important;
-  color: #111111 !important;
-  border-color: rgba(17, 17, 17, 0.06) !important;
-}
-
-/* Dialog claro: textos en negro */
-:deep(.p-dialog) {
-  color: #111 !important;
-}
-:deep(.p-dialog .p-dialog-header),
-:deep(.p-dialog .p-dialog-content),
-:deep(.p-dialog .p-dialog-footer) {
-  background: #fff !important;
-  color: #111 !important;
-}
-:deep(.p-dialog label),
-:deep(.p-dialog .p-inputtext),
-:deep(.p-dialog .p-calendar),
-:deep(.p-dialog .p-inputtextarea) {
-  color: #111 !important;
-  background: #fff !important;
-}
-
-/* Botones de la paleta */
-:deep(.p-button.btn-dark-green) {
-  background: #16a34a;
-  border-color: #16a34a;
-  color: #fff;
-}
-:deep(.p-button.btn-dark-green:hover) {
-  background: #15803d;
-  border-color: #15803d;
-}
-:deep(.p-button.btn-blue) {
-  background: #2563eb;
-  border-color: #2563eb;
-  color: #fff;
-}
-:deep(.p-button.btn-blue:hover) {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
-}
-
-/* Ajustes menores */
-.text-600 {
-  color: #6b7280;
-}
-.text-900 {
-  color: #111827;
-}
-
-:deep(.p-dialog .p-dialog-header),
-:deep(.p-dialog .p-dialog-content) {
-  background: #fff !important;
-  color: #111 !important;
-}
-
-/* Apunta al contenedor del contenido del dialog (ya lo tenés con class="dialog-body") */
-.dialog-body label {
-  color: #111 !important;
-}
-
-.dialog-body .p-inputtext,
-.dialog-body .p-inputtextarea,
-.dialog-body .p-calendar {
-  background: #fff !important;
-  color: #111 !important;
-}
-
-/* Para tags auxiliares dentro del modal, por si algún tema los deja pálidos */
-.dialog-body .text-900,
-.dialog-body .text-700 {
-  color: #111 !important;
-}
-
-:deep(.p-datatable-tbody > tr > td),
-:deep(.p-datatable-tbody > tr > td *) {
-  color: #111 !important;
-}
-.bolt-card :deep(.p-datatable),
-.bolt-card :deep(.p-datatable-wrapper),
-.bolt-card :deep(.p-datatable-header),
-.bolt-card :deep(.p-datatable-thead > tr > th),
-.bolt-card :deep(.p-datatable-tbody > tr),
-.bolt-card :deep(.p-datatable-tbody > tr > td),
-.bolt-card :deep(.p-paginator) {
-  background: #fff !important;
-}
-.detail-pane :deep(*) {
-  color: #111 !important;
-}
-.detail-pane :deep(.p-tag) {
-  color: #fff !important;
-}
-
-.dlg-2col :deep(.p-dialog-content) {
-  max-height: none;
-  overflow-y: visible;
-}
-
-:deep(.p-checkbox-box.p-highlight),
-:deep(.p-checkbox.p-checkbox-checked .p-checkbox-box),
-:deep(.p-checkbox.p-highlight .p-checkbox-box) {
-  background: #16a34a !important;
-  border-color: #16a34a !important;
-}
-:deep(.p-checkbox .p-checkbox-icon) {
-  color: #fff !important;
-}
-
-.btn-icon-white {
-  background: #ffffff !important; /* fondo blanco */
-  border: 1px solid transparent !important;
-  color: #000000 !important; /* texto (por si hubiera) */
-  box-shadow: none !important;
-  min-width: 36px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 8px;
-}
-
-/* icono dentro del botón */
-.btn-icon-white .p-button-icon {
-  color: #000000 !important; /* icono negro */
-  font-size: 1.05rem;
-}
-
-/* hover / focus: pequeña sombra o borde tenue (opcional) */
-.btn-icon-white:hover {
-  background: #ffffff !important;
-  border-color: #e6e6e6 !important;
-}
-
-/* si usás la clase statebutton en conjunto, asegurar prioridad del icon color */
-.statebutton .p-button-icon,
-.btn-icon-white.statebutton .p-button-icon {
-  color: #000 !important;
-}
-
-.is-view-mode :deep(.p-inputtext),
-.is-view-mode :deep(.p-dropdown),
-.is-view-mode :deep(.p-calendar .p-inputtext),
-.is-view-mode :deep(.p-checkbox-box),
-.is-view-mode :deep(textarea),
-.is-view-mode :deep(input),
-.is-view-mode :deep(select) {
-  filter: grayscale(100%);
-  opacity: 0.75;
-  pointer-events: none;
-}
-
-.is-view-mode :deep(.p-checkbox-box.p-highlight),
-.is-view-mode :deep(.p-checkbox.p-checkbox-checked .p-checkbox-box),
-.is-view-mode :deep(.p-checkbox.p-highlight .p-checkbox-box) {
-  background: #9ca3af !important;
-  border-color: #9ca3af !important;
-}
-
-.actions {
+/* ── Panel próximos a vencer ────────── */
+.expiry-panel {
   display: flex;
   gap: 0.75rem;
-  align-items: center;
+  flex-wrap: wrap;
 }
+.expiry-card {
+  flex: 1;
+  min-width: 130px;
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+.expiry-card:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
+.expiry-card.red    { background: #fef2f2; border: 1px solid #fecaca; }
+.expiry-card.orange { background: #fff7ed; border: 1px solid #fed7aa; }
+.expiry-card.yellow { background: #fefce8; border: 1px solid #fef08a; }
+.expiry-card.blue   { background: #eff6ff; border: 1px solid #bfdbfe; }
+.expiry-card.green  { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.expiry-icon { font-size: 1.6rem; }
+.expiry-card.red    .expiry-icon { color: #dc2626; }
+.expiry-card.orange .expiry-icon { color: #ea580c; }
+.expiry-card.yellow .expiry-icon { color: #ca8a04; }
+.expiry-card.blue   .expiry-icon { color: #2563eb; }
+.expiry-card.green  .expiry-icon { color: #16a34a; }
+.expiry-num { font-size: 1.6rem; font-weight: 800; line-height: 1; }
+.expiry-card.red    .expiry-num { color: #dc2626; }
+.expiry-card.orange .expiry-num { color: #ea580c; }
+.expiry-card.yellow .expiry-num { color: #ca8a04; }
+.expiry-card.blue   .expiry-num { color: #2563eb; }
+.expiry-card.green  .expiry-num { color: #16a34a; }
+.expiry-label { font-size: 0.78rem; color: #6b7280; margin-top: 0.15rem; }
 
+/* ── Badges de estado ──────────────── */
+.estado-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.estado-ejecutado { background: #dcfce7; color: #166534; }
+.estado-planeado  { background: #dbeafe; color: #1e40af; }
+.estado-vencido   { background: #fee2e2; color: #991b1b; }
+
+/* ── Acciones en grid ──────────────── */
+.acciones-cell { display: flex; gap: 0.25rem; justify-content: center; }
+
+/* ── Modal ejecutar ────────────────── */
+.execute-dialog-body { font-size: 0.93rem; }
+.execute-note { color: #2563eb; font-size: 0.85rem; margin: 0.5rem 0; }
+
+/* ── Botones ───────────────────────── */
+:deep(.p-button.btn-dark-green) { background: #16a34a; border-color: #16a34a; color: #fff; }
+:deep(.p-button.btn-blue) { background: #2563eb; border-color: #2563eb; color: #fff; }
+:deep(.p-button.btn-orange) { background: #ea580c; border-color: #ea580c; color: #fff; }
+:deep(.p-button.btn-dark-green:hover) { background: #15803d; border-color: #15803d; }
+:deep(.p-button.btn-blue:hover) { background: #1d4ed8; border-color: #1d4ed8; }
+:deep(.p-button.btn-orange:hover) { background: #c2410c; border-color: #c2410c; }
+
+/* ── Dialog claro ──────────────────── */
+:deep(.p-dialog .p-dialog-header),
+:deep(.p-dialog .p-dialog-content),
+:deep(.p-dialog .p-dialog-footer) { background: #fff !important; color: #111 !important; }
 </style>

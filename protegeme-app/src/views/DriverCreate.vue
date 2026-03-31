@@ -80,6 +80,46 @@
 
   </div>
 
+  <!-- ═══ ACCESO APP MÓVIL ═══ -->
+  <div style="margin-top:24px;padding:16px;background:#f0f9ff;border-radius:12px;border:1px solid #bae6fd">
+    <p style="font-weight:600;font-size:14px;color:#0369a1;margin:0 0 12px">
+      Acceso a la App Móvil (opcional)
+    </p>
+    <p style="font-size:12px;color:#64748b;margin:0 0 14px">
+      Si define usuario y contraseña, el conductor podrá iniciar sesión en la app móvil para registrar alistamientos.
+      Si los deja en blanco se usarán los valores por defecto (documento como usuario).
+    </p>
+    <div class="grid">
+      <div class="field">
+        <label>Usuario de acceso</label>
+        <input
+          v-model="form.usuario"
+          placeholder="Por defecto: número de documento"
+        />
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <input
+          v-model="form.password"
+          type="password"
+          placeholder="Mínimo 6 caracteres"
+          autocomplete="new-password"
+        />
+      </div>
+      <div class="field">
+        <label>Confirmar contraseña</label>
+        <input
+          v-model="form.confirmPassword"
+          type="password"
+          placeholder="Repita la contraseña"
+          autocomplete="new-password"
+          :class="{ error: errors.confirmPassword }"
+        />
+        <small v-if="errors.confirmPassword" class="error-text">{{ errors.confirmPassword }}</small>
+      </div>
+    </div>
+  </div>
+
   <div class="actions">
     <button type="button" class="btn-secondary" @click="$router.back()">
       Cancelar
@@ -109,24 +149,6 @@ const loading = ref(false)
 
 const errors = ref<any>({})
 
-const validateForm = () => {
-  errors.value = {}
-
-  if (!form.value.documentType) {
-    errors.value.documentType = 'Seleccione el tipo de documento'
-  }
-
-  if (!form.value.documentNumber.trim()) {
-    errors.value.documentNumber = 'Ingrese el número de documento'
-  }
-
-  if (!form.value.firstName.trim()) {
-    errors.value.firstName = 'Ingrese el nombre del conductor'
-  }
-
-  return Object.keys(errors.value).length === 0
-}
-
 /* ================== TIPOS DE DOCUMENTO ================== */
 const documentTypeOptions = [
   { label: "Cédula de ciudadanía", value: 1 },
@@ -142,7 +164,6 @@ const documentTypeOptions = [
 
 /* ================== FORM ================== */
 const form = ref({
-  usuario: '',
   firstName: '',
   phone: '',
   email: '',
@@ -150,7 +171,34 @@ const form = ref({
   documentNumber: '',
   no_licencia_conduccion: '',
   vencimiento_licencia_conduccion: '',
+  // Acceso app móvil (opcional)
+  usuario: '',
+  password: '',
+  confirmPassword: '',
 })
+
+/* ================== VALIDACIÓN ================== */
+const validateForm = () => {
+  errors.value = {}
+
+  if (!form.value.documentType) {
+    errors.value.documentType = 'Seleccione el tipo de documento'
+  }
+  if (!form.value.documentNumber.trim()) {
+    errors.value.documentNumber = 'Ingrese el número de documento'
+  }
+  if (!form.value.firstName.trim()) {
+    errors.value.firstName = 'Ingrese el nombre del conductor'
+  }
+  if (form.value.password && form.value.password !== form.value.confirmPassword) {
+    errors.value.confirmPassword = 'Las contraseñas no coinciden'
+  }
+  if (form.value.password && form.value.password.length < 6) {
+    errors.value.confirmPassword = 'La contraseña debe tener al menos 6 caracteres'
+  }
+
+  return Object.keys(errors.value).length === 0
+}
 
 /* ================== SUBMIT ================== */
 const onSubmit = async () => {
@@ -162,9 +210,12 @@ const onSubmit = async () => {
   loading.value = true
 
   try {
+    const usuario = form.value.usuario.trim() || form.value.documentNumber.trim()
+    const password = form.value.password.trim() || 'Ach153*De'
+
     const payload: any = {
-      usuario: form.value.documentNumber,
-      password: 'Ach153*De',
+      usuario,
+      password,
       firstName: form.value.firstName,
       phone: form.value.phone || '',
       email: form.value.email || '',

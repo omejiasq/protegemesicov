@@ -6,6 +6,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Enterprise, EnterpriseSchema } from '../schemas/enterprise.schema';
+import { MenuCatalog, MenuCatalogSchema } from '../schemas/menu-catalog.schema';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Module({
@@ -22,6 +23,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
     }),
     MongooseModule.forFeature([
       { name: Enterprise.name, schema: EnterpriseSchema },
+      { name: MenuCatalog.name, schema: MenuCatalogSchema },
     ]),
   ],
   controllers: [AuthController],

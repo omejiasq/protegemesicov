@@ -29,6 +29,10 @@ import {
 } from '../schema/tipos-vehiculos-tipos-inspecciones.schema';
 
 import { VehicleRef, VehicleRefSchema } from '../schema/vehicle-ref.schema';
+import {
+  ItemResponseType,
+  ItemResponseTypeSchema,
+} from '../schema/item-response-type.schema';
 
 @Module({
   imports: [
@@ -44,6 +48,7 @@ import { VehicleRef, VehicleRefSchema } from '../schema/vehicle-ref.schema';
         schema: TipoVehiculoTipoInspeccionSchema,
       },
       { name: VehicleRef.name, schema: VehicleRefSchema },
+      { name: ItemResponseType.name, schema: ItemResponseTypeSchema },
     ]),
     AuditModule,
     MaintenanceModule,

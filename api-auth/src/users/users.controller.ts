@@ -118,6 +118,24 @@ async getUserById(@Param('id') id: string) {
   return user;
 }
 
+// GET /users/:id/menu-permissions
+@Get(':id/menu-permissions')
+@UseGuards(JwtAuthGuard)
+async getMenuPermissions(@Param('id') id: string) {
+  return this.usersService.getMenuPermissions(id);
+}
+
+// PATCH /users/:id/menu-permissions
+@Patch(':id/menu-permissions')
+@UseGuards(JwtAuthGuard)
+async setMenuPermissions(
+  @Param('id') id: string,
+  @Body('keys') keys: string[],
+  @Req() req: any,
+) {
+  return this.usersService.setMenuPermissions(id, keys, req.user);
+}
+
 }
 
 

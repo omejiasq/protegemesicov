@@ -183,4 +183,24 @@ export class EnterpriseService {
 
     return updated;
   }
+
+  // ✅ PERMISOS DE MENÚ por empresa
+  async getMenuPermissions(id: string) {
+    if (!isValidObjectId(id)) throw new BadRequestException('Invalid enterprise id');
+    const ent = await this.enterpriseModel.findById(id, { enterprise_menu_permissions: 1 }).lean();
+    if (!ent) throw new NotFoundException('Enterprise not found');
+    return { enterprise_menu_permissions: (ent as any).enterprise_menu_permissions ?? [] };
+  }
+
+  async setMenuPermissions(id: string, keys: string[]) {
+    if (!isValidObjectId(id)) throw new BadRequestException('Invalid enterprise id');
+    if (!Array.isArray(keys)) throw new BadRequestException('keys debe ser un array de strings');
+    const updated = await this.enterpriseModel.findByIdAndUpdate(
+      id,
+      { $set: { enterprise_menu_permissions: keys } },
+      { new: true },
+    );
+    if (!updated) throw new NotFoundException('Enterprise not found');
+    return { enterprise_menu_permissions: (updated as any).enterprise_menu_permissions };
+  }
 }

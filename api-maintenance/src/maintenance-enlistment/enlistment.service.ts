@@ -37,6 +37,14 @@ import {
 
 import { VehicleRef, VehicleRefDocument } from '../schema/vehicle-ref.schema';
 
+import {
+  ItemResponseType,
+  ItemResponseTypeDocument,
+} from '../schema/item-response-type.schema';
+
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { Readable } from 'stream';
+
 const ACTIVIDADES_MAP: Record<number, string> = {
   1: 'Fugas del motor',
   2: 'Tensión correas',
@@ -71,6 +79,9 @@ export class AlistamientoService {
     @InjectModel(VehicleRef.name)
     private readonly vehicleRefModel: Model<VehicleRefDocument>,
 
+    @InjectModel(ItemResponseType.name)
+    private readonly itemResponseTypeModel: Model<ItemResponseTypeDocument>,
+
     private readonly external: MaintenanceExternalApiService,
     private readonly maintenanceService: MaintenanceService,
     private readonly sicovSync: SicovSyncService,
@@ -86,7 +97,8 @@ export class AlistamientoService {
       throw new BadRequestException('Placa requerida');
     }
 
-    // ── Verificar que el vehículo esté habilitado (activo) ──────────────
+    // ── Verificar vehículo habilitado y determinar si aplica SICOV ────────
+    let esVehiculoEspecial = false;
     if (user?.enterprise_id) {
       const vehicleRecord = await this.vehicleRefModel
         .findOne({
@@ -100,26 +112,36 @@ export class AlistamientoService {
           `El vehículo ${placa} no está habilitado para registrar alistamientos. Contacte al administrador del sistema.`,
         );
       }
-    }
-    /*
-    // 1️⃣ PREVENIR DUPLICADO POR PLACA / DÍA
-    const existsToday = await this.model.findOne({
-      placa,
-      enterprise_id: user.enterprise_id,
-      createdAt: {
-        $gte: moment().startOf('day').toDate(),
-        $lte: moment().endOf('day').toDate(),
-      },
-    });
 
-    if (existsToday) {
-      throw new ConflictException(
-        `Ya existe un alistamiento para la placa ${placa} el día de hoy`,
-      );
+      esVehiculoEspecial =
+        (vehicleRecord as any)?.tipo_servicio === 'ESPECIAL' ||
+        user?.tipo_habilitacion === 'ESPECIAL';
     }
-    */
+    // 1️⃣ PREVENIR DUPLICADO: mismo usuario + placa en los últimos 2 minutos
+    // Protege contra doble envío por timeout de red
+    if (user?.sub) {
+      const hace2min = new Date(Date.now() - 2 * 60 * 1000);
+      const reciente = await this.model.findOne({
+        placa,
+        enterprise_id: user.enterprise_id,
+        createdBy: String(user.sub),
+        createdAt: { $gte: hace2min },
+      }).lean();
+
+      if (reciente) {
+        this.logger.warn(
+          `[DUPLICATE] Alistamiento duplicado bloqueado: placa=${placa} user=${user.sub}`,
+        );
+        throw new ConflictException(
+          `Ya se registró un alistamiento para ${placa} hace menos de 2 minutos. Espere un momento antes de volver a intentarlo.`,
+        );
+      }
+    }
 
     // 2️⃣ CREAR MANTENIMIENTO (LOCAL + intento SICOV)
+    // Vehículos ESPECIAL o empresas ESPECIAL no reportan a SICOV
+    const userForMaint = esVehiculoEspecial ? { ...user, demoMode: true } : user;
+
     const {
       doc,
       externalId,
@@ -130,7 +152,7 @@ export class AlistamientoService {
         tipoId: 3, // ALISTAMIENTO
         vigiladoId: user.vigiladoId,
       },
-      user,
+      userForMaint,
       { awaitExternal: true },
     );
 
@@ -141,18 +163,41 @@ export class AlistamientoService {
     // sicovDown: SICOV no disponible → se encola para reintento automático
 
     // 3️⃣ DERIVAR ACTIVIDADES DESDE LA BASE DE DATOS
-    // Si vienen items (mobile), se buscan en DB los codigos_sicov de los ítems OK.
+    // Si vienen items (mobile), se consultan en DB qué valores tienen es_positivo=true
+    // para ESTA empresa, y se calculan los codigos_sicov de los ítems positivos.
     // Si solo vienen actividades (web), se usan directamente como fallback.
     let actividadesFinales: number[] = [];
 
     if (Array.isArray(dto.items) && dto.items.length > 0) {
-      const okItemIds = (dto.items as Array<{ itemId: string; valor: string }>)
-        .filter((i) => i.valor === 'OK' && Types.ObjectId.isValid(i.itemId))
+      // Obtener los valores que esta empresa considera "positivos" para alistamiento
+      const positiveResponseDocs = await this.itemResponseTypeModel
+        .find({
+          company: new Types.ObjectId(user.enterprise_id),
+          tipo_mantenimiento: 'enlistment',
+          es_positivo: true,
+          enabled: true,
+        })
+        .select('valor')
+        .lean();
+
+      const positiveValues = new Set(
+        positiveResponseDocs.map((r) => r.valor),
+      );
+
+      // Si la empresa no tiene configuración propia, usar 'OK' como fallback universal
+      if (positiveValues.size === 0) positiveValues.add('OK');
+
+      this.logger.log(
+        `[ENLISTMENT] Valores positivos empresa ${user.enterprise_id}: [${[...positiveValues].join(', ')}]`,
+      );
+
+      const positiveItemIds = (dto.items as Array<{ itemId: string; valor: string }>)
+        .filter((i) => positiveValues.has(i.valor) && Types.ObjectId.isValid(i.itemId))
         .map((i) => new Types.ObjectId(i.itemId));
 
-      if (okItemIds.length > 0) {
+      if (positiveItemIds.length > 0) {
         const inspectionDocs = await this.inspectionTypeModel
-          .find({ _id: { $in: okItemIds } })
+          .find({ _id: { $in: positiveItemIds } })
           .select('codigos_sicov')
           .lean();
 
@@ -240,7 +285,7 @@ export class AlistamientoService {
     );
 
     // 7️⃣ GUARDAR LOCAL
-    const syncStatus = isDemoMode ? 'demo' : sicovDetailDown ? 'pending' : 'synced';
+    const syncStatus = esVehiculoEspecial ? 'no_aplica' : isDemoMode ? 'demo' : sicovDetailDown ? 'pending' : 'synced';
     const fechaSyncSicov = syncStatus === 'synced' ? new Date() : null;
     const enlistment = await this.model.create({
       enterprise_id: user.enterprise_id,
@@ -263,6 +308,9 @@ export class AlistamientoService {
 
       firma_conductor_foto: dto.firma_conductor_foto ?? null,
       firma_inspector_foto: dto.firma_inspector_foto ?? null,
+
+      latitud:  dto.latitud  ?? null,
+      longitud: dto.longitud ?? null,
 
       estado: true,
       sicov_sync_status: syncStatus,
@@ -401,7 +449,10 @@ export class AlistamientoService {
   // PRINT PDF
   // ======================================================
   async printPdf(id: string, user: any, res: Response): Promise<void> {
+    this.logger.log(`[PDF] Solicitando PDF para alistamiento id=${id} user=${user?.sub} enterprise=${user?.enterprise_id}`);
+
     if (!Types.ObjectId.isValid(id)) {
+      this.logger.warn(`[PDF] ID inválido: ${id}`);
       throw new NotFoundException('ID inválido');
     }
   
@@ -415,7 +466,16 @@ export class AlistamientoService {
               $cond: [
                 { $eq: [{ $type: '$enterprise_id' }, 'objectId'] },
                 '$enterprise_id',
-                { $toObjectId: '$enterprise_id' },
+                {
+                  $cond: [
+                    { $and: [
+                      { $eq: [{ $type: '$enterprise_id' }, 'string'] },
+                      { $ne: ['$enterprise_id', ''] },
+                    ]},
+                    { $toObjectId: '$enterprise_id' },
+                    null,
+                  ],
+                },
               ],
             },
           },
@@ -425,32 +485,38 @@ export class AlistamientoService {
           as: 'enterprise',
         },
       },
-      { $unwind: '$enterprise' },
+      { $unwind: { path: '$enterprise', preserveNullAndEmptyArrays: true } },
     ]);
-  
+
     if (!data.length) {
+      this.logger.warn(`[PDF] Alistamiento no encontrado: id=${id}`);
       throw new NotFoundException('Alistamiento no encontrado');
     }
-  
+
     const e = data[0];
-  
+    this.logger.log(`[PDF] Alistamiento encontrado: placa=${e.placa} enterprise_id=${e.enterprise_id} enterprise=${e.enterprise?.name ?? 'SIN EMPRESA'}`);
+
     const doc = new PDFDocument({
       size: [226, 620],
       margins: { top: 12, left: 12, right: 12, bottom: 12 },
     });
   
+    try {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
       `inline; filename=alistamiento-${e.placa}.pdf`,
     );
-  
+
     doc.pipe(res);
   
     // ================= ENCABEZADO =================
+    const enterpriseName = e.enterprise?.name ?? '';
+    const vigiladoId    = e.enterprise?.vigiladoId ?? '';
+
     doc.font('Helvetica-Bold')
        .fontSize(11)
-       .text(`${e.enterprise.name}  NIT: ${e.enterprise.vigiladoId}`, { align: 'center' });
+       .text(vigiladoId ? `${enterpriseName}  NIT: ${vigiladoId}` : enterpriseName || 'Empresa', { align: 'center' });
   
     doc.moveDown(0.3);
   
@@ -469,27 +535,13 @@ export class AlistamientoService {
   
     doc.font('Helvetica').fontSize(8);
     doc.text(`Placa: ${e.placa}`);
-    doc.text(`Fecha creación local: ${moment(e.createdAt).format('YYYY/MM/DD HH:mm')}`);
+    doc.text(`Fecha creación: ${moment(e.createdAt).utcOffset(-300).format('YYYY/MM/DD HH:mm')}`);
 
     // Estado de sincronización con SICOV (plan de contingencia)
     const syncStatus = (e as any).sicov_sync_status ?? 'synced';
     const fechaSync = (e as any).fechaSyncSicov;
     if (syncStatus === 'synced' && fechaSync) {
-      doc.text(`Enviado a Supertransporte: ${moment(fechaSync).format('YYYY/MM/DD HH:mm')}`);
-    } else if (syncStatus === 'pending') {
-      doc.font('Helvetica-Bold').fillColor('orange')
-        .text('PENDIENTE DE SINCRONIZACIÓN CON SUPERTRANSPORTE');
-      doc.font('Helvetica').fillColor('black')
-        .text('Este alistamiento fue creado localmente y será cargado a la');
-      doc.text('Supertransporte cuando el sistema esté disponible.');
-    } else if (syncStatus === 'failed') {
-      doc.font('Helvetica-Bold').fillColor('red')
-        .text('ERROR DE SINCRONIZACIÓN — Requiere revisión');
-      doc.font('Helvetica').fillColor('black');
-    } else if (syncStatus === 'demo') {
-      doc.font('Helvetica-Bold').fillColor('#0066cc')
-        .text('MODO DEMO — No enviado a Supertransporte');
-      doc.font('Helvetica').fillColor('black');
+      //doc.text(`Enviado a Supertransporte: ${moment(fechaSync).utcOffset(-300).format('YYYY/MM/DD HH:mm')}`);
     }
 
     doc.moveDown(1);
@@ -569,20 +621,99 @@ export class AlistamientoService {
     });
   
     doc.moveDown(1);
-  
-    // ================= TEXTO LEGAL =================
-    /*doc.fontSize(8)
-       .text(
-         'Este documento certifica que el vehículo fue inspeccionado y se encuentra apto para la operación según los lineamientos vigentes.',
-         { align: 'center' },
-       );
-  */
+
+    // ================= DETALLE ACTIVIDADES =================
+    if (e.detalleActividades && String(e.detalleActividades).trim()) {
+      doc.font('Helvetica-Bold').fontSize(9).text('NOTAS DEL ESTADO DEL VEHÍCULO');
+      doc.moveDown(0.3);
+      doc.font('Helvetica').fontSize(8).text(String(e.detalleActividades).trim(), {
+        width: 202,
+        lineBreak: true,
+      });
+      doc.moveDown(1);
+    }
+
+    // ================= FIRMAS =================
+    const firmaWidth = 170;
+    const firmaHeight = 60;
+    const margenFirma = 12;
+
+    async function embedFirma(doc: any, fotoField: string | null | undefined, label: string) {
+      if (!fotoField) {
+        // Espacio en blanco para firma manual
+        doc.font('Helvetica-Bold').fontSize(8).text(label);
+        doc.moveDown(0.3);
+        doc.rect(margenFirma, doc.y, firmaWidth, firmaHeight).stroke();
+        doc.moveDown(firmaHeight / doc.currentLineHeight() + 0.5);
+        return;
+      }
+
+      doc.font('Helvetica-Bold').fontSize(8).text(label);
+      doc.moveDown(0.3);
+
+      try {
+        let imgBuffer: Buffer;
+
+        if (fotoField.startsWith('data:')) {
+          // Base64 data URL
+          const base64 = fotoField.split(',')[1];
+          imgBuffer = Buffer.from(base64, 'base64');
+        } else {
+          // Descargar desde MinIO vía S3 SDK interno (evita ETIMEDOUT por IP pública)
+          console.log(`[PDF] Descargando firma desde MinIO SDK: ${fotoField}`);
+          const bucket  = process.env.MINIO_BUCKET  || 'protegeme-files';
+          const endpoint = process.env.MINIO_ENDPOINT || 'http://127.0.0.1:9000';
+          const s3 = new S3Client({
+            region: process.env.MINIO_REGION || 'us-east-1',
+            endpoint,
+            forcePathStyle: true,
+            credentials: {
+              accessKeyId:     process.env.MINIO_ACCESS_KEY || '',
+              secretAccessKey: process.env.MINIO_SECRET_KEY || '',
+            },
+          });
+          // Extraer key quitando la URL base del bucket
+          const marker = `/${bucket}/`;
+          const idx = fotoField.indexOf(marker);
+          if (idx === -1) throw new Error(`URL de firma no contiene bucket "${bucket}"`);
+          const key = fotoField.substring(idx + marker.length);
+          const res2 = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+          imgBuffer = await new Promise<Buffer>((resolve, reject) => {
+            const chunks: Buffer[] = [];
+            (res2.Body as Readable).on('data', (c: Buffer) => chunks.push(c));
+            (res2.Body as Readable).on('end', () => resolve(Buffer.concat(chunks)));
+            (res2.Body as Readable).on('error', reject);
+          });
+        }
+
+        doc.image(imgBuffer, margenFirma, doc.y, { width: firmaWidth, height: firmaHeight, fit: [firmaWidth, firmaHeight] });
+        doc.y += firmaHeight + 4;
+      } catch (err: any) {
+        console.warn(`[PDF] No se pudo cargar firma "${label}": ${err?.message ?? err}`);
+        doc.rect(margenFirma, doc.y, firmaWidth, firmaHeight).stroke();
+        doc.moveDown(firmaHeight / doc.currentLineHeight() + 0.5);
+      }
+    }
+
+    await embedFirma(doc, (e as any).firma_conductor_foto, 'FIRMA CONDUCTOR');
+    doc.moveDown(0.5);
+    await embedFirma(doc, (e as any).firma_inspector_foto, 'FIRMA RESPONSABLE');
+
     doc.moveDown(1);
-  
+
     doc.fontSize(7)
        .text('Documento generado automáticamente', { align: 'center' });
-  
+
     doc.end();
+    this.logger.log(`[PDF] Generado correctamente: placa=${e.placa}`);
+
+    } catch (err: any) {
+      this.logger.error(`[PDF] Error generando PDF id=${id}: ${err?.message ?? err}`);
+      this.logger.error(err?.stack ?? '');
+      if (!res.headersSent) {
+        res.status(500).json({ message: 'Error generando PDF', detail: err?.message });
+      }
+    }
   }
   
   

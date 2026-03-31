@@ -17,6 +17,8 @@ type User = {
   email?: string | null;
   roleType: string;
   must_change_password?: boolean;
+  tipo_habilitacion?: 'CARRETERA' | 'ESPECIAL' | 'MIXTO';
+  menu_permissions?: string[];
 };
 
 type Role = {
@@ -76,6 +78,17 @@ export const useAuthStore = defineStore('auth', {
       s.user?.usuario ||
       'Usuario',
     isSuperAdmin: (s) => s.user?.roleType === 'superadmin',
+    isAdmin: (s) => ['admin', 'superadmin'].includes(s.user?.roleType ?? ''),
+    /** Devuelve true si el usuario tiene permiso para la clave dada.
+     *  admin y superadmin siempre tienen acceso total.
+     *  Si no hay permisos configurados (lista vacía), se permite todo. */
+    canAccess: (s) => (key: string): boolean => {
+      const role = s.user?.roleType ?? '';
+      if (role === 'superadmin' || role === 'admin') return true;
+      const perms = s.user?.menu_permissions ?? [];
+      if (perms.length === 0) return true; // sin restricciones
+      return perms.includes(key);
+    },
   },
 
   actions: {

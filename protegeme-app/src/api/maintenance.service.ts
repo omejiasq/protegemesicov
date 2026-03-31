@@ -119,4 +119,29 @@ export const MaintenanceserviceApi = {
   toggleProveedor: (id: string) =>
     http.patch(`${baseURL}/proveedores/${id}/toggle`, {}),
 
+  // ── Preventivo: marcar como ejecutado (dispara SICOV) ──────────────
+  executePreventive: (id: string, executedAt?: string) =>
+    http.patch(`${baseURL}/maintenance-preventive/${id}/execute`, { executedAt }),
+
+  // ── IA: análisis de documentos de taller ───────────────────────────
+  listWorkshopFormats: () =>
+    http.get(`${baseURL}/maintenance-ai/formats`),
+  listAllWorkshopFormats: () =>
+    http.get(`${baseURL}/maintenance-ai/formats/all`),
+  createWorkshopFormat: (data: any) =>
+    http.post(`${baseURL}/maintenance-ai/formats`, data),
+  updateWorkshopFormat: (id: string, data: any) =>
+    http.patch(`${baseURL}/maintenance-ai/formats/${id}`, data),
+  toggleWorkshopFormat: (id: string) =>
+    http.patch(`${baseURL}/maintenance-ai/formats/${id}/toggle`, {}),
+  analyzeMaintenanceDocument: (data: {
+    imageBase64: string;
+    mediaType: string;
+    workshop_format_id?: string;
+    preventive_id?: string;
+    corrective_id?: string;
+  }) => http.post(`${baseURL}/maintenance-ai/analyze`, data),
+  listDocumentAnalyses: (placa?: string) =>
+    http.get(`${baseURL}/maintenance-ai/analyses`, { params: placa ? { placa } : {} }),
+
 };

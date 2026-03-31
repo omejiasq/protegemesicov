@@ -98,6 +98,22 @@ export class Enterprise {
 
   @Prop({ type: String, default: null, trim: true })
   deactivationReason?: string | null;
+
+  /** Tipo de habilitación de la empresa ante el Ministerio de Transporte */
+  @Prop({
+    type: String,
+    enum: ['CARRETERA', 'ESPECIAL', 'MIXTO'],
+    default: 'CARRETERA',
+  })
+  tipo_habilitacion?: 'CARRETERA' | 'ESPECIAL' | 'MIXTO';
+
+  /**
+   * Claves de opciones de menú habilitadas para esta empresa.
+   * Si está vacío ([]) → todas las opciones globalmente activas están disponibles.
+   * Si tiene valores → solo esas claves están disponibles para sus usuarios.
+   */
+  @Prop({ type: [String], default: [] })
+  enterprise_menu_permissions: string[];
 }
 
 export const EnterpriseSchema = SchemaFactory.createForClass(Enterprise);

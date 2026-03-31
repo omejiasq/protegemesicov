@@ -94,6 +94,14 @@ export class Enterprise {
   @Prop({ type: String, default: '' })
   default_inspector_name?: string;
 
+  /** Tipo de habilitación de la empresa ante el Ministerio de Transporte */
+  @Prop({
+    type: String,
+    enum: ['CARRETERA', 'ESPECIAL', 'MIXTO'],
+    default: 'CARRETERA',
+  })
+  tipo_habilitacion?: 'CARRETERA' | 'ESPECIAL' | 'MIXTO';
+
 }
 
 export const EnterpriseSchema = SchemaFactory.createForClass(Enterprise);

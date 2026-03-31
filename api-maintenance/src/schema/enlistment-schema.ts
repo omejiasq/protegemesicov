@@ -37,6 +37,12 @@ export class EnlistmentDetail {
   @Prop({ type: String, default: null })
   firma_inspector_foto?: string;
 
+  @Prop({ type: Number, default: null })
+  latitud?: number;
+
+  @Prop({ type: Number, default: null })
+  longitud?: number;
+
   /**
    * Estado de sincronización con SICOV.
    * - pending:  guardado localmente, SICOV no disponible al momento de crear
@@ -46,11 +52,11 @@ export class EnlistmentDetail {
    * - expired:  no fue sincronizado el día de creación; ya no se enviará a SICOV
    */
   @Prop({
-    enum: ['pending', 'synced', 'failed', 'demo', 'expired'],
+    enum: ['pending', 'synced', 'failed', 'demo', 'expired', 'no_aplica'],
     default: 'synced',
     index: true,
   })
-  sicov_sync_status!: 'pending' | 'synced' | 'failed' | 'demo' | 'expired';
+  sicov_sync_status!: 'pending' | 'synced' | 'failed' | 'demo' | 'expired' | 'no_aplica';
 
   /**
    * Origen del registro.

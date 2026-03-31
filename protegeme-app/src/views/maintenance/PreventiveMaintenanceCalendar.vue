@@ -94,6 +94,7 @@ const COLORS = {
   porVencer:  "#f97316", // 🟠 vence en ≤15 días
   ejecutado:  "#22c55e", // 🟢 tiene executedAt
   programado: "#3b82f6", // 🔵 scheduledAt futuro
+  planeado:   "#a855f7", // 🟣 planeado para futuro (no ejecutado aún)
   // Documentos de vehículo
   soat:        "#8b5cf6", // 🟣 SOAT
   tecnomecanica: "#0891b2", // 🔵 Tecnomecánica
@@ -105,7 +106,7 @@ const legend = [
   { label: "Mant. vencido",     color: COLORS.vencido    },
   { label: "Mant. vence ≤15d",  color: COLORS.porVencer  },
   { label: "Mant. ejecutado",   color: COLORS.ejecutado  },
-  { label: "Mant. programado",  color: COLORS.programado },
+  { label: "Mant. planeado",    color: COLORS.planeado   },
   { label: "SOAT",              color: COLORS.soat       },
   { label: "Tecnomecánica",     color: COLORS.tecnomecanica },
   { label: "Tarjeta Operación", color: COLORS.tarjetaOpera  },
@@ -189,7 +190,27 @@ function buildMaintenanceEvents(items: any[]): any[] {
       });
     }
 
-    if (item.dueDate) {
+    // Evento especial para mantenimientos PLANEADOS (sin ejecutar aún)
+    if (item.isPlanned && item.scheduledAt) {
+      const d = new Date(item.scheduledAt);
+      result.push({
+        Id: id++,
+        Subject: `📋 ${placa} (planeado)`,
+        StartTime: startOf(d),
+        EndTime: endOf(d),
+        Description: `Planeado: ${formatDateCO(d)} · ${taller} · ${mecanico}`,
+        CategoryColor: COLORS.planeado,
+        Tipo: "PLANEADO",
+        Placa: placa,
+        Taller: taller,
+        Mecanico: mecanico,
+        FechaEjecucion: "Pendiente",
+        FechaVencimiento: formatDateCO(item.dueDate),
+        Nota: nota,
+      });
+    }
+
+    if (item.dueDate && !item.isPlanned) {
       const d = new Date(item.dueDate);
       const diff = daysDiff(d);
       const yaEjecutado = !!item.executedAt;

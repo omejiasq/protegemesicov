@@ -125,6 +125,19 @@ export class Vehicle {
   @Prop({ type: String, enum: ['pendiente', 'aprobada', null], default: null })
   deactivation_estado?: 'pendiente' | 'aprobada' | null;
 
+  // ── Tipo de servicio del vehículo ──────────────────────────────────
+  /**
+   * CARRETERA: vehículo de transporte intermunicipal, reporta a SICOV.
+   * ESPECIAL:  vehículo de transporte especial, NO reporta a SICOV.
+   * Para empresas MIXTO cada vehículo define su propio tipo.
+   */
+  @Prop({
+    type: String,
+    enum: ['CARRETERA', 'ESPECIAL'],
+    default: 'CARRETERA',
+  })
+  tipo_servicio!: 'CARRETERA' | 'ESPECIAL';
+
   // ── Control SICOV ──────────────────────────────────────────────────
   /** Superadmin puede desactivar el envío a Supertransporte */
   @Prop({ type: Boolean, default: true })

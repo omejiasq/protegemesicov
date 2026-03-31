@@ -45,6 +45,7 @@
           label="Nuevo Alistamiento"
           icon="pi pi-plus"
           class="btn-dark-green"
+          :disabled="saving"
           @click="openCreate"
         />
       </div>
@@ -270,6 +271,7 @@
     <Dialog
       v-model:visible="dlg.visible"
       modal
+      :closable="true"
       header="Nuevo alistamiento"
       class="dialog-form"
       :style="{ width: '95vw', maxWidth: '900px' }"
@@ -323,11 +325,20 @@
           </div>
 
           <div class="col-12 md:col-4">
-            <label>N° Documento</label>
-            <InputText
-              v-model="form.numeroIdentificacionConductor"
+            <label>N° Documento Conductor</label>
+            <AutoComplete
+              v-model="conductorDocSearch"
+              :suggestions="conductorSuggestions"
+              placeholder="Digite la cédula..."
               class="w-full"
-            />
+              input-class="w-full"
+              @complete="onConductorDocSearch"
+              @item-select="onConductorSelect"
+            >
+              <template #option="{ option }">
+                <span>{{ option }} — {{ conductorMap.get(option)?.nombre }}</span>
+              </template>
+            </AutoComplete>
           </div>
 
           <div class="col-12 md:col-4">
@@ -376,7 +387,7 @@
       </div>
 
       <template #footer>
-        <Button label="Cancelar" class="p-button-text" @click="dlg.visible=false" />
+        <Button label="Cancelar" class="p-button-text" @click="closeDialog" />
         <Button
           label="Guardar"
           icon="pi pi-save"
@@ -397,6 +408,7 @@
 import { reactive, ref, computed, onMounted } from "vue";
 import { useMaintenanceStore } from "../../stores/maintenanceStore";
 import InputText from "primevue/inputtext";
+import AutoComplete from "primevue/autocomplete";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
 import Tag from "primevue/tag";
@@ -408,6 +420,7 @@ import Textarea from "primevue/textarea";
 import Checkbox from "primevue/checkbox";
 import { useToast } from "primevue/usetoast";
 import { watch } from "vue";
+import { AuthserviceApi } from "../../api/auth.service";
 
 import SearchBar from "../../components/ui/SearchBar.vue";
 import InputDate from "../../components/ui/InputDate.vue";
@@ -423,6 +436,41 @@ import { http } from "../../api/http";
 const toast = useToast();
 
 const store = useMaintenanceStore();
+
+// ─── Autocomplete conductor por N° documento ──────────────────────────────
+const conductorDocSearch = ref('');
+const conductorSuggestions = ref<string[]>([]);
+const conductorMap = ref(new Map<string, { nombre: string; document_type: any }>());
+
+async function onConductorDocSearch(event: { query: string }) {
+  const q = event.query?.trim();
+  if (!q || q.length < 2) { conductorSuggestions.value = []; return; }
+  try {
+    const { data } = await AuthserviceApi.searchDrivers(q) as any;
+    conductorMap.value.clear();
+    conductorSuggestions.value = (data?.data ?? []).map((d: any) => {
+      const docNum: string = d.usuario?.documentNumber ?? '';
+      conductorMap.value.set(docNum, {
+        nombre: `${d.usuario?.nombre ?? ''} ${d.usuario?.apellido ?? ''}`.trim(),
+        document_type: d.usuario?.document_type,
+      });
+      return docNum;
+    });
+  } catch {
+    conductorSuggestions.value = [];
+  }
+}
+
+function onConductorSelect(event: { value: string }) {
+  const docNum = event.value;
+  const driver = conductorMap.value.get(docNum);
+  form.numeroIdentificacionConductor = docNum;
+  if (driver) {
+    form.tipoIdentificacionConductor = driver.document_type ?? form.tipoIdentificacionConductor;
+    form.nombresConductor = driver.nombre;
+  }
+}
+// ──────────────────────────────────────────────────────────────────────────
 
 const selectedFile = ref<File | null>(null);
 function onFileChange(e: Event) {
@@ -583,7 +631,10 @@ async function buscarVehiculoPorPlaca() {
       vehiculo?.driver?.usuario?.documentNumber || "";
 
     form.nombresConductor =
-      vehiculo?.driver?.usuario?.nombre || "";  
+      `${vehiculo?.driver?.usuario?.nombre || ''} ${vehiculo?.driver?.usuario?.apellido || ''}`.trim();
+
+    // Sincronizar AutoComplete del conductor con los datos cargados por placa
+    conductorDocSearch.value = form.numeroIdentificacionConductor ?? '';
 
     // Mostrar en consola para debug
     console.log("✅ Tipo documento responsable mapeado:", form.tipoIdentificacion);
@@ -608,7 +659,7 @@ async function buscarVehiculoPorPlaca() {
 
     form.numeroIdentificacionConductor = "";
     form.nombresConductor = "";
-
+    conductorDocSearch.value = '';
 
     toast.add({
       severity: "error",
@@ -1057,7 +1108,8 @@ watch(
     if (!v) {
       isEditingEnlistment.value = false;
       editingEnlistmentId.value = null;
-      if (!v) viewMode.value = false;
+      viewMode.value = false;
+      conductorDocSearch.value = '';
     }
   }
 );
@@ -1298,13 +1350,19 @@ function openCreate() {
   form.numeroIdentificacionConductor = "";
   form.nombresConductor = "";
   form.detalleActividades = "";
-  
+  conductorDocSearch.value = '';
+
   // IMPORTANTE: Precaragar TODAS las actividades automáticamente
   form.actividades = activitiesWithCheck.value.map(a => a.id);
 
   dlg.visible = true;
   ensureMaintenances();
+}
 
+function closeDialog() {
+  dlg.visible = false;
+  conductorDocSearch.value = '';
+  conductorSuggestions.value = [];
 }
 
 async function save() {

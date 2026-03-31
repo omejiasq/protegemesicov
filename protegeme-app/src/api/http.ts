@@ -47,6 +47,8 @@ http.interceptors.response.use(
     if (status === 401) {
       localStorage.removeItem('access_token');
       localStorage.removeItem('token2');
+      localStorage.removeItem('token');
+      localStorage.removeItem('auth');
       // Redirigir al login si no estamos ya en esa ruta
       if (!window.location.pathname.startsWith('/login')) {
         window.location.replace('/login');

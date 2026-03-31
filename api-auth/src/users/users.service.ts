@@ -76,6 +76,8 @@ export class UsersService {
     );
 
     try {
+      const isDriver = (createUserDto.roleType ?? 'admin') === 'driver';
+
       const newUser = await this.userModel.create({
         usuario: {
           usuario: createUserDto.usuario,
@@ -88,9 +90,7 @@ export class UsersService {
         },
         password: hashedPassword,
         roleType: createUserDto.roleType ?? 'admin',
-        enterprise_id: new Types.ObjectId(
-          currentUser.enterprise_id,
-        ),
+        enterprise_id: new Types.ObjectId(currentUser.enterprise_id),
 
         no_licencia_conduccion:
           createUserDto.no_licencia_conduccion ?? undefined,
@@ -99,6 +99,9 @@ export class UsersService {
           createUserDto.vencimiento_licencia_conduccion
             ? new Date(createUserDto.vencimiento_licencia_conduccion)
             : undefined,
+
+        // Conductores siempre reciben permiso de alistamiento móvil por defecto
+        menu_permissions: isDriver ? ['mob_enlistment'] : [],
 
         active: true,
       });
@@ -412,26 +415,25 @@ export class UsersService {
       await this.assertEmailUnique(updateDto.email, id);
     }
 
-    user.usuario = {
-      ...user.usuario,
-      ...(updateDto.usuario && { usuario: updateDto.usuario }),
-      ...(updateDto.firstName && { nombre: updateDto.firstName }),
-      ...(updateDto.lastName && { apellido: updateDto.lastName }),
-      ...(updateDto.phone && { telefono: updateDto.phone }),
-      ...(updateDto.email && { correo: updateDto.email }),
-      ...(updateDto.documentType && {
-        document_type: updateDto.documentType,
-      }),
-      ...(updateDto.documentNumber && {
-        documentNumber: updateDto.documentNumber,
-      }),
-    };
+    if (updateDto.usuario)      user.usuario.usuario       = updateDto.usuario;
+    if (updateDto.firstName)    user.usuario.nombre        = updateDto.firstName;
+    if (updateDto.lastName  !== undefined) user.usuario.apellido     = updateDto.lastName;
+    if (updateDto.phone     !== undefined) user.usuario.telefono     = updateDto.phone;
+    if (updateDto.email)        user.usuario.correo        = updateDto.email;
+    if (updateDto.documentType) user.usuario.document_type = updateDto.documentType;
+    if (updateDto.documentNumber) user.usuario.documentNumber = updateDto.documentNumber;
+    user.markModified('usuario');
 
     if (updateDto.roleType)
       user.roleType = updateDto.roleType;
 
     if (updateDto.active !== undefined)
       user.active = updateDto.active;
+
+    // Cambio de contraseña opcional (para conductores u otros usuarios)
+    if (updateDto.newPassword && updateDto.newPassword.trim().length >= 6) {
+      user.password = await bcrypt.hash(updateDto.newPassword.trim(), 10);
+    }
 
     if (updateDto.no_licencia_conduccion !== undefined) {
       user.no_licencia_conduccion =
@@ -461,6 +463,8 @@ export class UsersService {
       page?: number;
       numero_items?: number;
       documentNumber?: string;
+      nombre?: string;
+      search?: string;
       active?: boolean;
       sortField?: string;
       sortOrder?: 'asc' | 'desc';
@@ -469,21 +473,38 @@ export class UsersService {
     if (!user?.enterprise_id) {
       throw new BadRequestException('enterprise_id no presente en el token');
     }
-  
+
     const enterpriseId = new Types.ObjectId(user.enterprise_id);
-  
+
     const filters: any = {
       enterprise_id: enterpriseId,
       roleType: 'driver',
     };
-  
+
     if (query.documentNumber) {
       filters['usuario.documentNumber'] = {
         $regex: query.documentNumber,
         $options: 'i',
       };
     }
-  
+
+    // Búsqueda por nombre/apellido
+    if (query.nombre) {
+      filters['$or'] = [
+        { 'usuario.nombre': { $regex: query.nombre, $options: 'i' } },
+        { 'usuario.apellido': { $regex: query.nombre, $options: 'i' } },
+      ];
+    }
+
+    // Búsqueda combinada (documento O nombre) — para autocomplete
+    if (query.search) {
+      filters['$or'] = [
+        { 'usuario.documentNumber': { $regex: query.search, $options: 'i' } },
+        { 'usuario.nombre': { $regex: query.search, $options: 'i' } },
+        { 'usuario.apellido': { $regex: query.search, $options: 'i' } },
+      ];
+    }
+
     if (query.active !== undefined) {
       filters.active = query.active;
     }
@@ -666,6 +687,29 @@ async toggleActiveUser(id: string, currentUser: any) {
   await user.save();
 
   return this.sanitize(user.toObject());
+}
+
+//-----------------------------------------------------
+// MENU PERMISSIONS (por usuario)
+//-----------------------------------------------------
+async getMenuPermissions(id: string) {
+  if (!Types.ObjectId.isValid(id)) throw new BadRequestException('ID inválido');
+  const user = await this.userModel.findById(id, { menu_permissions: 1 }).lean();
+  if (!user) throw new NotFoundException('Usuario no encontrado');
+  return { menu_permissions: (user as any).menu_permissions ?? [] };
+}
+
+async setMenuPermissions(id: string, keys: string[], currentUser: any) {
+  if (!Types.ObjectId.isValid(id)) throw new BadRequestException('ID inválido');
+  if (!Array.isArray(keys)) throw new BadRequestException('keys debe ser un array de strings');
+
+  const user = await this.userModel.findOneAndUpdate(
+    { _id: id, enterprise_id: new Types.ObjectId(currentUser.enterprise_id) },
+    { $set: { menu_permissions: keys } },
+    { new: true },
+  );
+  if (!user) throw new NotFoundException('Usuario no encontrado');
+  return { menu_permissions: (user as any).menu_permissions };
 }
 
 }

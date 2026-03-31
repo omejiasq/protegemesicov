@@ -62,6 +62,12 @@ export class CorrectiveDetail {
   @Prop({ type: String, default: null })
   evidencia_foto?: string;
 
+  @Prop({ type: String, default: null })
+  no_licencia_conduccion?: string;
+
+  @Prop({ type: Date, default: null })
+  vencimiento_licencia_conduccion?: Date;
+
   @Prop({
     enum: ['pending', 'synced', 'failed', 'demo'],
     default: 'synced',

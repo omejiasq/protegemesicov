@@ -20,6 +20,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { SicovSyncModule } from './sicov-sync/sicov-sync.module';
 import { ExternalIngestionModule } from './external-ingestion/external-ingestion.module';
 import { AuditReportModule } from './audit-report/audit-report.module';
+import { MaintenanceAiModule } from './maintenance-ai/maintenance-ai.module';
 
 
 @Module({
@@ -55,6 +56,8 @@ import { AuditReportModule } from './audit-report/audit-report.module';
     ExternalIngestionModule,
     // Reporte de auditoría por empresa y fechas
     AuditReportModule,
+    // IA: análisis de documentos de taller con Claude + formatos por empresa
+    MaintenanceAiModule,
   ],
   providers: [JwtStrategy],
 })

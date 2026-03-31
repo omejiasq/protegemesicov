@@ -64,12 +64,22 @@ export class PreventiveDetail {
   @Prop({ type: String, default: null })
   evidencia_foto?: string;
 
+  @Prop({ type: String, default: null })
+  no_licencia_conduccion?: string;
+
+  @Prop({ type: Date, default: null })
+  vencimiento_licencia_conduccion?: Date;
+
   @Prop({
-    enum: ['pending', 'synced', 'failed', 'demo'],
+    enum: ['planned', 'pending', 'synced', 'failed', 'demo', 'no_aplica'],
     default: 'synced',
     index: true,
   })
-  sicov_sync_status!: 'pending' | 'synced' | 'failed' | 'demo';
+  sicov_sync_status!: 'planned' | 'pending' | 'synced' | 'failed' | 'demo' | 'no_aplica';
+
+  /** true = creado como planeación, aún no ejecutado ni enviado a SICOV */
+  @Prop({ default: false, index: true })
+  isPlanned!: boolean;
 
   @Prop({ enum: ['frontend', 'external_api'], default: 'frontend' })
   source?: 'frontend' | 'external_api';

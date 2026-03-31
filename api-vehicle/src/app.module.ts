@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { VehiclesModule } from './vehicles/vehicles.module';
 import { AuthModule } from './libs/auth/auth.module';
+import { FuecModule } from './fuec/fuec.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { AuthModule } from './libs/auth/auth.module';
     }),
     AuthModule, // ✅ OBLIGATORIO
     VehiclesModule,
+    FuecModule,
   ],
 })
 export class AppModule {}

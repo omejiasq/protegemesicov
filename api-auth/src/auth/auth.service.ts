@@ -9,6 +9,7 @@ import { Model } from 'mongoose';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { Enterprise, EnterpriseDocument } from '../schemas/enterprise.schema';
+import { MenuCatalog, MenuCatalogDocument } from '../schemas/menu-catalog.schema';
 
 @Injectable()
 export class AuthService {
@@ -17,6 +18,8 @@ export class AuthService {
     private jwtService: JwtService,
     @InjectModel(Enterprise.name)
     private readonly enterpriseModel: Model<EnterpriseDocument>,
+    @InjectModel(MenuCatalog.name)
+    private readonly menuCatalogModel: Model<MenuCatalogDocument>,
   ) {}
 
   async register(userInfo: any) {
@@ -36,6 +39,8 @@ export class AuthService {
 
     let vigiladoId = user.vigiladoId ?? null;
     let vigiladoToken = user.vigiladoToken ?? null;
+    let tipo_habilitacion: string = 'CARRETERA';
+    let resolvedMenuPermissions: string[] = [];
 
     if (user.enterprise_id) {
       const enterprise = await this.enterpriseModel
@@ -44,6 +49,8 @@ export class AuthService {
           deactivationReason: 1,
           vigiladoId: 1,
           vigiladoToken: 1,
+          tipo_habilitacion: 1,
+          enterprise_menu_permissions: 1,
         })
         .lean();
 
@@ -61,6 +68,25 @@ export class AuthService {
 
       vigiladoId = enterprise.vigiladoId ?? vigiladoId;
       vigiladoToken = enterprise.vigiladoToken ?? vigiladoToken;
+      tipo_habilitacion = (enterprise as any).tipo_habilitacion ?? 'CARRETERA';
+
+      // ── Resolver permisos de menú ──────────────────────────────────────
+      const userMenuKeys: string[] = (user.menu_permissions ?? []);
+      const enterpriseMenuKeys: string[] = (enterprise as any).enterprise_menu_permissions ?? [];
+
+      if (userMenuKeys.length > 0) {
+        // Permisos explícitos del usuario
+        resolvedMenuPermissions = userMenuKeys;
+      } else if (enterpriseMenuKeys.length > 0) {
+        // Permisos de la empresa
+        resolvedMenuPermissions = enterpriseMenuKeys;
+      } else {
+        // Sin restricciones → todas las opciones activas del catálogo
+        const catalog = await this.menuCatalogModel
+          .find({ enabled: true }, { key: 1 })
+          .lean();
+        resolvedMenuPermissions = catalog.map((c: any) => c.key);
+      }
     }
 
     // ✅ Los datos del usuario están en el subdocumento "usuario"
@@ -73,6 +99,7 @@ export class AuthService {
       enterprise_id: user.enterprise_id ?? null,
       vigiladoId,
       vigiladoToken,
+      tipo_habilitacion,
     };
 
     const token = this.jwtService.sign(payload);
@@ -89,6 +116,8 @@ export class AuthService {
         documentNumber: info.documentNumber ?? null,
         roleType: user.roleType,
         must_change_password: user.must_change_password ?? false,
+        tipo_habilitacion,
+        menu_permissions: resolvedMenuPermissions,
       },
       token,
       enterprise_id: user.enterprise_id ?? null,

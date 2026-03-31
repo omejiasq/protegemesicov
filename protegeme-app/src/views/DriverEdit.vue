@@ -75,6 +75,39 @@
 
     </div>
 
+    <!-- ═══ ACCESO APP MÓVIL ═══ -->
+    <div style="margin-top:24px;padding:16px;background:#f0f9ff;border-radius:12px;border:1px solid #bae6fd">
+      <p style="font-weight:600;font-size:14px;color:#0369a1;margin:0 0 12px">
+        Acceso a la App Móvil
+      </p>
+      <div class="grid">
+        <div class="field">
+          <label>Usuario de acceso</label>
+          <input :value="currentUsuario" disabled placeholder="Sin usuario asignado" />
+        </div>
+        <div class="field">
+          <label>Nueva Contraseña</label>
+          <input
+            v-model="form.newPassword"
+            type="password"
+            placeholder="Dejar en blanco para no cambiar"
+            autocomplete="new-password"
+          />
+        </div>
+        <div class="field">
+          <label>Confirmar Contraseña</label>
+          <input
+            v-model="form.confirmPassword"
+            type="password"
+            placeholder="Repita la nueva contraseña"
+            autocomplete="new-password"
+            :class="{ error: errors.confirmPassword }"
+          />
+          <small v-if="errors.confirmPassword" class="error-text">{{ errors.confirmPassword }}</small>
+        </div>
+      </div>
+    </div>
+
     <div class="actions">
       <button type="button" class="btn-secondary" @click="$router.back()">
         Cancelar
@@ -100,6 +133,7 @@ const driverId = route.params.id as string
 const loading = ref(false)
 const loadingData = ref(true)
 const errors = ref<any>({})
+const currentUsuario = ref('')
 
 const documentTypeOptions = [
   { label: "Cédula de ciudadanía", value: 1 },
@@ -123,6 +157,8 @@ const form = ref({
   no_licencia_conduccion: '',
   vencimiento_licencia_conduccion: '',
   active: true,
+  newPassword: '',
+  confirmPassword: '',
 })
 
 // ── Cargar datos del conductor al montar ──
@@ -130,6 +166,7 @@ onMounted(async () => {
   try {
     const driver = await driversStore.get(driverId)
     if (driver) {
+      currentUsuario.value = driver.usuario?.usuario ?? ''
       form.value = {
         firstName: driver.usuario?.nombre ?? '',
         //lastName: driver.usuario?.apellido ?? '',
@@ -142,6 +179,8 @@ onMounted(async () => {
           ? driver.vencimiento_licencia_conduccion.substring(0, 10)
           : '',
         active: driver.active ?? true,
+        newPassword: '',
+        confirmPassword: '',
       }
     }
   } catch (e) {
@@ -159,6 +198,10 @@ function validate() {
   if (!form.value.firstName.trim()) e.firstName = 'Ingrese el nombre del conductor'
   //if (!form.value.no_licencia_conduccion.trim()) e.no_licencia_conduccion = 'Ingrese el número de licencia'
   //if (!form.value.vencimiento_licencia_conduccion) e.vencimiento_licencia_conduccion = 'Ingrese la fecha de vencimiento'
+  if (form.value.newPassword) {
+    if (form.value.newPassword.length < 6) e.confirmPassword = 'La contraseña debe tener al menos 6 caracteres'
+    else if (form.value.newPassword !== form.value.confirmPassword) e.confirmPassword = 'Las contraseñas no coinciden'
+  }
   errors.value = e
   return Object.keys(e).length === 0
 }
@@ -168,7 +211,10 @@ async function onSubmit() {
   if (!validate()) return
   loading.value = true
   try {
-    await driversStore.update(driverId, form.value)
+    const payload: any = { ...form.value }
+    delete payload.confirmPassword
+    if (!payload.newPassword) delete payload.newPassword
+    await driversStore.update(driverId, payload)
     alert('Conductor actualizado correctamente')
     router.back()
   } catch (e: any) {

@@ -158,6 +158,8 @@ export class CorrectiveService {
       nombresResponsable: dto.nombresResponsable,
       detalleActividades: dto.detalleActividades,
       evidencia_foto: dto.evidencia_foto ?? null,
+      no_licencia_conduccion: dto.no_licencia_conduccion ?? null,
+      vencimiento_licencia_conduccion: dto.vencimiento_licencia_conduccion ?? null,
       estado: true,
       sicov_sync_status: sicovMaintenanceDown ? 'pending' : 'synced',
       source: (dto as any).source ?? 'frontend',

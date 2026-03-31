@@ -20,6 +20,9 @@ export class VehicleRef {
 
   @Prop({ type: Boolean, default: true })
   sicov_sync_enabled: boolean;
+
+  @Prop({ type: String, enum: ['CARRETERA', 'ESPECIAL'], default: 'CARRETERA' })
+  tipo_servicio: 'CARRETERA' | 'ESPECIAL';
 }
 
 export const VehicleRefSchema = SchemaFactory.createForClass(VehicleRef);

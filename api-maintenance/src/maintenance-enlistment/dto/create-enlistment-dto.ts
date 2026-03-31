@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsString } from 'class-validator';
+import { IsInt, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateEnlistmentDto {
   @IsString() @IsNotEmpty() mantenimientoId!: string;
@@ -10,4 +10,7 @@ export class CreateEnlistmentDto {
   @IsString() @IsNotEmpty() nombresResponsable!: string;
   @IsString() detalleActividades?: string;
   actividades?: string[];
+
+  @IsOptional() @IsNumber() latitud?: number;
+  @IsOptional() @IsNumber() longitud?: number;
 }
