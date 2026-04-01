@@ -82,12 +82,14 @@ export class AuditReportService {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .select('-requestPayload')
       .lean();
 
-    // Keep only `mensaje` from responseBody to avoid sending large payloads in the list
+    // Keep only `mensaje` from responseBody and only `placa` from requestPayload
     const items = rawItems.map((item: any) => ({
       ...item,
+      requestPayload: item.requestPayload?.placa
+        ? { placa: item.requestPayload.placa }
+        : undefined,
       responseBody: item.responseBody
         ? { mensaje: item.responseBody.mensaje ?? item.responseBody.message ?? null }
         : undefined,

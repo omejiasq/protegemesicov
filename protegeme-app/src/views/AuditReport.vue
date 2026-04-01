@@ -136,7 +136,7 @@
             </td>
             <td class="px-3 py-2 text-right text-gray-500 text-xs">{{ item.durationMs }} ms</td>
             <td class="px-3 py-2 text-xs max-w-xs" :class="!item.success ? 'text-red-700' : 'text-gray-700'">
-              {{ item.responseBody?.mensaje || '—' }}
+              {{ mensajeConPlaca(item) }}
             </td>
           </tr>
         </tbody>
@@ -208,6 +208,14 @@ async function runMigrate() {
 function formatDate(iso: string) {
   if (!iso) return ''
   return new Date(iso).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+function mensajeConPlaca(item: any): string {
+  const msg = item.responseBody?.mensaje || '—'
+  if (item.operation === 'guardarMantenimiento' && item.requestPayload?.placa) {
+    return `${msg} | Placa: ${item.requestPayload.placa}`
+  }
+  return msg
 }
 
 function statusBadge(status: number) {
