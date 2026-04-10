@@ -26,6 +26,15 @@ const DEFAULT_CATALOG = [
   { key: 'web_enterprise',      label: 'Mi Empresa',        platform: 'web', icon: 'pi pi-building',      route: '/enterprise/settings',            category: 'CONFIG',         order: 4  },
   { key: 'web_menu_perms',      label: 'Permisos de Menú',  platform: 'web', icon: 'pi pi-lock',          route: '/enterprise/menu-permissions',    category: 'CONFIG',         order: 5  },
   { key: 'web_audit',           label: 'Auditoría SICOV',   platform: 'web', icon: 'pi pi-history',       route: '/audit-report',                   category: 'REPORTES',       order: 1  },
+  { key: 'web_data_sync',       label: 'Integración Datos', platform: 'web', icon: 'pi pi-sync',          route: '/enterprise/data-sync',           category: 'CONFIG',         order: 6  },
+  // ── PESV (solo para empresas con módulo PESV habilitado) ─────────
+  { key: 'web_pesv',            label: 'PESV (sección)',    platform: 'web', icon: 'pi pi-shield',        route: '/pesv/dashboard',                 category: 'PESV',           order: 0  },
+  { key: 'web_pesv_dashboard',  label: 'Dashboard F2',      platform: 'web', icon: 'pi pi-chart-bar',     route: '/pesv/dashboard',                 category: 'PESV',           order: 1  },
+  { key: 'web_pesv_hours',      label: 'Horas Conducidas',  platform: 'web', icon: 'pi pi-clock',         route: '/pesv/working-hours',             category: 'PESV',           order: 2  },
+  { key: 'web_pesv_habits',     label: 'Hábitos Conducción',platform: 'web', icon: 'pi pi-car',           route: '/pesv/habits',                    category: 'PESV',           order: 3  },
+  { key: 'web_pesv_breathalyzer',label:'Alcoholemia',       platform: 'web', icon: 'pi pi-heart',         route: '/pesv/breathalyzer',              category: 'PESV',           order: 4  },
+  { key: 'web_pesv_training',   label: 'Capacitaciones',    platform: 'web', icon: 'pi pi-book',          route: '/pesv/training',                  category: 'PESV',           order: 5  },
+  { key: 'web_pesv_evidence',   label: 'Evidencias F2',     platform: 'web', icon: 'pi pi-file-check',    route: '/pesv/evidence',                  category: 'PESV',           order: 6  },
   // ── Mobile ──────────────────────────────────────────────────────
   { key: 'mob_enlistment',      label: 'Alistamientos',     platform: 'mobile', icon: 'pi pi-list-check', route: '',                                category: 'PRINCIPAL',      order: 1  },
   { key: 'mob_corrective',      label: 'Correctivos',       platform: 'mobile', icon: 'pi pi-wrench',     route: '',                                category: 'PRINCIPAL',      order: 2  },

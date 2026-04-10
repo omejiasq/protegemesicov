@@ -145,7 +145,7 @@
               </li>
 
               <!-- CONFIG -->
-              <li class="layout-menuitem-category" v-if="can('web_vehicles') || can('web_drivers') || can('web_users') || can('web_enterprise') || (isAdmin && can('web_menu_perms'))">
+              <li class="layout-menuitem-category" v-if="can('web_vehicles') || can('web_drivers') || can('web_users') || can('web_enterprise') || (isAdmin && can('web_menu_perms')) || (esEspecialOMixto && can('web_data_sync'))">
                 <div class="layout-menuitem-root-text">Config</div>
                 <ul>
                   <li v-if="can('web_vehicles')">
@@ -202,9 +202,186 @@
                       <span class="layout-menuitem-text">Permisos Menú</span>
                     </router-link>
                   </li>
+
+                  <li v-if="esEspecialOMixto && can('web_data_sync')">
+                    <router-link
+                      to="/enterprise/data-sync"
+                      class="layout-menuitem-link"
+                      :class="{ 'active-menuitem': $route.path.includes('/enterprise/data-sync') }"
+                    >
+                      <i class="pi pi-sync layout-menuitem-icon"></i>
+                      <span class="layout-menuitem-text">Integración Datos</span>
+                    </router-link>
+                  </li>
                 </ul>
               </li>
 
+            </ul>
+          </li>
+
+          <!-- ═══════════════ PESV ═══════════════ -->
+          <li class="layout-menuitem-category" v-if="esEspecialOMixto && can('web_pesv')">
+            <button class="layout-menuitem-group-btn" @click="pesvOpen = !pesvOpen">
+              <span class="layout-menuitem-root-text">PESV</span>
+              <i :class="`pi pi-chevron-${pesvOpen ? 'up' : 'down'} group-arrow`"></i>
+            </button>
+            <ul v-show="pesvOpen">
+
+              <li>
+                <router-link
+                  to="/pesv/dashboard"
+                  class="layout-menuitem-link"
+                  :class="{ 'active-menuitem': $route.path === '/pesv/dashboard' }"
+                >
+                  <i class="pi pi-chart-bar layout-menuitem-icon"></i>
+                  <span class="layout-menuitem-text">Dashboard F2</span>
+                </router-link>
+              </li>
+
+              <li>
+                <router-link
+                  to="/pesv/working-hours"
+                  class="layout-menuitem-link"
+                  :class="{ 'active-menuitem': $route.path === '/pesv/working-hours' }"
+                >
+                  <i class="pi pi-clock layout-menuitem-icon"></i>
+                  <span class="layout-menuitem-text">Horas Conducidas</span>
+                </router-link>
+              </li>
+
+              <li>
+                <router-link
+                  to="/pesv/habits"
+                  class="layout-menuitem-link"
+                  :class="{ 'active-menuitem': $route.path === '/pesv/habits' }"
+                >
+                  <i class="pi pi-car layout-menuitem-icon"></i>
+                  <span class="layout-menuitem-text">Hábitos de Conducción</span>
+                </router-link>
+              </li>
+
+              <li>
+                <router-link
+                  to="/pesv/breathalyzer"
+                  class="layout-menuitem-link"
+                  :class="{ 'active-menuitem': $route.path === '/pesv/breathalyzer' }"
+                >
+                  <i class="pi pi-heart layout-menuitem-icon"></i>
+                  <span class="layout-menuitem-text">Alcoholemia</span>
+                </router-link>
+              </li>
+
+              <li>
+                <router-link
+                  to="/pesv/training"
+                  class="layout-menuitem-link"
+                  :class="{ 'active-menuitem': $route.path === '/pesv/training' }"
+                >
+                  <i class="pi pi-book layout-menuitem-icon"></i>
+                  <span class="layout-menuitem-text">Capacitaciones</span>
+                </router-link>
+              </li>
+
+              <li>
+                <router-link
+                  to="/pesv/evidence"
+                  class="layout-menuitem-link"
+                  :class="{ 'active-menuitem': $route.path === '/pesv/evidence' }"
+                >
+                  <i class="pi pi-file-check layout-menuitem-icon"></i>
+                  <span class="layout-menuitem-text">Evidencias F2</span>
+                </router-link>
+              </li>
+
+              <li>
+                <router-link
+                  to="/pesv/f1"
+                  class="layout-menuitem-link"
+                  :class="{ 'active-menuitem': $route.path === '/pesv/f1' }"
+                >
+                  <i class="pi pi-microphone layout-menuitem-icon"></i>
+                  <span class="layout-menuitem-text">Formulario F1</span>
+                  <span class="badge-new">IA+Voz</span>
+                </router-link>
+              </li>
+
+              <!-- ── NUEVOS MÓDULOS PESV (Fase 1 + Fase 2 demo) ── -->
+              <li>
+                <router-link
+                  to="/pesv/non-conformities"
+                  class="layout-menuitem-link"
+                  :class="{ 'active-menuitem': $route.path === '/pesv/non-conformities' }"
+                >
+                  <i class="pi pi-ban layout-menuitem-icon"></i>
+                  <span class="layout-menuitem-text">No Conformidades</span>
+                  <span class="badge-new">NCAC</span>
+                </router-link>
+              </li>
+
+              <li>
+                <router-link
+                  to="/pesv/km-importer"
+                  class="layout-menuitem-link"
+                  :class="{ 'active-menuitem': $route.path === '/pesv/km-importer' }"
+                >
+                  <i class="pi pi-map layout-menuitem-icon"></i>
+                  <span class="layout-menuitem-text">Kilometraje GPS</span>
+                </router-link>
+              </li>
+
+              <li>
+                <router-link
+                  to="/pesv/incidents"
+                  class="layout-menuitem-link"
+                  :class="{ 'active-menuitem': $route.path === '/pesv/incidents' }"
+                >
+                  <i class="pi pi-car layout-menuitem-icon"></i>
+                  <span class="layout-menuitem-text">Siniestros y Costos</span>
+                  <span class="badge-fase2">F2</span>
+                </router-link>
+              </li>
+
+              <li>
+                <router-link
+                  to="/pesv/risk-matrix"
+                  class="layout-menuitem-link"
+                  :class="{ 'active-menuitem': $route.path === '/pesv/risk-matrix' }"
+                >
+                  <i class="pi pi-exclamation-triangle layout-menuitem-icon"></i>
+                  <span class="layout-menuitem-text">Riesgos Viales</span>
+                  <span class="badge-fase2">F2</span>
+                </router-link>
+              </li>
+
+              <li>
+                <router-link
+                  to="/pesv/annual-plan"
+                  class="layout-menuitem-link"
+                  :class="{ 'active-menuitem': $route.path === '/pesv/annual-plan' }"
+                >
+                  <i class="pi pi-calendar layout-menuitem-icon"></i>
+                  <span class="layout-menuitem-text">Metas y Plan Anual</span>
+                  <span class="badge-fase2">F2</span>
+                </router-link>
+              </li>
+
+            </ul>
+          </li>
+
+          <!-- ═══════════════ ALERTAS DE DOCUMENTOS ═══════════════ -->
+          <li class="layout-menuitem-category" v-if="esEspecialOMixto && (can('web_doc_alerts') || isAdmin)">
+            <div class="layout-menuitem-root-text">ALERTAS</div>
+            <ul>
+              <li>
+                <router-link
+                  to="/maintenance/document-alerts"
+                  class="layout-menuitem-link"
+                  :class="{ 'active-menuitem': $route.path.includes('/maintenance/document-alerts') }"
+                >
+                  <i class="pi pi-bell layout-menuitem-icon"></i>
+                  <span class="layout-menuitem-text">Docs. Vencidos</span>
+                </router-link>
+              </li>
             </ul>
           </li>
 
@@ -261,7 +438,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import Sidebar from "primevue/sidebar";
 import { useAuthStore } from "../../stores/authStore";
 
@@ -269,6 +446,8 @@ const props = defineProps<{ visible: boolean }>();
 const emit = defineEmits<{ hide: [] }>();
 
 const authStore = useAuthStore();
+
+const pesvOpen = ref(true)  // abierto por defecto cuando está en una ruta PESV
 
 const isAdmin = computed(() =>
   ['admin', 'superadmin'].includes(authStore.user?.roleType ?? '')
@@ -278,6 +457,11 @@ const isSuperAdmin = computed(() => authStore.user?.roleType === 'superadmin');
 
 const tieneFuec = computed(() =>
   ['ESPECIAL', 'MIXTO'].includes(authStore.user?.tipo_habilitacion ?? 'CARRETERA')
+);
+
+// PESV e Integración Datos solo visibles para empresas ESPECIAL o MIXTO
+const esEspecialOMixto = computed(() =>
+  ['ESPECIAL', 'MIXTO'].includes(authStore.user?.tipo_habilitacion ?? '')
 );
 
 /** Verifica si el usuario tiene permiso para una clave de menú */
@@ -331,6 +515,27 @@ const visible = computed({
   border-left-color: #60a5fa; color: white;
 }
 .layout-menuitem-icon { font-size: 1rem; width: 1rem; }
+
+/* Botón de grupo colapsable PESV */
+.layout-menuitem-group-btn {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; background: none; border: none; cursor: pointer;
+  padding: 0 1.5rem; margin-bottom: 0.5rem;
+}
+.layout-menuitem-group-btn .layout-menuitem-root-text {
+  padding: 0; margin: 0;
+}
+.group-arrow {
+  color: rgba(255,255,255,0.5); font-size: 0.7rem; transition: transform 0.2s;
+}
+.badge-new {
+  margin-left: auto; font-size: 0.6rem; font-weight: 700;
+  background: #8b5cf6; color: white; padding: 1px 6px; border-radius: 10px; letter-spacing: 0.3px;
+}
+.badge-fase2 {
+  margin-left: auto; font-size: 0.6rem; font-weight: 700;
+  background: #0ea5e9; color: white; padding: 1px 6px; border-radius: 10px; letter-spacing: 0.3px;
+}
 .layout-menuitem-text { font-weight: 500; }
 @media screen and (max-width: 992px) {
   .layout-sidebar :deep(.p-sidebar) {

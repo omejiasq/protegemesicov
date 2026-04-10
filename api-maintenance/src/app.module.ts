@@ -21,6 +21,7 @@ import { SicovSyncModule } from './sicov-sync/sicov-sync.module';
 import { ExternalIngestionModule } from './external-ingestion/external-ingestion.module';
 import { AuditReportModule } from './audit-report/audit-report.module';
 import { MaintenanceAiModule } from './maintenance-ai/maintenance-ai.module';
+import { DocumentAlertModule } from './document-alert/document-alert.module';
 
 
 @Module({
@@ -58,6 +59,8 @@ import { MaintenanceAiModule } from './maintenance-ai/maintenance-ai.module';
     AuditReportModule,
     // IA: análisis de documentos de taller con Claude + formatos por empresa
     MaintenanceAiModule,
+    // Alertas de documentos vencidos detectados por la app móvil (OCR offline)
+    DocumentAlertModule,
   ],
   providers: [JwtStrategy],
 })

@@ -209,6 +209,82 @@ const routes: RouteRecordRaw[] = [
         component: () => import("../views/MenuPermissions.vue"),
       },
 
+      // ─── PESV ───
+      {
+        path: 'pesv/dashboard',
+        name: 'pesv-dashboard',
+        component: () => import('../views/pesv/PesvDashboard.vue'),
+      },
+      {
+        path: 'pesv/working-hours',
+        name: 'pesv-working-hours',
+        component: () => import('../views/pesv/WorkingHours.vue'),
+      },
+      {
+        path: 'pesv/habits',
+        name: 'pesv-habits',
+        component: () => import('../views/pesv/HabitsReport.vue'),
+      },
+      {
+        path: 'pesv/breathalyzer',
+        name: 'pesv-breathalyzer',
+        component: () => import('../views/pesv/BreathlyzerLog.vue'),
+      },
+      {
+        path: 'pesv/training',
+        name: 'pesv-training',
+        component: () => import('../views/pesv/Training.vue'),
+      },
+      {
+        path: 'pesv/evidence',
+        name: 'pesv-evidence',
+        component: () => import('../views/pesv/Evidence.vue'),
+      },
+      {
+        path: 'pesv/f1',
+        name: 'pesv-f1',
+        component: () => import('../views/pesv/PesvF1.vue'),
+      },
+      {
+        path: 'pesv/incidents',
+        name: 'pesv-incidents',
+        component: () => import('../views/pesv/PesvIncidents.vue'),
+      },
+      {
+        path: 'pesv/risk-matrix',
+        name: 'pesv-risk-matrix',
+        component: () => import('../views/pesv/RiskMatrix.vue'),
+      },
+      {
+        path: 'pesv/annual-plan',
+        name: 'pesv-annual-plan',
+        component: () => import('../views/pesv/AnnualPlan.vue'),
+      },
+      {
+        path: 'pesv/non-conformities',
+        name: 'pesv-non-conformities',
+        component: () => import('../views/pesv/NonConformities.vue'),
+      },
+      {
+        path: 'pesv/km-importer',
+        name: 'pesv-km-importer',
+        component: () => import('../views/pesv/GpsKmImporter.vue'),
+      },
+
+      // ─── ALERTAS DE DOCUMENTOS ───
+      {
+        path: 'maintenance/document-alerts',
+        name: 'document-alerts',
+        component: () => import('../views/maintenance/DocumentAlerts.vue'),
+      },
+
+      // ─── INTEGRACIÓN DE DATOS ───
+      {
+        path: 'enterprise/data-sync',
+        name: 'enterprise-data-sync',
+        component: () => import('../views/integrations/DataSync.vue'),
+      },
+
       // ─── SUPERADMIN ───
       {
         path: "admin/enterprises",

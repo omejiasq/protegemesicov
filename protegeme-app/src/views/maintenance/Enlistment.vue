@@ -611,17 +611,25 @@ async function buscarVehiculoPorPlaca() {
     console.log("🔍 Datos del vehículo recibidos:", vehiculo);
     console.log("📝 Tipo documento responsable:", vehiculo?.enterprise?.mechanic_document_type);
     console.log("📝 Tipo documento conductor:", vehiculo?.driver?.usuario?.document_type);
-    
+
     // ✅ ASIGNACIÓN CLAVE
-    //responsable 
-    const tipoDocResponsable = vehiculo?.enterprise?.mechanic_document_type;
+    // Responsable: usar Inspector por Defecto (Alistamientos) si existe, si no mecánico
+    const enterprise = vehiculo?.enterprise ?? {};
+    const hasDefaultInspector =
+      String(enterprise.default_inspector_document_number ?? '').trim().length > 0;
+
+    const tipoDocResponsable = hasDefaultInspector
+      ? enterprise.default_inspector_document_type
+      : enterprise.mechanic_document_type;
     form.tipoIdentificacion = mapDocumentType(tipoDocResponsable);
 
-    form.numeroIdentificacion =
-      vehiculo?.enterprise?.mechanic_document_number || "";
+    form.numeroIdentificacion = hasDefaultInspector
+      ? String(enterprise.default_inspector_document_number ?? '').trim()
+      : (enterprise.mechanic_document_number || '');
 
-    form.nombresResponsable =
-       vehiculo?.enterprise?.mechanic_name || "";  
+    form.nombresResponsable = hasDefaultInspector
+      ? String(enterprise.default_inspector_name ?? '').trim()
+      : (enterprise.mechanic_name || '');
 
     //conductor 
     const tipoDocConductor = vehiculo?.driver?.usuario?.document_type;
@@ -1381,8 +1389,8 @@ async function save() {
     // Conductor (NUEVO)
     tipoIdentificacionConductor: toInt(form.tipoIdentificacionConductor),
     numeroIdentificacionConductor:
-      form.numeroIdentificacionConductor?.toString().replace(/\D+/g, "") ||
-      undefined,
+      (form.numeroIdentificacionConductor?.toString() || conductorDocSearch.value?.toString() || '')
+        .replace(/\D+/g, '') || undefined,
     nombresConductor: form.nombresConductor?.trim() || undefined,
 
     // Alistamiento

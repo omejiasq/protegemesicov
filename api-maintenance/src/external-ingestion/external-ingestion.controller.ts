@@ -3,13 +3,18 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Delete,
   Body,
   Param,
   UseGuards,
   Request,
   BadRequestException,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiKeyGuard } from './api-key.guard';
 import { ExternalIngestionService } from './external-ingestion.service';
@@ -50,6 +55,108 @@ export class ApiKeyManagementController {
   @Delete(':id')
   async revoke(@Param('id') id: string, @Request() req: any) {
     return this.svc.revokeApiKey(id, req.user.enterprise_id);
+  }
+}
+
+// ============================================================
+// Importación masiva desde archivo Excel / CSV
+// ============================================================
+@Controller('external-api/import')
+@UseGuards(AuthGuard('jwt'))
+export class ImportController {
+  constructor(private readonly svc: ExternalIngestionService) {}
+
+  /**
+   * Parsea el archivo sin importar — devuelve columnas detectadas y N filas de preview.
+   * Form-data: file (xlsx/csv)
+   */
+  @Post('preview')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }))
+  async preview(@UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('No se recibió archivo');
+    return this.svc.previewFile(file.buffer, file.originalname);
+  }
+
+  /**
+   * Importa vehículos desde Excel/CSV con mapeo de columnas.
+   * Form-data:
+   *   file    — archivo Excel/CSV
+   *   mapping — JSON string: { placa: 'Columna del Excel', clase: 'Tipo', ... }
+   *   startRow — número de fila desde donde inician los datos (default 2, para saltar encabezado)
+   */
+  @Post('vehicles')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }))
+  async importVehicles(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('mapping') mappingJson: string,
+    @Body('startRow') startRowStr: string,
+    @Request() req: any,
+  ) {
+    if (!file) throw new BadRequestException('No se recibió archivo');
+    if (!mappingJson) throw new BadRequestException('Se requiere el mapeo de columnas (mapping)');
+    let mapping: Record<string, string>;
+    try { mapping = JSON.parse(mappingJson); } catch { throw new BadRequestException('mapping debe ser JSON válido'); }
+    if (!mapping.placa) throw new BadRequestException('El mapeo debe incluir el campo placa (obligatorio)');
+    const startRow = parseInt(startRowStr ?? '2', 10);
+    return this.svc.importVehiclesFromFile(file.buffer, file.originalname, mapping, startRow, req.user);
+  }
+
+  /**
+   * Importa conductores desde Excel/CSV con mapeo de columnas.
+   * Form-data:
+   *   file    — archivo Excel/CSV
+   *   mapping — JSON string: { numeroIdentificacion: 'Columna del Excel', ... }
+   */
+  @Post('drivers')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }))
+  async importDrivers(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('mapping') mappingJson: string,
+    @Body('startRow') startRowStr: string,
+    @Request() req: any,
+  ) {
+    if (!file) throw new BadRequestException('No se recibió archivo');
+    if (!mappingJson) throw new BadRequestException('Se requiere el mapeo de columnas (mapping)');
+    let mapping: Record<string, string>;
+    try { mapping = JSON.parse(mappingJson); } catch { throw new BadRequestException('mapping debe ser JSON válido'); }
+    if (!mapping.numeroIdentificacion) throw new BadRequestException('El mapeo debe incluir numeroIdentificacion (obligatorio)');
+    const startRow = parseInt(startRowStr ?? '2', 10);
+    return this.svc.importDriversFromFile(file.buffer, file.originalname, mapping, startRow, req.user);
+  }
+}
+
+// ============================================================
+// Sincronizaciones programadas (Sync Schedules)
+// ============================================================
+@Controller('external-api/sync-schedules')
+@UseGuards(AuthGuard('jwt'))
+export class SyncScheduleController {
+  constructor(private readonly svc: ExternalIngestionService) {}
+
+  @Get()
+  list(@Request() req: any) {
+    return this.svc.listSyncSchedules(req.user.enterprise_id);
+  }
+
+  @Post()
+  create(@Body() body: any, @Request() req: any) {
+    return this.svc.createSyncSchedule(req.user.enterprise_id, body);
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() body: any, @Request() req: any) {
+    return this.svc.updateSyncSchedule(id, req.user.enterprise_id, body);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string, @Request() req: any) {
+    return this.svc.deleteSyncSchedule(id, req.user.enterprise_id);
+  }
+
+  /** Ejecutar manualmente ahora */
+  @Post(':id/run')
+  run(@Param('id') id: string, @Request() req: any) {
+    return this.svc.runSyncSchedule(id, req.user.enterprise_id);
   }
 }
 

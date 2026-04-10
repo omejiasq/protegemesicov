@@ -13,6 +13,19 @@
     </div>
     
     <div class="layout-topbar-menu">
+
+      <!-- ── Campana de alertas de documentos ── -->
+      <div class="notif-bell-wrapper">
+        <Button
+          icon="pi pi-bell"
+          class="p-button-text p-button-rounded notif-bell"
+          :class="{ 'bell-active': unreadCount > 0 }"
+          @click="goToAlerts"
+          v-tooltip.bottom="unreadCount > 0 ? `${unreadCount} alerta${unreadCount > 1 ? 's' : ''} sin gestionar` : 'Alertas de documentos'"
+        />
+        <span v-if="unreadCount > 0" class="notif-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+      </div>
+
       <div class="layout-topbar-menu-button layout-topbar-menu-button-profile">
         <Button
           :label="auth.profileName || 'Usuario'"
@@ -43,6 +56,7 @@ import Menu from 'primevue/menu'
 
 defineProps<{
   sidebarVisible: boolean
+  unreadCount?: number
 }>()
 
 const emit = defineEmits<{
@@ -53,6 +67,10 @@ const router = useRouter()
 const auth = useAuthStore()
 const toast = useToast()
 const menu = ref()
+
+function goToAlerts() {
+  router.push('/maintenance/document-alerts')
+}
 
 const profileMenuItems = [
   {
@@ -154,8 +172,24 @@ const toggleMenu = () => {
 }
 
 @media screen and (max-width: 992px) {
-  .layout-topbar {
-    left: 0;
-  }
+  .layout-topbar { left: 0; }
+}
+
+/* Campana de alertas */
+.notif-bell-wrapper { position: relative; }
+.notif-bell { color: var(--text-color-secondary) !important; }
+.notif-bell.bell-active { color: #f97316 !important; animation: bell-shake 1.5s ease infinite; }
+.notif-badge {
+  position: absolute; top: 0; right: 0;
+  background: #ef4444; color: white; font-size: 0.65rem;
+  font-weight: 700; min-width: 18px; height: 18px;
+  border-radius: 9px; display: flex; align-items: center;
+  justify-content: center; padding: 0 4px; pointer-events: none;
+  border: 2px solid var(--surface-card);
+}
+@keyframes bell-shake {
+  0%, 90%, 100% { transform: rotate(0deg); }
+  10%, 30%      { transform: rotate(-8deg); }
+  20%, 40%      { transform: rotate(8deg); }
 }
 </style>

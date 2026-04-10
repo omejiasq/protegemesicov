@@ -2,14 +2,19 @@
 import {
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { randomBytes, createHash } from 'crypto';
+import * as XLSX from 'xlsx';
+import axios from 'axios';
+import { SyncSchedule as SyncSch, SyncScheduleDocument as SyncSchDoc } from '../schema/sync-schedule.schema';
 
 import { ApiKey, ApiKeyDocument } from '../schema/api-key.schema';
 import { ExternalVehicle, ExternalVehicleDocument } from '../schema/external-vehicle.schema';
 import { ExternalDriver, ExternalDriverDocument } from '../schema/external-driver.schema';
+import { SyncSchedule as SyncScheduleModel } from '../schema/sync-schedule.schema';
 import { AlistamientoService } from '../maintenance-enlistment/enlistment.service';
 import { PreventiveService } from '../maintenance-preventive/preventive.service';
 import { CorrectiveService } from '../maintenance-corrective/corrective.service';
@@ -32,6 +37,9 @@ export class ExternalIngestionService {
 
     @InjectModel(ExternalDriver.name)
     private readonly driverModel: Model<ExternalDriverDocument>,
+
+    @InjectModel(SyncScheduleModel.name)
+    private readonly syncScheduleModel: Model<SyncSchDoc>,
 
     private readonly enlistmentService: AlistamientoService,
     private readonly preventiveService: PreventiveService,
@@ -301,5 +309,204 @@ export class ExternalIngestionService {
       }
     }
     return results;
+  }
+
+  // ====================================================
+  // Importación desde archivo Excel / CSV
+  // ====================================================
+
+  /** Parsea el archivo y devuelve columnas + primeras 10 filas como preview */
+  async previewFile(buffer: Buffer, filename: string) {
+    const rows = this.parseFile(buffer, filename);
+    if (!rows.length) throw new BadRequestException('El archivo no contiene datos');
+    const columns = Object.keys(rows[0]);
+    return {
+      columns,
+      totalRows: rows.length,
+      preview: rows.slice(0, 10),
+    };
+  }
+
+  private parseFile(buffer: Buffer, filename: string): Record<string, any>[] {
+    const ext = (filename ?? '').split('.').pop()?.toLowerCase();
+    if (ext === 'csv') {
+      const wb = XLSX.read(buffer, { type: 'buffer', raw: false });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      return XLSX.utils.sheet_to_json(ws, { defval: '' });
+    }
+    // xlsx, xls, ods, etc.
+    const wb = XLSX.read(buffer, { type: 'buffer', cellDates: true });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    return XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
+  }
+
+  private applyMapping(rows: Record<string, any>[], mapping: Record<string, string>, startRow: number) {
+    // mapping: { campoProtegeMe: 'Columna del Excel' }
+    const data = rows.slice(startRow - 2); // sheet_to_json ya omite header (fila 1)
+    return data.map(row => {
+      const out: Record<string, any> = {};
+      for (const [field, col] of Object.entries(mapping)) {
+        if (col && row[col] !== undefined && row[col] !== '') {
+          out[field] = String(row[col]).trim();
+        }
+      }
+      return out;
+    }).filter(row => Object.keys(row).length > 0);
+  }
+
+  async importVehiclesFromFile(
+    buffer: Buffer,
+    filename: string,
+    mapping: Record<string, string>,
+    startRow: number,
+    jwtUser: any,
+  ) {
+    const rows = this.parseFile(buffer, filename);
+    const items = this.applyMapping(rows, mapping, startRow);
+    if (!items.length) throw new BadRequestException('No se encontraron filas válidas con el mapeo indicado');
+
+    const fakeCtx = {
+      enterprise_id: jwtUser.enterprise_id,
+      keyId: `jwt:${jwtUser.sub}`,
+      demoMode: false,
+    };
+
+    const results: BatchResult[] = [];
+    for (let i = 0; i < items.length; i++) {
+      try {
+        const res = await this.upsertVehicle(items[i], fakeCtx);
+        results.push({ index: i, status: res.status === 'ok' ? 'created' : 'updated', id: res.id });
+      } catch (err: any) {
+        results.push({ index: i, status: 'error', error: err?.message ?? String(err) });
+      }
+    }
+
+    const created = results.filter(r => r.status === 'created').length;
+    const errors  = results.filter(r => r.status === 'error').length;
+    return { total: items.length, created, errors, results };
+  }
+
+  async importDriversFromFile(
+    buffer: Buffer,
+    filename: string,
+    mapping: Record<string, string>,
+    startRow: number,
+    jwtUser: any,
+  ) {
+    const rows = this.parseFile(buffer, filename);
+    const items = this.applyMapping(rows, mapping, startRow);
+    if (!items.length) throw new BadRequestException('No se encontraron filas válidas con el mapeo indicado');
+
+    const fakeCtx = {
+      enterprise_id: jwtUser.enterprise_id,
+      keyId: `jwt:${jwtUser.sub}`,
+      demoMode: false,
+    };
+
+    const results: BatchResult[] = [];
+    for (let i = 0; i < items.length; i++) {
+      try {
+        const res = await this.upsertDriver(items[i], fakeCtx);
+        results.push({ index: i, status: res.status === 'ok' ? 'created' : 'updated', id: res.id });
+      } catch (err: any) {
+        results.push({ index: i, status: 'error', error: err?.message ?? String(err) });
+      }
+    }
+
+    const created = results.filter(r => r.status === 'created').length;
+    const errors  = results.filter(r => r.status === 'error').length;
+    return { total: items.length, created, errors, results };
+  }
+
+  // ====================================================
+  // Sync Schedules (sincronizaciones programadas)
+  // ====================================================
+
+  async listSyncSchedules(enterprise_id: string) {
+    return this.syncScheduleModel
+      .find({ enterprise_id: new Types.ObjectId(enterprise_id) })
+      .select('-authValue')
+      .sort({ createdAt: -1 })
+      .lean();
+  }
+
+  async createSyncSchedule(enterprise_id: string, dto: any) {
+    const doc = await this.syncScheduleModel.create({
+      enterprise_id: new Types.ObjectId(enterprise_id),
+      name:          dto.name,
+      entityType:    dto.entityType,
+      sourceUrl:     dto.sourceUrl,
+      authType:      dto.authType   ?? 'none',
+      authValue:     dto.authValue  ?? '',
+      authHeader:    dto.authHeader ?? 'X-Api-Key',
+      cronExpression: dto.cronExpression,
+      cronLabel:     dto.cronLabel  ?? '',
+      enabled:       dto.enabled    ?? true,
+    });
+    return { id: String(doc._id), ...dto };
+  }
+
+  async updateSyncSchedule(id: string, enterprise_id: string, dto: any) {
+    const doc = await this.syncScheduleModel.findOneAndUpdate(
+      { _id: id, enterprise_id: new Types.ObjectId(enterprise_id) },
+      { $set: dto },
+      { new: true },
+    ).select('-authValue').lean();
+    if (!doc) throw new NotFoundException('Sincronización no encontrada');
+    return doc;
+  }
+
+  async deleteSyncSchedule(id: string, enterprise_id: string) {
+    await this.syncScheduleModel.deleteOne({ _id: id, enterprise_id: new Types.ObjectId(enterprise_id) });
+    return { ok: true };
+  }
+
+  /** Ejecuta la sincronización: llama al endpoint externo y hace batch upsert */
+  async runSyncSchedule(id: string, enterprise_id: string) {
+    const schedule = await this.syncScheduleModel.findOne({
+      _id: id, enterprise_id: new Types.ObjectId(enterprise_id),
+    }).lean();
+    if (!schedule) throw new NotFoundException('Sincronización no encontrada');
+
+    await this.syncScheduleModel.updateOne({ _id: id }, { $set: { lastRunStatus: 'running' } });
+
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (schedule.authType === 'bearer')  headers['Authorization'] = `Bearer ${schedule.authValue}`;
+      if (schedule.authType === 'api_key') headers[schedule.authHeader ?? 'X-Api-Key'] = schedule.authValue;
+      if (schedule.authType === 'basic')   headers['Authorization'] = `Basic ${Buffer.from(schedule.authValue).toString('base64')}`;
+
+      const response = await axios.get(schedule.sourceUrl, { headers, timeout: 30_000 });
+      const data: any[] = Array.isArray(response.data) ? response.data : (response.data?.data ?? response.data?.items ?? []);
+      if (!Array.isArray(data)) throw new Error('La respuesta del endpoint externo no es un array');
+
+      const fakeCtx = { enterprise_id, keyId: `sync:${id}`, demoMode: false };
+      let total = 0, errors = 0;
+
+      if (schedule.entityType === 'vehicles' || schedule.entityType === 'both') {
+        const res = await this.batchVehicles(data, fakeCtx);
+        total += res.length;
+        errors += res.filter(r => r.status === 'error').length;
+      }
+      if (schedule.entityType === 'drivers' || schedule.entityType === 'both') {
+        const res = await this.batchDrivers(data, fakeCtx);
+        total += res.length;
+        errors += res.filter(r => r.status === 'error').length;
+      }
+
+      const summary = `${total} registros procesados, ${errors} errores`;
+      await this.syncScheduleModel.updateOne({ _id: id }, {
+        $set: { lastRunAt: new Date(), lastRunStatus: 'success', lastRunSummary: summary },
+        $inc: { totalRuns: 1, successRuns: 1 },
+      });
+      return { ok: true, summary };
+    } catch (err: any) {
+      const msg = err?.message ?? String(err);
+      await this.syncScheduleModel.updateOne({ _id: id }, {
+        $set: { lastRunAt: new Date(), lastRunStatus: 'error', lastRunSummary: msg },
+        $inc: { totalRuns: 1 },
+      });
+      throw new BadRequestException(`Error en sincronización: ${msg}`);
+    }
   }
 }
