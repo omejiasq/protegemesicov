@@ -466,29 +466,48 @@ async getVehicleByPlate(placa: string, jwt: string) {
     const skip = (page - 1) * (limitParam || 0);
   
     // =============================
-    // Query base
-    // =============================
-    let query = this.model.find(match).sort(sort);
-  
-    // =============================
     // 👉 SIN FILTROS → últimos 500
     // =============================
     const noFilters =
       !q?.placa &&
       !q?.fechaDesde &&
       !q?.fechaHasta;
-  
-    if (noFilters) {
-      query = query.limit(500);
-    } else if (limitParam) {
-      query = query.skip(skip).limit(limitParam);
-    }
-  
+
+    // =============================
+    // Pipeline con lookup de no_interno
+    // =============================
+    const pipeline: any[] = [
+      { $match: match },
+      { $sort: sort },
+      ...(noFilters
+        ? [{ $limit: 500 }]
+        : limitParam
+        ? [{ $skip: skip }, { $limit: limitParam }]
+        : []),
+      {
+        $lookup: {
+          from: 'vehicles',
+          localField: 'placa',
+          foreignField: 'placa',
+          as: '_vehicle',
+          pipeline: [{ $project: { no_interno: 1 } }],
+        },
+      },
+      {
+        $addFields: {
+          no_interno: {
+            $ifNull: [{ $arrayElemAt: ['$_vehicle.no_interno', 0] }, ''],
+          },
+        },
+      },
+      { $unset: '_vehicle' },
+    ];
+
     const [items, total] = await Promise.all([
-      query.lean(),
+      this.model.aggregate(pipeline),
       this.model.countDocuments(match),
     ]);
-  
+
     return {
       items,
       total,

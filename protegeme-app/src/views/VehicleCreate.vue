@@ -16,14 +16,6 @@
           </div>
 
           <div class="field">
-            <label>Tipo de servicio *</label>
-            <select v-model="form.tipo_servicio">
-              <option value="CARRETERA">Carretera (reporta a Supertransporte)</option>
-              <option value="ESPECIAL">Especial (no reporta a Supertransporte)</option>
-            </select>
-          </div>
-
-          <div class="field">
             <label>Clase</label>
             <input v-model="form.clase" type="text" />
           </div>
@@ -40,7 +32,10 @@
 
           <div class="field">
             <label>Servicio</label>
-            <input v-model="form.servicio" type="text" />
+            <select v-model="form.servicio">
+              <option value="PUBLICO">PUBLICO</option>
+              <option value="PRIVADO">PRIVADO</option>
+            </select>
           </div>
 
           <div class="field">
@@ -192,16 +187,6 @@
           </div>
 
           <div class="field">
-            <label>No. Tecnomecánica</label>
-            <input v-model="form.no_tecnomecanica" type="text" />
-          </div>
-
-          <div class="field">
-            <label>Vencimiento Tecnomecánica</label>
-            <input v-model="form.expiration_tecnomecanica" type="date" />
-          </div>
-
-          <div class="field">
             <label>No. Tarjeta Operación</label>
             <input v-model="form.no_tarjeta_opera" type="text" />
           </div>
@@ -245,7 +230,7 @@ const form = ref({
   clase: '',
   marca: '',
   linea: '',
-  servicio: '',
+  servicio: 'PUBLICO',
   modelo: '',
   combustible: '',
   color: '',
@@ -274,8 +259,6 @@ const form = ref({
   expiration_rcc: '',
   no_rce: '',
   expiration_rce: '',
-  no_tecnomecanica: '',
-  expiration_tecnomecanica: '',
   no_tarjeta_opera: '',
   expiration_tarjeta_opera: '',
 })
@@ -301,6 +284,7 @@ const submit = async () => {
     const payload: any = {
       placa: form.value.placa,
       nivelServicio: 1,
+      tipo_servicio: 'CARRETERA',
     }
 
     // Campos opcionales de texto
@@ -313,7 +297,6 @@ const submit = async () => {
       'no_soat', 'expiration_soat',
       'no_rcc', 'expiration_rcc',
       'no_rce', 'expiration_rce',
-      'no_tecnomecanica', 'expiration_tecnomecanica',
       'no_tarjeta_opera', 'expiration_tarjeta_opera',
     ]
     for (const key of textFields) {

@@ -82,6 +82,7 @@
       <e-columns>
 
         <e-column field="Placa" headerText="Placa" width="25" />
+        <e-column field="NoInterno" headerText="No. Interno" width="35" />
         <e-column field="Fecha" headerText="Fecha" width="50" />
 
         <e-column field="Taller" headerText="Taller" width="30" />
@@ -242,6 +243,7 @@ export default {
 
       const data = tableData.value.map((r: any) => ({
         Placa: r.Placa,
+        "No. Interno": r.NoInterno || "",
         Fecha: formatDate(r.Fecha),
         //Fecha2: toYMD(item.ocurredAt),
 
@@ -345,6 +347,7 @@ function formatDateTimeLocal(value?: string | Date) {
       return {
         _id: item._id, // 👈 AGREGAR ESTO
         Placa: item.placa,
+        NoInterno: item.no_interno || "",
         Fecha: formatDateTimeLocal(item.occurredAt || item.updatedAt),
         //Fecha2: formatDateTime(item.ocurredAt),
 

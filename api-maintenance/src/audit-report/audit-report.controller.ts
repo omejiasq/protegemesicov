@@ -27,9 +27,11 @@ export class AuditReportController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
+    const isSuperAdmin = req.user?.role === 'superadmin';
     return this.svc.getReport({
       enterpriseId: req.user?.enterprise_id,
       userId: req.user?.sub,
+      isSuperAdmin,
       from,
       to,
       operation,
@@ -45,7 +47,52 @@ export class AuditReportController {
     return this.svc.getAvailableOperations(
       req.user?.enterprise_id,
       req.user?.sub,
+      req.user?.role === 'superadmin',
     );
+  }
+
+  /**
+   * GET /audit-report/stats-runt?year=2026&month=4
+   * Devuelve los 8 campos de estadística exigidos por el RUNT.
+   * Superadmin ve todas las empresas; usuario normal solo la suya.
+   */
+  @Get('stats-runt')
+  async getStatsRunt(
+    @Request() req: any,
+    @Query('year')  year?:  string,
+    @Query('month') month?: string,
+  ) {
+    return this.svc.getStatsRunt({
+      enterpriseId: req.user?.enterprise_id,
+      isSuperAdmin: req.user?.role === 'superadmin',
+      year:  year  ? Number(year)  : undefined,
+      month: month ? Number(month) : undefined,
+    });
+  }
+
+  /**
+   * GET /audit-report/req7?from=2026-01-01&to=2026-04-30&page=1&limit=50
+   * GET /audit-report/req7?forExport=true   ← sin paginación, hasta 10 000 filas
+   * Datos del Requisito 7 del Anexo Técnico SICOV.
+   */
+  @Get('req7')
+  async getReq7(
+    @Request() req: any,
+    @Query('from')      from?:      string,
+    @Query('to')        to?:        string,
+    @Query('page')      page?:      string,
+    @Query('limit')     limit?:     string,
+    @Query('forExport') forExport?: string,
+  ) {
+    return this.svc.getReq7Data({
+      enterpriseId: req.user?.enterprise_id,
+      isSuperAdmin: req.user?.role === 'superadmin',
+      from,
+      to,
+      page:      page  ? Number(page)  : 1,
+      limit:     limit ? Number(limit) : 50,
+      forExport: forExport === 'true',
+    });
   }
 
   /**

@@ -385,6 +385,44 @@
             </ul>
           </li>
 
+          <!-- ═══════════════ DESPACHOS (CARRETERA/MIXTO · asignado por superadmin) ═══════════════ -->
+          <li class="layout-menuitem-category"
+              v-if="esCarretera && (canStrict('web_despachos_salidas') || canStrict('web_despachos_llegadas') || canStrict('web_despachos_novedades'))">
+            <div class="layout-menuitem-root-text">DESPACHOS</div>
+            <ul>
+              <li v-if="canStrict('web_despachos_salidas')">
+                <router-link
+                  to="/despachos/salidas"
+                  class="layout-menuitem-link"
+                  :class="{ 'active-menuitem': $route.path.includes('/despachos/salidas') }"
+                >
+                  <i class="pi pi-arrow-up-right layout-menuitem-icon"></i>
+                  <span class="layout-menuitem-text">Salidas Terminal</span>
+                </router-link>
+              </li>
+              <li v-if="canStrict('web_despachos_llegadas')">
+                <router-link
+                  to="/despachos/llegadas"
+                  class="layout-menuitem-link"
+                  :class="{ 'active-menuitem': $route.path.includes('/despachos/llegadas') }"
+                >
+                  <i class="pi pi-arrow-down-left layout-menuitem-icon"></i>
+                  <span class="layout-menuitem-text">Llegadas Terminal</span>
+                </router-link>
+              </li>
+              <li v-if="canStrict('web_despachos_novedades')">
+                <router-link
+                  to="/despachos/novedades"
+                  class="layout-menuitem-link"
+                  :class="{ 'active-menuitem': $route.path.includes('/despachos/novedades') }"
+                >
+                  <i class="pi pi-exclamation-circle layout-menuitem-icon"></i>
+                  <span class="layout-menuitem-text">Novedades Terminal</span>
+                </router-link>
+              </li>
+            </ul>
+          </li>
+
           <!-- ═══════════════ REPORTES ═══════════════ -->
           <li class="layout-menuitem-category" v-if="can('web_audit')">
             <div class="layout-menuitem-root-text">REPORTES</div>
@@ -464,9 +502,28 @@ const esEspecialOMixto = computed(() =>
   ['ESPECIAL', 'MIXTO'].includes(authStore.user?.tipo_habilitacion ?? '')
 );
 
+// Despachos (terminales): visible para CARRETERA y MIXTO mientras se prueba.
+// En producción el acceso real queda controlado por enterprise_menu_permissions
+// que solo puede asignar el superadmin.
+const esCarretera = computed(() =>
+  ['CARRETERA', 'MIXTO'].includes(authStore.user?.tipo_habilitacion ?? '')
+);
+
 /** Verifica si el usuario tiene permiso para una clave de menú */
 function can(key: string): boolean {
   return authStore.canAccess(key);
+}
+
+/**
+ * Verificación estricta: siempre requiere que la clave esté
+ * explícitamente asignada en enterprise_menu_permissions.
+ * Usar solo para módulos que el superadmin debe habilitar uno a uno.
+ * (Los superadmins sí tienen acceso automático para gestionar el sistema.)
+ */
+function canStrict(key: string): boolean {
+  if (authStore.user?.roleType === 'superadmin') return true;
+  const perms = authStore.user?.menu_permissions ?? [];
+  return perms.includes(key);
 }
 
 const visible = computed({

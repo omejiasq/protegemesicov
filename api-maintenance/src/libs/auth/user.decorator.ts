@@ -6,3 +6,6 @@ export const User = createParamDecorator(
     return request.user;
   },
 );
+
+// Alias para compatibilidad con código que importa CurrentUser
+export const CurrentUser = User;

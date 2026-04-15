@@ -390,7 +390,28 @@ export class AlistamientoService {
         match.createdAt.$lte = new Date(`${q.fechaHasta}T23:59:59.999Z`);
     }
 
-    return this.model.find(match).sort({ createdAt: -1 }).limit(500).lean();
+    return this.model.aggregate([
+      { $match: match },
+      { $sort: { createdAt: -1 } },
+      { $limit: 500 },
+      {
+        $lookup: {
+          from: 'vehicles',
+          localField: 'placa',
+          foreignField: 'placa',
+          as: '_vehicle',
+          pipeline: [{ $project: { no_interno: 1 } }],
+        },
+      },
+      {
+        $addFields: {
+          no_interno: {
+            $ifNull: [{ $arrayElemAt: ['$_vehicle.no_interno', 0] }, ''],
+          },
+        },
+      },
+      { $unset: '_vehicle' },
+    ]);
   }
 
   // ======================================================
@@ -496,9 +517,29 @@ export class AlistamientoService {
     const e = data[0];
     this.logger.log(`[PDF] Alistamiento encontrado: placa=${e.placa} enterprise_id=${e.enterprise_id} enterprise=${e.enterprise?.name ?? 'SIN EMPRESA'}`);
 
+    // ── Altura dinámica: todo en una sola página ──────────────────────────
+    const numActividades = Object.keys(ACTIVIDADES_MAP).length;
+    const notesText = e.detalleActividades ? String(e.detalleActividades).trim() : '';
+    const notasLineas = notesText ? Math.ceil(notesText.length / 32) + 2 : 0;
+
+    const pageHeight = Math.max(700,
+        80                                          // encabezado empresa + leyenda
+      + 70                                          // datos vehículo
+      + 60                                          // conductor
+      + 60                                          // responsable
+      + 20                                          // título checklist
+      + numActividades * 13                         // ítems checklist
+      + 20                                          // separador
+      + (notasLineas > 0 ? 25 + notasLineas * 12 : 0) // notas
+      + 100                                         // firma conductor
+      + 100                                         // firma responsable
+      + 40                                          // footer
+    );
+
     const doc = new PDFDocument({
-      size: [226, 620],
+      size: [226, pageHeight],
       margins: { top: 12, left: 12, right: 12, bottom: 12 },
+      autoFirstPage: true,
     });
   
     try {
@@ -699,10 +740,13 @@ export class AlistamientoService {
     doc.moveDown(0.5);
     await embedFirma(doc, (e as any).firma_inspector_foto, 'FIRMA RESPONSABLE');
 
-    doc.moveDown(1);
-
+    // ── Footer: posicionado directamente, sin moveDown que pueda desbordar ──
+    const footerY = Math.min(doc.y + 8, pageHeight - 20);
     doc.fontSize(7)
-       .text('Documento generado automáticamente', { align: 'center' });
+       .text('Documento generado automáticamente', 12, footerY, {
+         width: 202,
+         align: 'center',
+       });
 
     doc.end();
     this.logger.log(`[PDF] Generado correctamente: placa=${e.placa}`);

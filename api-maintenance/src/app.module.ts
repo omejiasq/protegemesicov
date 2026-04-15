@@ -22,6 +22,7 @@ import { ExternalIngestionModule } from './external-ingestion/external-ingestion
 import { AuditReportModule } from './audit-report/audit-report.module';
 import { MaintenanceAiModule } from './maintenance-ai/maintenance-ai.module';
 import { DocumentAlertModule } from './document-alert/document-alert.module';
+import { TerminalesModule } from './terminales/terminales.module';
 
 
 @Module({
@@ -61,6 +62,8 @@ import { DocumentAlertModule } from './document-alert/document-alert.module';
     MaintenanceAiModule,
     // Alertas de documentos vencidos detectados por la app móvil (OCR offline)
     DocumentAlertModule,
+    // Módulo de terminales: salidas, llegadas y novedades (solo empresas CARRETERA)
+    TerminalesModule,
   ],
   providers: [JwtStrategy],
 })

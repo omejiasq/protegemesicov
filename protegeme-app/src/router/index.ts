@@ -285,6 +285,23 @@ const routes: RouteRecordRaw[] = [
         component: () => import('../views/integrations/DataSync.vue'),
       },
 
+      // ─── DESPACHOS (solo empresas CARRETERA) ───
+      {
+        path: 'despachos/salidas',
+        name: 'despachos-salidas',
+        component: () => import('../views/terminales/Salidas.vue'),
+      },
+      {
+        path: 'despachos/llegadas',
+        name: 'despachos-llegadas',
+        component: () => import('../views/terminales/Llegadas.vue'),
+      },
+      {
+        path: 'despachos/novedades',
+        name: 'despachos-novedades',
+        component: () => import('../views/terminales/Novedades.vue'),
+      },
+
       // ─── SUPERADMIN ───
       {
         path: "admin/enterprises",

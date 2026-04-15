@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Manual de Usuario — Módulo de Despachos | Protegeme SICOV</title>
+<style>
+  :root {
+    --green:   #16a34a;
+    --green-l: #dcfce7;
+    --green-d: #14532d;
+    --blue:    #1e40af;
+    --blue-l:  #dbeafe;
+    --yellow:  #d97706;
+    --yellow-l:#fef3c7;
+    --red:     #dc2626;
+    --red-l:   #fee2e2;
+    --cyan:    #0891b2;
+    --cyan-l:  #cffafe;
+    --gray:    #6b7280;
+    --gray-l:  #f3f4f6;
+    --border:  #e5e7eb;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #f8fafc;
+    color: #1f2937;
+    line-height: 1.6;
+  }
+
+  /* ── PORTADA ─────────────────────────────────────── */
+  .cover {
+    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #1d4ed8 100%);
+    color: white;
+    padding: 3rem 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+  .cover-logo {
+    width: 70px; height: 70px;
+    background: white;
+    border-radius: 16px;
+    display: inline-flex; align-items: center; justify-content: center;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  }
+  .cover-logo svg { width: 44px; height: 44px; }
+  .cover h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.5px; }
+  .cover h2 { font-size: 1.1rem; font-weight: 400; opacity: 0.85; margin-top: 0.4rem; }
+  .cover-meta {
+    display: flex; gap: 2rem; justify-content: center; margin-top: 2rem;
+    flex-wrap: wrap;
+  }
+  .cover-badge {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 8px; padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+  }
+  .cover-badge strong { display: block; font-size: 1rem; }
+
+  /* ── LAYOUT ──────────────────────────────────────── */
+  .toc-bar {
+    background: white;
+    border-bottom: 1px solid var(--border);
+    padding: 0.75rem 2rem;
+    display: flex; gap: 1.5rem; flex-wrap: wrap;
+    position: sticky; top: 0; z-index: 10;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  }
+  .toc-bar a {
+    color: var(--blue); text-decoration: none; font-size: 0.85rem; font-weight: 500;
+    white-space: nowrap;
+  }
+  .toc-bar a:hover { text-decoration: underline; }
+
+  .page { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+  /* ── SECCIONES ───────────────────────────────────── */
+  .section { margin-bottom: 3rem; }
+
+  h2.sec-title {
+    font-size: 1.4rem; font-weight: 700;
+    color: var(--blue);
+    border-left: 4px solid var(--blue);
+    padding-left: 0.75rem;
+    margin-bottom: 1.5rem;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  h3.sub-title {
+    font-size: 1.05rem; font-weight: 600;
+    color: #374151;
+    margin: 1.5rem 0 0.75rem;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+
+  p { margin-bottom: 0.75rem; color: #374151; }
+
+  /* ── CARDS ───────────────────────────────────────── */
+  .card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom: 1rem;
+  }
+  .card-grid {
+    display: grid; gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    margin-bottom: 1.5rem;
+  }
+  .card-module {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex; gap: 1rem; align-items: flex-start;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    transition: box-shadow 0.2s;
+  }
+  .card-module:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.10); }
+  .card-module .icon {
+    width: 44px; height: 44px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 1.3rem;
+  }
+  .icon-green  { background: var(--green-l); color: var(--green); }
+  .icon-blue   { background: var(--blue-l);  color: var(--blue); }
+  .icon-yellow { background: var(--yellow-l);color: var(--yellow); }
+  .icon-red    { background: var(--red-l);   color: var(--red); }
+  .icon-cyan   { background: var(--cyan-l);  color: var(--cyan); }
+  .card-module h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.25rem; }
+  .card-module p  { font-size: 0.85rem; color: var(--gray); margin: 0; }
+
+  /* ── TABLA ───────────────────────────────────────── */
+  .tbl { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-bottom: 1rem; }
+  .tbl th {
+    background: var(--blue); color: white;
+    padding: 0.6rem 0.9rem; text-align: left; font-weight: 600;
+  }
+  .tbl th:first-child { border-radius: 8px 0 0 0; }
+  .tbl th:last-child  { border-radius: 0 8px 0 0; }
+  .tbl td { padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .tbl tr:last-child td { border-bottom: none; }
+  .tbl tr:nth-child(even) td { background: #f9fafb; }
+
+  /* ── BADGES ──────────────────────────────────────── */
+  .badge {
+    display: inline-block; padding: 2px 10px; border-radius: 20px;
+    font-size: 0.78rem; font-weight: 600;
+  }
+  .badge-green  { background: var(--green-l);  color: var(--green-d); }
+  .badge-yellow { background: var(--yellow-l); color: #92400e; }
+  .badge-red    { background: var(--red-l);    color: #991b1b; }
+  .badge-blue   { background: var(--blue-l);   color: var(--blue); }
+  .badge-cyan   { background: var(--cyan-l);   color: #164e63; }
+  .badge-gray   { background: var(--gray-l);   color: #374151; }
+
+  /* ── STEPS ───────────────────────────────────────── */
+  .steps { display: flex; flex-direction: column; gap: 0.75rem; }
+  .step {
+    display: flex; gap: 1rem; align-items: flex-start;
+    background: white; border: 1px solid var(--border);
+    border-radius: 10px; padding: 0.9rem 1.1rem;
+  }
+  .step-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--blue); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem; font-weight: 700; flex-shrink: 0; margin-top: 1px;
+  }
+  .step-content { flex: 1; }
+  .step-content strong { display: block; margin-bottom: 0.2rem; font-size: 0.9rem; }
+  .step-content span   { font-size: 0.85rem; color: var(--gray); }
+
+  /* ── ALERTAS ─────────────────────────────────────── */
+  .alert {
+    border-radius: 10px; padding: 0.9rem 1.1rem;
+    display: flex; gap: 0.75rem; align-items: flex-start;
+    margin-bottom: 1rem; font-size: 0.9rem;
+  }
+  .alert-info    { background: var(--blue-l);   border: 1px solid #93c5fd; color: #1e3a8a; }
+  .alert-warning { background: var(--yellow-l); border: 1px solid #fcd34d; color: #78350f; }
+  .alert-success { background: var(--green-l);  border: 1px solid #86efac; color: var(--green-d); }
+  .alert-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── DIAGRAMA DE FLUJO SVG ───────────────────────── */
+  .diagram-wrap {
+    background: white; border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.5rem;
+    margin: 1.5rem 0;
+    overflow-x: auto;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+  .diagram-wrap svg { display: block; margin: 0 auto; max-width: 100%; }
+
+  /* ── TABS ─────────────────────────────────────────── */
+  .tab-panels { margin: 1rem 0; }
+  .tab-header {
+    display: flex; gap: 0; border-bottom: 2px solid var(--border);
+    margin-bottom: 1rem;
+  }
+  .tab-lbl {
+    padding: 0.5rem 1.2rem; font-size: 0.88rem; font-weight: 600;
+    color: var(--gray); border-bottom: 2px solid transparent;
+    margin-bottom: -2px; cursor: default;
+  }
+  .tab-lbl.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .field-list { display: grid; gap: 0.5rem; }
+  .field-row {
+    display: flex; gap: 0.75rem; align-items: baseline;
+    font-size: 0.87rem; padding: 0.4rem 0.6rem;
+    border-radius: 6px; background: #f9fafb;
+    border: 1px solid var(--border);
+  }
+  .field-name { font-weight: 600; min-width: 180px; color: #111827; }
+  .field-desc { color: var(--gray); flex: 1; }
+  .field-req  { font-size: 0.75rem; color: var(--red); font-weight: 700; margin-left: auto; }
+  .field-opt  { font-size: 0.75rem; color: var(--gray); margin-left: auto; }
+
+  /* ── CODE ─────────────────────────────────────────── */
+  code {
+    background: #f1f5f9; border: 1px solid #e2e8f0;
+    border-radius: 4px; padding: 1px 6px;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 0.83rem; color: #0f172a;
+  }
+  pre {
+    background: #0f172a; color: #e2e8f0;
+    border-radius: 10px; padding: 1.2rem 1.4rem;
+    font-size: 0.82rem; overflow-x: auto;
+    line-height: 1.7; margin: 0.75rem 0;
+  }
+  pre .c  { color: #64748b; }
+  pre .k  { color: #7dd3fc; }
+  pre .s  { color: #86efac; }
+  pre .n  { color: #fbbf24; }
+
+  /* ── PIE ──────────────────────────────────────────── */
+  footer {
+    background: var(--blue); color: rgba(255,255,255,0.8);
+    text-align: center; padding: 1.5rem;
+    font-size: 0.82rem; margin-top: 4rem;
+  }
+
+  @media print {
+    .toc-bar { display: none; }
+    .diagram-wrap svg { max-width: 700px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ PORTADA ═══════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-logo">
+    <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="44" height="44" rx="10" fill="#1e40af"/>
+      <path d="M8 32 L22 10 L36 32 Z" fill="white" opacity="0.9"/>
+      <rect x="18" y="20" width="8" height="12" rx="2" fill="#1e40af"/>
+      <circle cx="22" cy="16" r="3" fill="#1e40af"/>
+    </svg>
+  </div>
+  <h1>Módulo de Despachos</h1>
+  <h2>Manual de Usuario — Salidas · Llegadas · Novedades de Terminal</h2>
+  <div class="cover-meta">
+    <div class="cover-badge"><strong>Sistema</strong>Protegeme SICOV</div>
+    <div class="cover-badge"><strong>Módulo</strong>Despachos / Terminales</div>
+    <div class="cover-badge"><strong>Versión</strong>1.0</div>
+    <div class="cover-badge"><strong>Fecha</strong>Abril 2026</div>
+  </div>
+</div>
+
+<!-- ═══ NAVEGACIÓN ════════════════════════════════════════════════════════ -->
+<nav class="toc-bar">
+  <a href="#introduccion">1. Introducción</a>
+  <a href="#flujo-general">2. Flujo General</a>
+  <a href="#estados-sync">3. Estados de Sync</a>
+  <a href="#salidas">4. Salidas</a>
+  <a href="#llegadas">5. Llegadas</a>
+  <a href="#novedades">6. Novedades</a>
+  <a href="#filtros">7. Filtros</a>
+  <a href="#reintentar">8. Reintentar Sync</a>
+  <a href="#permisos">9. Permisos (Superadmin)</a>
+  <a href="#produccion">10. Paso a Producción</a>
+</nav>
+
+<div class="page">
+
+<!-- ═══ 1. INTRODUCCIÓN ═══════════════════════════════════════════════════ -->
+<div class="section" id="introduccion">
+  <h2 class="sec-title">
+    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    1. Introducción
+  </h2>
+  <p>El módulo <strong>Despachos</strong> permite registrar y sincronizar con la plataforma SICOV de la Supertransporte de Transporte los tres eventos principales del ciclo de vida de un vehículo en terminal:</p>
+
+  <div class="card-grid" style="margin-top:1rem;">
+    <div class="card-module">
+      <div class="icon icon-green">🚌</div>
+      <div>
+        <h4>Salidas de Terminal</h4>
+        <p>Registro de despachos de vehículos que parten desde el terminal hacia su destino.</p>
+      </div>
+    </div>
+    <div class="card-module">
+      <div class="icon icon-blue">🏁</div>
+      <div>
+        <h4>Llegadas de Terminal</h4>
+        <p>Registro de vehículos que arriban al terminal con datos de vehículo y conductor.</p>
+      </div>
+    </div>
+    <div class="card-module">
+      <div class="icon icon-yellow">⚠️</div>
+      <div>
+        <h4>Novedades de Terminal</h4>
+        <p>Incidentes, irregularidades o eventos especiales ocurridos en el terminal.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-info">
+    <span class="alert-icon">ℹ️</span>
+    <div><strong>Habilitación requerida:</strong> Este módulo está disponible para empresas con tipo de habilitación <code>CARRETERA</code> o <code>MIXTO</code> y solo si el superadministrador ha asignado los permisos correspondientes a la empresa.</div>
+  </div>
+</div>
+
+<!-- ═══ 2. FLUJO GENERAL ══════════════════════════════════════════════════ -->
+<div class="section" id="flujo-general">
+  <h2 class="sec-title">
+    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7"/>
+    </svg>
+    2. Flujo General del Sistema (Offline-First)
+  </h2>
+
+  <p>El sistema opera con un patrón <strong>offline-first</strong>: primero guarda localmente y luego sincroniza con Supertransporte en segundo plano. <strong>Nunca se pierde un registro</strong> por fallas de conectividad.</p>
+
+  <!-- DIAGRAMA PRINCIPAL -->
+  <div class="diagram-wrap">
+    <svg width="860" height="520" viewBox="0 0 860 520" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, system-ui, sans-serif">
+      <defs>
+        <marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"/>
+        </marker>
+        <marker id="arr-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#16a34a"/>
+        </marker>
+        <marker id="arr-red" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#dc2626"/>
+        </marker>
+        <marker id="arr-yellow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#d97706"/>
+        </marker>
+        <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#00000015"/>
+        </filter>
+      </defs>
+
+      <!-- TÍTULO -->
+      <text x="430" y="28" text-anchor="middle" font-size="15" font-weight="700" fill="#1e40af">Flujo Offline-First — Módulo de Despachos</text>
+
+      <!-- ── COLUMNAS ── -->
+      <!-- Col 1: Usuario -->
+      <rect x="30" y="45" width="140" height="26" rx="5" fill="#e0e7ff"/>
+      <text x="100" y="63" text-anchor="middle" font-size="12" font-weight="600" fill="#3730a3">👤 Usuario</text>
+
+      <!-- Col 2: Frontend -->
+      <rect x="210" y="45" width="140" height="26" rx="5" fill="#dcfce7"/>
+      <text x="280" y="63" text-anchor="middle" font-size="12" font-weight="600" fill="#14532d">🖥 Frontend</text>
+
+      <!-- Col 3: Backend API -->
+      <rect x="390" y="45" width="140" height="26" rx="5" fill="#dbeafe"/>
+      <text x="460" y="63" text-anchor="middle" font-size="12" font-weight="600" fill="#1e40af">⚙️ Backend API</text>
+
+      <!-- Col 4: MongoDB -->
+      <rect x="570" y="45" width="130" height="26" rx="5" fill="#fef3c7"/>
+      <text x="635" y="63" text-anchor="middle" font-size="12" font-weight="600" fill="#78350f">🗄 MongoDB</text>
+
+      <!-- Col 5: Supertransporte -->
+      <rect x="730" y="45" width="110" height="26" rx="5" fill="#fce7f3"/>
+      <text x="785" y="63" text-anchor="middle" font-size="12" font-weight="600" fill="#831843">🌐 SICOV</text>
+
+      <!-- LÍNEAS SEPARADORAS DE COLUMNAS (guías) -->
+      <line x1="175" y1="75" x2="175" y2="505" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="4,4"/>
+      <line x1="355" y1="75" x2="355" y2="505" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="4,4"/>
+      <line x1="535" y1="75" x2="535" y2="505" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="4,4"/>
+      <line x1="715" y1="75" x2="715" y2="505" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="4,4"/>
+
+      <!-- ── PASO 1: Usuario completa formulario ── -->
+      <rect x="35" y="90" width="130" height="44" rx="8" fill="#6366f1" filter="url(#shadow)"/>
+      <text x="100" y="107" text-anchor="middle" font-size="11" font-weight="600" fill="white">Completa</text>
+      <text x="100" y="122" text-anchor="middle" font-size="11" font-weight="600" fill="white">formulario</text>
+
+      <!-- flecha usuario → frontend -->
+      <line x1="165" y1="112" x2="205" y2="112" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+      <text x="185" y="107" text-anchor="middle" font-size="9" fill="#6b7280">Enviar</text>
+
+      <!-- ── PASO 2: Frontend → Backend POST ── -->
+      <rect x="215" y="90" width="130" height="44" rx="8" fill="#059669" filter="url(#shadow)"/>
+      <text x="280" y="107" text-anchor="middle" font-size="11" font-weight="600" fill="white">POST /salidas</text>
+      <text x="280" y="122" text-anchor="middle" font-size="11" font-weight="600" fill="white">o /llegadas...</text>
+
+      <!-- flecha frontend → backend -->
+      <line x1="345" y1="112" x2="385" y2="112" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+      <text x="365" y="107" text-anchor="middle" font-size="9" fill="#6b7280">HTTP</text>
+
+      <!-- ── PASO 3: Backend guarda local ── -->
+      <rect x="395" y="90" width="130" height="44" rx="8" fill="#1e40af" filter="url(#shadow)"/>
+      <text x="460" y="107" text-anchor="middle" font-size="11" font-weight="600" fill="white">Guarda registro</text>
+      <text x="460" y="122" text-anchor="middle" font-size="10" fill="#bfdbfe">sync_status: pending</text>
+
+      <!-- flecha backend → mongo -->
+      <line x1="525" y1="112" x2="565" y2="112" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+      <text x="545" y="107" text-anchor="middle" font-size="9" fill="#6b7280">insert</text>
+
+      <!-- ── PASO 4: MongoDB confirma ── -->
+      <rect x="575" y="90" width="120" height="44" rx="8" fill="#d97706" filter="url(#shadow)"/>
+      <text x="635" y="107" text-anchor="middle" font-size="11" font-weight="600" fill="white">Registro</text>
+      <text x="635" y="122" text-anchor="middle" font-size="11" font-weight="600" fill="white">guardado ✓</text>
+
+      <!-- flecha mongo → frontend (respuesta OK) -->
+      <path d="M575 120 Q430 155 345 140" stroke="#16a34a" stroke-width="1.8" fill="none" marker-end="url(#arr-green)" stroke-dasharray="5,3"/>
+      <text x="455" y="155" text-anchor="middle" font-size="9" fill="#16a34a" font-weight="600">201 OK → usuario ve registro</text>
+
+      <!-- ── DIVIDER ── -->
+      <line x1="40" y1="178" x2="820" y2="178" stroke="#e5e7eb" stroke-width="1"/>
+      <rect x="300" y="170" width="260" height="18" rx="4" fill="#f1f5f9"/>
+      <text x="430" y="182" text-anchor="middle" font-size="10" fill="#6b7280" font-weight="600">▼ SINCRONIZACIÓN ASÍNCRONA (background) ▼</text>
+
+      <!-- ── PASO 5: Backend intenta sync ── -->
+      <rect x="395" y="195" width="130" height="44" rx="8" fill="#1e40af" filter="url(#shadow)"/>
+      <text x="460" y="212" text-anchor="middle" font-size="11" font-weight="600" fill="white">Llama API</text>
+      <text x="460" y="227" text-anchor="middle" font-size="10" fill="#bfdbfe">Supertransporte</text>
+
+      <!-- flecha backend → SICOV -->
+      <line x1="525" y1="217" x2="725" y2="217" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arr)"/>
+      <text x="625" y="210" text-anchor="middle" font-size="9" fill="#6b7280">POST SICOV API</text>
+
+      <!-- ── SICOV responde OK ── -->
+      <rect x="730" y="195" width="110" height="44" rx="8" fill="#db2777" filter="url(#shadow)"/>
+      <text x="785" y="212" text-anchor="middle" font-size="11" font-weight="600" fill="white">Supertransporte</text>
+      <text x="785" y="227" text-anchor="middle" font-size="10" fill="#fce7f3">responde</text>
+
+      <!-- RAMA OK -->
+      <path d="M730 217 Q660 268 535 280" stroke="#16a34a" stroke-width="1.8" fill="none" marker-end="url(#arr-green)"/>
+      <text x="665" y="262" text-anchor="middle" font-size="9" fill="#16a34a" font-weight="600">✓ 200/201</text>
+
+      <!-- ── ESTADO SYNCED ── -->
+      <rect x="395" y="268" width="130" height="40" rx="8" fill="#16a34a" filter="url(#shadow)"/>
+      <text x="460" y="284" text-anchor="middle" font-size="11" font-weight="600" fill="white">sync_status:</text>
+      <text x="460" y="299" text-anchor="middle" font-size="11" font-weight="600" fill="white">synced ✓</text>
+
+      <!-- RAMA FAIL -->
+      <path d="M730 235 Q785 310 730 330" stroke="#dc2626" stroke-width="1.8" fill="none" marker-end="url(#arr-red)"/>
+      <text x="800" y="295" text-anchor="middle" font-size="9" fill="#dc2626" font-weight="600">✗ Error</text>
+
+      <!-- ── ESTADO FAILED ── -->
+      <rect x="620" y="318" width="130" height="40" rx="8" fill="#dc2626" filter="url(#shadow)"/>
+      <text x="685" y="334" text-anchor="middle" font-size="11" font-weight="600" fill="white">sync_status:</text>
+      <text x="685" y="349" text-anchor="middle" font-size="11" font-weight="600" fill="white">failed ✗</text>
+
+      <!-- Actualiza mongo con estado -->
+      <line x1="575" y1="288" x2="540" y2="288" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arr-green)"/>
+      <text x="557" y="282" text-anchor="middle" font-size="9" fill="#16a34a">update</text>
+
+      <line x1="620" y1="338" x2="540" y2="338" stroke="#dc2626" stroke-width="1.5" marker-end="url(#arr-red)"/>
+      <text x="580" y="332" text-anchor="middle" font-size="9" fill="#dc2626">update</text>
+
+      <!-- ── REINTENTO ── -->
+      <rect x="575" y="398" width="220" height="44" rx="8" fill="#d97706" filter="url(#shadow)"/>
+      <text x="685" y="415" text-anchor="middle" font-size="11" font-weight="600" fill="white">Usuario hace clic en</text>
+      <text x="685" y="430" text-anchor="middle" font-size="11" font-weight="600" fill="white">"Reintentar sync"</text>
+
+      <!-- flecha failed → reintento -->
+      <path d="M685 358 L685 394" stroke="#d97706" stroke-width="1.5" marker-end="url(#arr-yellow)" stroke-dasharray="4,3"/>
+      <text x="705" y="380" text-anchor="start" font-size="9" fill="#d97706">Reintento</text>
+
+      <!-- flecha reintento → backend -->
+      <path d="M575 420 Q460 440 460 390" stroke="#d97706" stroke-width="1.5" fill="none" marker-end="url(#arr-yellow)" stroke-dasharray="4,3"/>
+
+      <!-- Banner warning en frontend -->
+      <rect x="35" y="395" width="320" height="55" rx="8" fill="#fef3c7" stroke="#fcd34d" stroke-width="1.5"/>
+      <text x="55" y="415" font-size="11" fill="#78350f">⚠️ Banner amarillo en el frontend:</text>
+      <text x="55" y="432" font-size="11" fill="#78350f" font-weight="600">   "N registros pendientes de sincronización"</text>
+      <text x="55" y="447" font-size="10" fill="#92400e">   Botón → Reintentar sync</text>
+
+      <!-- Leyenda -->
+      <rect x="35" y="475" width="820" height="30" rx="6" fill="#f8fafc" stroke="#e5e7eb"/>
+      <line x1="55" y1="490" x2="85" y2="490" stroke="#16a34a" stroke-width="2"/>
+      <text x="90" y="494" font-size="10" fill="#374151">Flujo exitoso</text>
+      <line x1="160" y1="490" x2="190" y2="490" stroke="#dc2626" stroke-width="2"/>
+      <text x="195" y="494" font-size="10" fill="#374151">Flujo de error</text>
+      <line x1="265" y1="490" x2="295" y2="490" stroke="#d97706" stroke-width="2" stroke-dasharray="4,3"/>
+      <text x="300" y="494" font-size="10" fill="#374151">Reintento</text>
+      <line x1="370" y1="490" x2="400" y2="490" stroke="#16a34a" stroke-width="2" stroke-dasharray="5,3"/>
+      <text x="405" y="494" font-size="10" fill="#374151">Respuesta al usuario</text>
+      <text x="640" y="494" font-size="10" fill="#6b7280">✦ El usuario recibe respuesta inmediata sin esperar sync con SICOV</text>
+    </svg>
+  </div>
+
+  <div class="alert alert-success">
+    <span class="alert-icon">✅</span>
+    <div><strong>Principio clave:</strong> El usuario siempre recibe confirmación inmediata de que el registro se guardó. La sincronización con Supertransporte ocurre en segundo plano y no bloquea la operación del terminal.</div>
+  </div>
+</div>
+
+<!-- ═══ 3. ESTADOS DE SYNC ═════════════════════════════════════════════════ -->
+<div class="section" id="estados-sync">
+  <h2 class="sec-title">
+    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+    </svg>
+    3. Estados de Sincronización
+  </h2>
+
+  <div class="diagram-wrap">
+    <svg width="780" height="200" viewBox="0 0 780 200" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, system-ui, sans-serif">
+      <defs>
+        <marker id="a2" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"/>
+        </marker>
+        <marker id="a2g" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#16a34a"/>
+        </marker>
+        <marker id="a2r" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#dc2626"/>
+        </marker>
+        <marker id="a2o" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#d97706"/>
+        </marker>
+        <marker id="a2b" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#0891b2"/>
+        </marker>
+      </defs>
+
+      <!-- PENDING -->
+      <rect x="20" y="60" width="130" height="60" rx="10" fill="#fef3c7" stroke="#fcd34d" stroke-width="2"/>
+      <text x="85" y="84" text-anchor="middle" font-size="13" font-weight="700" fill="#92400e">PENDING</text>
+      <text x="85" y="100" text-anchor="middle" font-size="10" fill="#78350f">Guardado local</text>
+      <text x="85" y="113" text-anchor="middle" font-size="10" fill="#78350f">Sin enviar a SICOV</text>
+
+      <!-- flecha PENDING → SYNCED -->
+      <line x1="150" y1="90" x2="255" y2="90" stroke="#16a34a" stroke-width="1.8" marker-end="url(#a2g)"/>
+      <text x="202" y="82" text-anchor="middle" font-size="9" fill="#16a34a">SICOV ok</text>
+
+      <!-- SYNCED -->
+      <rect x="255" y="60" width="130" height="60" rx="10" fill="#dcfce7" stroke="#86efac" stroke-width="2"/>
+      <text x="320" y="84" text-anchor="middle" font-size="13" font-weight="700" fill="#14532d">SYNCED</text>
+      <text x="320" y="100" text-anchor="middle" font-size="10" fill="#166534">Registrado en SICOV</text>
+      <text x="320" y="113" text-anchor="middle" font-size="10" fill="#166534">Estado final ✓</text>
+
+      <!-- flecha PENDING → FAILED -->
+      <line x1="85" y1="120" x2="85" y2="148" stroke="#dc2626" stroke-width="1.8" marker-end="url(#a2r)"/>
+      <text x="105" y="140" text-anchor="start" font-size="9" fill="#dc2626">SICOV error</text>
+
+      <!-- FAILED -->
+      <rect x="20" y="148" width="130" height="40" rx="10" fill="#fee2e2" stroke="#fca5a5" stroke-width="2"/>
+      <text x="85" y="166" text-anchor="middle" font-size="13" font-weight="700" fill="#991b1b">FAILED</text>
+      <text x="85" y="181" text-anchor="middle" font-size="10" fill="#991b1b">Error al sincronizar</text>
+
+      <!-- flecha FAILED → SYNCED (reintento) -->
+      <path d="M150 168 Q220 168 255 130" stroke="#d97706" stroke-width="1.8" fill="none" marker-end="url(#a2o)" stroke-dasharray="5,3"/>
+      <text x="215" y="160" text-anchor="middle" font-size="9" fill="#d97706">Reintentar →ok</text>
+
+      <!-- PARTIAL (solo llegadas/novedades) -->
+      <rect x="490" y="60" width="145" height="60" rx="10" fill="#cffafe" stroke="#67e8f9" stroke-width="2"/>
+      <text x="562" y="84" text-anchor="middle" font-size="13" font-weight="700" fill="#164e63">PARTIAL</text>
+      <text x="562" y="100" text-anchor="middle" font-size="10" fill="#0e7490">Registro principal</text>
+      <text x="562" y="113" text-anchor="middle" font-size="10" fill="#0e7490">enviado, vehiculo/cond. no</text>
+
+      <!-- flecha PENDING → PARTIAL -->
+      <line x1="150" y1="100" x2="486" y2="100" stroke="#0891b2" stroke-width="1.8" marker-end="url(#a2b)" stroke-dasharray="5,3"/>
+      <text x="318" y="118" text-anchor="middle" font-size="9" fill="#0891b2">SICOV ok (sin sub-registros)</text>
+
+      <!-- flecha PARTIAL → SYNCED reintento -->
+      <path d="M490 90 Q400 55 385 90" stroke="#d97706" stroke-width="1.5" fill="none" marker-end="url(#a2o)" stroke-dasharray="4,3"/>
+      <text x="430" y="52" text-anchor="middle" font-size="9" fill="#d97706">Reintentar →completo</text>
+
+      <!-- leyenda PARTIAL -->
+      <rect x="490" y="148" width="260" height="35" rx="6" fill="#f0fdfa" stroke="#99f6e4" stroke-width="1"/>
+      <text x="620" y="162" text-anchor="middle" font-size="9" fill="#0f766e" font-weight="600">Solo en Llegadas y Novedades</text>
+      <text x="620" y="177" text-anchor="middle" font-size="9" fill="#0f766e">El registro principal llegó pero el vehículo o conductor no.</text>
+    </svg>
+  </div>
+
+  <table class="tbl">
+    <thead><tr><th>Estado</th><th>Color</th><th>Significado</th><th>Acción recomendada</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-yellow">Pendiente</span></td><td>Amarillo</td><td>Guardado local, no enviado a Supertransporte aún</td><td>Esperar sincronización automática o usar "Reintentar sync"</td></tr>
+      <tr><td><span class="badge badge-green">Sincronizado</span></td><td>Verde</td><td>Aceptado exitosamente por SICOV</td><td>Ninguna — estado final</td></tr>
+      <tr><td><span class="badge badge-cyan">Parcial</span></td><td>Cyan</td><td>Registro principal enviado, pero vehículo o conductor falló</td><td>Usar "Reintentar sync" para completar</td></tr>
+      <tr><td><span class="badge badge-red">Error</span></td><td>Rojo</td><td>El envío a SICOV falló completamente</td><td>Verificar conectividad y usar "Reintentar sync"</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══ 4. SALIDAS ════════════════════════════════════════════════════════ -->
+<div class="section" id="salidas">
+  <h2 class="sec-title">
+    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+    </svg>
+    4. Registrar una Salida de Terminal
+  </h2>
+
+  <p>Una salida registra el despacho de un vehículo desde el terminal hacia su destino.</p>
+
+  <!-- DIAGRAMA SALIDA -->
+  <div class="diagram-wrap">
+    <svg width="740" height="130" viewBox="0 0 740 130" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, system-ui, sans-serif">
+      <defs>
+        <marker id="a3" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"/>
+        </marker>
+      </defs>
+      <!-- Paso 1 -->
+      <rect x="10" y="30" width="120" height="50" rx="8" fill="#6366f1"/>
+      <text x="70" y="52" text-anchor="middle" font-size="11" font-weight="600" fill="white">1. Abrir</text>
+      <text x="70" y="67" text-anchor="middle" font-size="11" fill="#c7d2fe">Salidas Terminal</text>
+      <!-- Paso 2 -->
+      <line x1="130" y1="55" x2="155" y2="55" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#a3)"/>
+      <rect x="155" y="30" width="120" height="50" rx="8" fill="#1e40af"/>
+      <text x="215" y="52" text-anchor="middle" font-size="11" font-weight="600" fill="white">2. Clic en</text>
+      <text x="215" y="67" text-anchor="middle" font-size="11" fill="#bfdbfe">Nueva Salida</text>
+      <!-- Paso 3 -->
+      <line x1="275" y1="55" x2="300" y2="55" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#a3)"/>
+      <rect x="300" y="30" width="120" height="50" rx="8" fill="#0f766e"/>
+      <text x="360" y="52" text-anchor="middle" font-size="11" font-weight="600" fill="white">3. Llenar</text>
+      <text x="360" y="67" text-anchor="middle" font-size="11" fill="#99f6e4">formulario</text>
+      <!-- Paso 4 -->
+      <line x1="420" y1="55" x2="445" y2="55" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#a3)"/>
+      <rect x="445" y="30" width="130" height="50" rx="8" fill="#16a34a"/>
+      <text x="510" y="52" text-anchor="middle" font-size="11" font-weight="600" fill="white">4. Clic en</text>
+      <text x="510" y="67" text-anchor="middle" font-size="11" fill="#bbf7d0">Guardar</text>
+      <!-- Paso 5 -->
+      <line x1="575" y1="55" x2="600" y2="55" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#a3)"/>
+      <rect x="600" y="30" width="130" height="50" rx="8" fill="#d97706"/>
+      <text x="665" y="52" text-anchor="middle" font-size="11" font-weight="600" fill="white">5. Registro</text>
+      <text x="665" y="67" text-anchor="middle" font-size="11" fill="#fef3c7">visible en tabla</text>
+      <!-- números bajo -->
+      <text x="70"  y="100" text-anchor="middle" font-size="9" fill="#6b7280">Menú izquierdo</text>
+      <text x="215" y="100" text-anchor="middle" font-size="9" fill="#6b7280">Botón verde</text>
+      <text x="360" y="100" text-anchor="middle" font-size="9" fill="#6b7280">Campos obligatorios *</text>
+      <text x="510" y="100" text-anchor="middle" font-size="9" fill="#6b7280">Guarda y sincroniza</text>
+      <text x="665" y="100" text-anchor="middle" font-size="9" fill="#6b7280">sync_status: pending→synced</text>
+    </svg>
+  </div>
+
+  <h3 class="sub-title">📋 Campos del formulario</h3>
+  <div class="field-list">
+    <div class="field-row"><span class="field-name">ID Despacho Terminal</span><span class="field-desc">Número único del despacho asignado por el terminal</span><span class="field-req">OBLIGATORIO</span></div>
+    <div class="field-row"><span class="field-name">Terminal de Despacho</span><span class="field-desc">Nombre o código del terminal de origen</span><span class="field-req">OBLIGATORIO</span></div>
+    <div class="field-row"><span class="field-name">NIT Empresa Transporte</span><span class="field-desc">NIT de la empresa transportadora</span><span class="field-req">OBLIGATORIO</span></div>
+    <div class="field-row"><span class="field-name">Razón Social</span><span class="field-desc">Nombre de la empresa transportadora</span><span class="field-opt">Opcional</span></div>
+    <div class="field-row"><span class="field-name">N° Pasajeros</span><span class="field-desc">Número de pasajeros en el despacho</span><span class="field-opt">Opcional</span></div>
+    <div class="field-row"><span class="field-name">Valor Tiquete</span><span class="field-desc">Valor del tiquete en pesos COP</span><span class="field-opt">Opcional</span></div>
+    <div class="field-row"><span class="field-name">Valor Total Tasa de Uso</span><span class="field-desc">Total de tasa de uso del terminal en COP</span><span class="field-opt">Opcional</span></div>
+    <div class="field-row"><span class="field-name">Valor Prueba Alcoholimetría</span><span class="field-desc">Costo de la prueba realizada al conductor</span><span class="field-opt">Opcional</span></div>
+    <div class="field-row"><span class="field-name">Observaciones</span><span class="field-desc">Texto libre con notas adicionales</span><span class="field-opt">Opcional</span></div>
+  </div>
+</div>
+
+<!-- ═══ 5. LLEGADAS ═══════════════════════════════════════════════════════ -->
+<div class="section" id="llegadas">
+  <h2 class="sec-title">
+    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M7 16l-4-4m0 0l4-4m-4 4h18"/>
+    </svg>
+    5. Registrar una Llegada de Terminal
+  </h2>
+
+  <p>Una llegada registra la entrada de un vehículo al terminal, incluyendo opcionalmente datos del vehículo y del conductor. El formulario tiene <strong>3 pestañas</strong>.</p>
+
+  <!-- DIAGRAMA LLEGADA — 3 pasos + sub-registros -->
+  <div class="diagram-wrap">
+    <svg width="740" height="260" viewBox="0 0 740 260" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, system-ui, sans-serif">
+      <defs>
+        <marker id="a4" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"/>
+        </marker>
+        <marker id="a4g" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#16a34a"/>
+        </marker>
+        <marker id="a4b" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#1e40af"/>
+        </marker>
+      </defs>
+
+      <!-- TÍTULO -->
+      <text x="370" y="22" text-anchor="middle" font-size="13" font-weight="700" fill="#1e40af">Sync de 3 pasos — Llegadas (Supertransporte)</text>
+
+      <!-- PASO 1: POST /llegada -->
+      <rect x="20" y="40" width="170" height="60" rx="10" fill="#1e40af" filter="url(#shadow)"/>
+      <text x="105" y="62" text-anchor="middle" font-size="11" font-weight="600" fill="white">Paso 1</text>
+      <text x="105" y="78" text-anchor="middle" font-size="12" font-weight="700" fill="#bfdbfe">POST /api/llegada</text>
+      <text x="105" y="92" text-anchor="middle" font-size="10" fill="#93c5fd">Datos principales</text>
+
+      <!-- Respuesta ID -->
+      <line x1="190" y1="70" x2="240" y2="70" stroke="#6b7280" stroke-width="1.5" marker-end="url(#a4)"/>
+      <text x="215" y="63" text-anchor="middle" font-size="9" fill="#6b7280">llegada_id</text>
+
+      <!-- PASO 2: POST /llegadavehiculo -->
+      <rect x="240" y="40" width="200" height="60" rx="10" fill="#0f766e"/>
+      <text x="340" y="62" text-anchor="middle" font-size="11" font-weight="600" fill="white">Paso 2</text>
+      <text x="340" y="78" text-anchor="middle" font-size="12" font-weight="700" fill="#99f6e4">POST /api/llegadavehiculo</text>
+      <text x="340" y="92" text-anchor="middle" font-size="10" fill="#a7f3d0">Solo si hay datos de vehículo</text>
+
+      <!-- PASO 3: POST /llegadaconductor -->
+      <line x1="440" y1="70" x2="490" y2="70" stroke="#6b7280" stroke-width="1.5" marker-end="url(#a4)"/>
+      <rect x="490" y="40" width="230" height="60" rx="10" fill="#7c3aed"/>
+      <text x="605" y="62" text-anchor="middle" font-size="11" font-weight="600" fill="white">Paso 3</text>
+      <text x="605" y="78" text-anchor="middle" font-size="12" font-weight="700" fill="#e9d5ff">POST /api/llegadaconductor</text>
+      <text x="605" y="92" text-anchor="middle" font-size="10" fill="#ddd6fe">Solo si hay datos de conductor</text>
+
+      <!-- RESULTADOS -->
+      <!-- Todo OK -->
+      <path d="M105 100 L105 135" stroke="#16a34a" stroke-width="1.5" marker-end="url(#a4g)"/>
+      <rect x="20" y="135" width="170" height="40" rx="8" fill="#dcfce7" stroke="#86efac" stroke-width="1.5"/>
+      <text x="105" y="152" text-anchor="middle" font-size="11" font-weight="700" fill="#14532d">sync_status: synced</text>
+      <text x="105" y="167" text-anchor="middle" font-size="9" fill="#166534">Todos los pasos exitosos</text>
+
+      <!-- Paso 1 ok pero 2/3 falla -->
+      <path d="M340 100 L340 135" stroke="#0891b2" stroke-width="1.5" marker-end="url(#a4b)"/>
+      <rect x="255" y="135" width="170" height="40" rx="8" fill="#cffafe" stroke="#67e8f9" stroke-width="1.5"/>
+      <text x="340" y="152" text-anchor="middle" font-size="11" font-weight="700" fill="#164e63">sync_status: partial</text>
+      <text x="340" y="167" text-anchor="middle" font-size="9" fill="#0e7490">Llegada OK, vehículo/cond. falló</text>
+
+      <!-- Paso 1 falla -->
+      <path d="M605 100 L605 135" stroke="#dc2626" stroke-width="1.5" marker-end="url(#a4)"/>
+      <rect x="520" y="135" width="200" height="40" rx="8" fill="#fee2e2" stroke="#fca5a5" stroke-width="1.5"/>
+      <text x="620" y="152" text-anchor="middle" font-size="11" font-weight="700" fill="#991b1b">sync_status: failed</text>
+      <text x="620" y="167" text-anchor="middle" font-size="9" fill="#991b1b">Paso 1 falló, nada enviado</text>
+
+      <!-- PESTAÑAS formulario -->
+      <rect x="20" y="200" width="700" height="50" rx="10" fill="#f8fafc" stroke="#e5e7eb" stroke-width="1.5"/>
+      <text x="370" y="218" text-anchor="middle" font-size="11" font-weight="600" fill="#374151">📋 Formulario — 3 Pestañas</text>
+      <rect x="40" y="225" width="130" height="20" rx="5" fill="#1e40af"/>
+      <text x="105" y="239" text-anchor="middle" font-size="10" font-weight="600" fill="white">Pestaña 1: Llegada</text>
+      <rect x="195" y="225" width="150" height="20" rx="5" fill="#0f766e"/>
+      <text x="270" y="239" text-anchor="middle" font-size="10" font-weight="600" fill="white">Pestaña 2: Vehículo</text>
+      <rect x="365" y="225" width="155" height="20" rx="5" fill="#7c3aed"/>
+      <text x="442" y="239" text-anchor="middle" font-size="10" font-weight="600" fill="white">Pestaña 3: Conductor</text>
+      <text x="575" y="239" text-anchor="start" font-size="9" fill="#6b7280">Pestañas 2 y 3 son opcionales</text>
+    </svg>
+  </div>
+
+  <div class="tab-panels">
+    <div class="tab-header">
+      <div class="tab-lbl active">Pestaña 1 — Llegada</div>
+      <div class="tab-lbl">Pestaña 2 — Vehículo</div>
+      <div class="tab-lbl">Pestaña 3 — Conductor</div>
+    </div>
+    <div class="field-list">
+      <div class="field-row"><span class="field-name">Tipo de Llegada ID</span><span class="field-desc">Código numérico del tipo (catálogo Supertransporte)</span><span class="field-req">OBLIGATORIO</span></div>
+      <div class="field-row"><span class="field-name">ID Despacho</span><span class="field-desc">ID del despacho de origen</span><span class="field-req">OBLIGATORIO</span></div>
+      <div class="field-row"><span class="field-name">Terminal de Llegada</span><span class="field-desc">Nombre o código del terminal destino</span><span class="field-req">OBLIGATORIO</span></div>
+      <div class="field-row"><span class="field-name">N° Pasajeros</span><span class="field-desc">Número de pasajeros que llegaron</span><span class="field-opt">Opcional</span></div>
+      <div class="field-row"><span class="field-name">Fecha de Llegada</span><span class="field-desc">Fecha del arribo (AAAA-MM-DD)</span><span class="field-opt">Opcional</span></div>
+      <div class="field-row"><span class="field-name">Hora de Llegada</span><span class="field-desc">Hora en formato HH:mm (ej: 14:30)</span><span class="field-opt">Opcional</span></div>
+    </div>
+  </div>
+
+  <div class="alert alert-info" style="margin-top:0.75rem;">
+    <span class="alert-icon">💡</span>
+    <div>Si las pestañas <strong>Vehículo</strong> y <strong>Conductor</strong> se dejan vacías, solo se registra la llegada principal en SICOV. Rellene solo los datos disponibles.</div>
+  </div>
+</div>
+
+<!-- ═══ 6. NOVEDADES ══════════════════════════════════════════════════════ -->
+<div class="section" id="novedades">
+  <h2 class="sec-title">
+    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+    </svg>
+    6. Registrar una Novedad de Terminal
+  </h2>
+
+  <p>Una novedad registra un incidente, irregularidad o evento especial ocurrido en el terminal, asociado a un despacho específico.</p>
+
+  <div class="card" style="margin-bottom:1rem;">
+    <h3 class="sub-title" style="margin-top:0;">🔗 Relación entre entidades</h3>
+    <div class="diagram-wrap" style="padding:1rem;">
+      <svg width="620" height="100" viewBox="0 0 620 100" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, system-ui, sans-serif">
+        <defs>
+          <marker id="a5" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"/>
+          </marker>
+        </defs>
+        <rect x="10" y="25" width="140" height="50" rx="8" fill="#1e40af"/>
+        <text x="80" y="47" text-anchor="middle" font-size="11" font-weight="600" fill="white">Despacho</text>
+        <text x="80" y="63" text-anchor="middle" font-size="10" fill="#bfdbfe">(idDespachoTerminal)</text>
+        <line x1="150" y1="50" x2="185" y2="50" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#a5)"/>
+        <text x="167" y="42" text-anchor="middle" font-size="8" fill="#6b7280">referencia</text>
+        <rect x="185" y="25" width="140" height="50" rx="8" fill="#16a34a"/>
+        <text x="255" y="47" text-anchor="middle" font-size="11" font-weight="600" fill="white">Novedad</text>
+        <text x="255" y="63" text-anchor="middle" font-size="10" fill="#bbf7d0">(id_despacho)</text>
+        <line x1="325" y1="50" x2="360" y2="35" stroke="#9ca3af" stroke-width="1.2" marker-end="url(#a5)"/>
+        <line x1="325" y1="50" x2="360" y2="65" stroke="#9ca3af" stroke-width="1.2" marker-end="url(#a5)"/>
+        <rect x="360" y="10" width="120" height="40" rx="8" fill="#0f766e"/>
+        <text x="420" y="28" text-anchor="middle" font-size="10" font-weight="600" fill="white">Novedad</text>
+        <text x="420" y="43" text-anchor="middle" font-size="10" fill="#a7f3d0">Vehículo</text>
+        <rect x="360" y="58" width="120" height="40" rx="8" fill="#7c3aed"/>
+        <text x="420" y="75" text-anchor="middle" font-size="10" font-weight="600" fill="white">Novedad</text>
+        <text x="420" y="90" text-anchor="middle" font-size="10" fill="#ddd6fe">Conductor</text>
+        <text x="555" y="35" text-anchor="start" font-size="9" fill="#6b7280">Opcional</text>
+        <text x="555" y="83" text-anchor="start" font-size="9" fill="#6b7280">Opcional</text>
+      </svg>
+    </div>
+  </div>
+
+  <h3 class="sub-title">📋 Pestaña Novedad</h3>
+  <div class="field-list">
+    <div class="field-row"><span class="field-name">ID Despacho</span><span class="field-desc">Número del despacho al que aplica la novedad</span><span class="field-req">OBLIGATORIO</span></div>
+    <div class="field-row"><span class="field-name">Tipo Novedad ID</span><span class="field-desc">Código del tipo según catálogo Supertransporte</span><span class="field-req">OBLIGATORIO</span></div>
+    <div class="field-row"><span class="field-name">Descripción</span><span class="field-desc">Descripción detallada del incidente o novedad</span><span class="field-opt">Opcional</span></div>
+    <div class="field-row"><span class="field-name">Otros</span><span class="field-desc">Información adicional complementaria</span><span class="field-opt">Opcional</span></div>
+  </div>
+
+  <div class="alert alert-warning" style="margin-top:1rem;">
+    <span class="alert-icon">⚠️</span>
+    <div>El <strong>Tipo Novedad ID</strong> debe corresponder a los códigos del catálogo paramétrico de Supertransporte. Consulte la lista actualizada en la plataforma SICOV o con el equipo técnico.</div>
+  </div>
+</div>
+
+<!-- ═══ 7. FILTROS ════════════════════════════════════════════════════════ -->
+<div class="section" id="filtros">
+  <h2 class="sec-title">
+    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 2v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+    </svg>
+    7. Filtros de Búsqueda
+  </h2>
+
+  <p>Todas las vistas (Salidas, Llegadas, Novedades) comparten la misma barra de filtros:</p>
+
+  <div class="card">
+    <div class="diagram-wrap" style="background:#f8fafc; border:none; box-shadow:none; padding:0.75rem;">
+      <svg width="680" height="80" viewBox="0 0 680 80" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, system-ui, sans-serif">
+        <rect x="10" y="10" width="145" height="60" rx="8" fill="white" stroke="#e5e7eb" stroke-width="1.5"/>
+        <text x="82" y="32" text-anchor="middle" font-size="10" fill="#6b7280">Fecha desde</text>
+        <rect x="22" y="40" width="120" height="22" rx="4" fill="#f3f4f6" stroke="#d1d5db"/>
+        <text x="82" y="55" text-anchor="middle" font-size="10" fill="#374151">2026-01-01</text>
+        <rect x="165" y="10" width="145" height="60" rx="8" fill="white" stroke="#e5e7eb" stroke-width="1.5"/>
+        <text x="237" y="32" text-anchor="middle" font-size="10" fill="#6b7280">Fecha hasta</text>
+        <rect x="177" y="40" width="120" height="22" rx="4" fill="#f3f4f6" stroke="#d1d5db"/>
+        <text x="237" y="55" text-anchor="middle" font-size="10" fill="#374151">2026-04-14</text>
+        <rect x="320" y="10" width="160" height="60" rx="8" fill="white" stroke="#e5e7eb" stroke-width="1.5"/>
+        <text x="400" y="32" text-anchor="middle" font-size="10" fill="#6b7280">Estado sync</text>
+        <rect x="332" y="40" width="135" height="22" rx="4" fill="#f3f4f6" stroke="#d1d5db"/>
+        <text x="400" y="55" text-anchor="middle" font-size="10" fill="#374151">Todos ▾</text>
+        <rect x="492" y="18" width="80" height="28" rx="6" fill="#1e40af"/>
+        <text x="532" y="36" text-anchor="middle" font-size="11" font-weight="600" fill="white">Filtrar</text>
+        <rect x="582" y="18" width="80" height="28" rx="6" fill="#e5e7eb"/>
+        <text x="622" y="36" text-anchor="middle" font-size="11" font-weight="600" fill="#374151">Limpiar</text>
+      </svg>
+    </div>
+  </div>
+
+  <table class="tbl">
+    <thead><tr><th>Filtro</th><th>Descripción</th><th>Valores disponibles</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Fecha desde</strong></td><td>Filtra registros creados desde esta fecha</td><td>Selector de fecha (AAAA-MM-DD)</td></tr>
+      <tr><td><strong>Fecha hasta</strong></td><td>Filtra registros creados hasta esta fecha</td><td>Selector de fecha (AAAA-MM-DD)</td></tr>
+      <tr><td><strong>Estado sync</strong></td><td>Filtra por estado de sincronización con SICOV</td><td>Todos / Pendiente / Sincronizado / Parcial / Error</td></tr>
+    </tbody>
+  </table>
+
+  <div class="alert alert-info">
+    <span class="alert-icon">💡</span>
+    <div>Para ver <strong>solo los registros con errores de sync</strong>, seleccione "Error" en Estado sync y haga clic en Filtrar. Luego puede usar el botón "Reintentar sync" para reenviarlos todos.</div>
+  </div>
+</div>
+
+<!-- ═══ 8. REINTENTAR ═════════════════════════════════════════════════════ -->
+<div class="section" id="reintentar">
+  <h2 class="sec-title">
+    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+    </svg>
+    8. Reintentar Sincronización
+  </h2>
+
+  <div class="diagram-wrap">
+    <svg width="720" height="190" viewBox="0 0 720 190" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, system-ui, sans-serif">
+      <defs>
+        <marker id="a6" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"/>
+        </marker>
+        <marker id="a6g" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#16a34a"/>
+        </marker>
+      </defs>
+
+      <!-- Banner warning -->
+      <rect x="10" y="10" width="700" height="50" rx="10" fill="#fef3c7" stroke="#fcd34d" stroke-width="2"/>
+      <text x="30" y="32" font-size="13" fill="#78350f">⚠️</text>
+      <text x="55" y="32" font-size="12" font-weight="700" fill="#92400e">5 registros pendientes de sincronización.</text>
+      <rect x="545" y="18" width="155" height="32" rx="8" fill="#d97706"/>
+      <text x="622" y="38" text-anchor="middle" font-size="11" font-weight="700" fill="white">🔄 Reintentar sync</text>
+
+      <!-- Flecha clic -->
+      <line x1="622" y1="60" x2="622" y2="88" stroke="#d97706" stroke-width="1.5" marker-end="url(#a6)"/>
+
+      <!-- Backend proceso -->
+      <rect x="430" y="88" width="280" height="50" rx="10" fill="#1e40af"/>
+      <text x="570" y="108" text-anchor="middle" font-size="11" font-weight="600" fill="white">Backend: busca hasta 50 registros</text>
+      <text x="570" y="124" text-anchor="middle" font-size="10" fill="#bfdbfe">con sync_status: 'pending' o 'failed'</text>
+
+      <!-- Flecha resultado ok -->
+      <line x1="430" y1="113" x2="290" y2="113" stroke="#16a34a" stroke-width="1.5" marker-end="url(#a6g)"/>
+      <text x="360" y="105" text-anchor="middle" font-size="9" fill="#16a34a">aceptados por SICOV</text>
+
+      <rect x="110" y="88" width="180" height="50" rx="10" fill="#16a34a"/>
+      <text x="200" y="108" text-anchor="middle" font-size="11" font-weight="600" fill="white">sync_status: synced</text>
+      <text x="200" y="124" text-anchor="middle" font-size="10" fill="#bbf7d0">Tabla se actualiza</text>
+
+      <!-- Flecha resultado fail -->
+      <path d="M430 120 Q360 155 290 150" stroke="#dc2626" stroke-width="1.5" fill="none" marker-end="url(#a6)"/>
+      <text x="360" y="148" text-anchor="middle" font-size="9" fill="#dc2626">rechazados por SICOV</text>
+
+      <rect x="110" y="143" width="180" height="40" rx="10" fill="#fee2e2" stroke="#fca5a5"/>
+      <text x="200" y="160" text-anchor="middle" font-size="11" font-weight="600" fill="#991b1b">sync_status: failed</text>
+      <text x="200" y="175" text-anchor="middle" font-size="10" fill="#991b1b">Permanece en lista</text>
+
+      <!-- Nota -->
+      <text x="10" y="185" font-size="9" fill="#6b7280">* Los registros con estado "INACTIVO" son omitidos del reintento.</text>
+    </svg>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <strong>Aparece banner amarillo</strong>
+        <span>Cuando hay registros pendientes o fallidos, aparece automáticamente en la parte superior de la vista con el conteo.</span>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <strong>Clic en "Reintentar sync"</strong>
+        <span>Botón visible en el toolbar superior, junto al botón "Nueva...". Solo aparece si hay pendientes.</span>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <strong>El sistema procesa hasta 50 registros</strong>
+        <span>Reintenta en orden cronológico. Los que SICOV acepta pasan a <span class="badge badge-green">Sincronizado</span>. Los rechazados permanecen en <span class="badge badge-red">Error</span>.</span>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <strong>La tabla se refresca automáticamente</strong>
+        <span>Después del reintento la vista se recarga mostrando los estados actualizados.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 9. PERMISOS ═══════════════════════════════════════════════════════ -->
+<div class="section" id="permisos">
+  <h2 class="sec-title">
+    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+    </svg>
+    9. Asignación de Permisos (Solo Superadmin)
+  </h2>
+
+  <p>El módulo DESPACHOS <strong>solo aparece</strong> para empresas a las que el superadministrador asigna los permisos de menú. El tipo de habilitación es una condición adicional de seguridad.</p>
+
+  <div class="diagram-wrap">
+    <svg width="700" height="200" viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, system-ui, sans-serif">
+      <defs>
+        <marker id="a7" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"/>
+        </marker>
+      </defs>
+
+      <!-- Superadmin -->
+      <rect x="20" y="60" width="130" height="80" rx="10" fill="#7c3aed"/>
+      <text x="85" y="88" text-anchor="middle" font-size="22">👑</text>
+      <text x="85" y="110" text-anchor="middle" font-size="11" font-weight="600" fill="white">Superadmin</text>
+      <text x="85" y="127" text-anchor="middle" font-size="9" fill="#e9d5ff">roleType: superadmin</text>
+
+      <!-- Flecha -->
+      <line x1="150" y1="100" x2="195" y2="100" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#a7)"/>
+      <text x="172" y="90" text-anchor="middle" font-size="9" fill="#6b7280">asigna</text>
+
+      <!-- Catálogo menú -->
+      <rect x="195" y="40" width="180" height="120" rx="10" fill="#1e40af"/>
+      <text x="285" y="65" text-anchor="middle" font-size="11" font-weight="600" fill="white">Catálogo Menú</text>
+      <rect x="210" y="75" width="150" height="20" rx="4" fill="rgba(255,255,255,0.15)"/>
+      <text x="285" y="89" text-anchor="middle" font-size="10" fill="#bfdbfe">web_despachos_salidas</text>
+      <rect x="210" y="100" width="150" height="20" rx="4" fill="rgba(255,255,255,0.15)"/>
+      <text x="285" y="114" text-anchor="middle" font-size="10" fill="#bfdbfe">web_despachos_llegadas</text>
+      <rect x="210" y="125" width="150" height="20" rx="4" fill="rgba(255,255,255,0.15)"/>
+      <text x="285" y="139" text-anchor="middle" font-size="10" fill="#bfdbfe">web_despachos_novedades</text>
+
+      <!-- Flecha -->
+      <line x1="375" y1="100" x2="415" y2="100" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#a7)"/>
+      <text x="395" y="90" text-anchor="middle" font-size="9" fill="#6b7280">habilita en</text>
+
+      <!-- Empresa -->
+      <rect x="415" y="40" width="150" height="120" rx="10" fill="#0f766e"/>
+      <text x="490" y="65" text-anchor="middle" font-size="11" font-weight="600" fill="white">Empresa</text>
+      <text x="490" y="82" text-anchor="middle" font-size="10" fill="#a7f3d0">CARRETERA / MIXTO</text>
+      <rect x="430" y="90" width="120" height="60" rx="6" fill="rgba(255,255,255,0.1)"/>
+      <text x="490" y="107" text-anchor="middle" font-size="9" fill="white">enterprise_menu_</text>
+      <text x="490" y="120" text-anchor="middle" font-size="9" fill="white">permissions: [</text>
+      <text x="490" y="133" text-anchor="middle" font-size="9" fill="#86efac">"web_despachos_..."</text>
+      <text x="490" y="146" text-anchor="middle" font-size="9" fill="white">]</text>
+
+      <!-- Flecha -->
+      <line x1="565" y1="100" x2="605" y2="100" stroke="#9ca3af" stroke-width="1.5" marker-end="url(#a7)"/>
+      <text x="585" y="90" text-anchor="middle" font-size="9" fill="#6b7280">ve menú</text>
+
+      <!-- Usuario empresa -->
+      <rect x="605" y="60" width="80" height="80" rx="10" fill="#16a34a"/>
+      <text x="645" y="93" text-anchor="middle" font-size="22">👤</text>
+      <text x="645" y="115" text-anchor="middle" font-size="10" font-weight="600" fill="white">Usuario</text>
+      <text x="645" y="130" text-anchor="middle" font-size="9" fill="#bbf7d0">ve DESPACHOS</text>
+    </svg>
+  </div>
+
+  <h3 class="sub-title">Pasos para habilitar el módulo a una empresa</h3>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <strong>Ir a Administración → Catálogo Menú</strong>
+        <span>Verificar que existan las 3 entradas: <code>web_despachos_salidas</code>, <code>web_despachos_llegadas</code>, <code>web_despachos_novedades</code>. Si no existen, insertarlas.</span>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <strong>Ir a Administración → Empresas</strong>
+        <span>Seleccionar la empresa con tipo de habilitación CARRETERA o MIXTO.</span>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <strong>Asignar los permisos de menú</strong>
+        <span>En la sección de permisos de menú de la empresa, activar los tres permisos de DESPACHOS.</span>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <strong>El usuario refresca / vuelve a iniciar sesión</strong>
+        <span>La sección DESPACHOS aparecerá en el menú lateral en la próxima sesión activa.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 10. PRODUCCIÓN ════════════════════════════════════════════════════ -->
+<div class="section" id="produccion">
+  <h2 class="sec-title">
+    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/>
+    </svg>
+    10. Paso a Producción
+  </h2>
+
+  <p>El módulo está diseñado para funcionar en dos etapas:</p>
+
+  <div class="card-grid">
+    <div class="card" style="border-left: 4px solid var(--yellow);">
+      <h3 class="sub-title" style="margin-top:0; color:var(--yellow);">🧪 Modo Prueba (actual)</h3>
+      <p style="font-size:0.88rem;">Sin <code>SICOV_TERM_BASE</code> configurada. Todos los registros se guardan localmente con estado <span class="badge badge-yellow">Pendiente</span>. Nunca se pierde información.</p>
+    </div>
+    <div class="card" style="border-left: 4px solid var(--green);">
+      <h3 class="sub-title" style="margin-top:0; color:var(--green);">🚀 Modo Producción</h3>
+      <p style="font-size:0.88rem;">Con <code>SICOV_TERM_BASE</code> apuntando a la URL real de Supertransporte. Los registros acumulados se sincronizan con el botón "Reintentar sync".</p>
+    </div>
+  </div>
+
+  <h3 class="sub-title">Variable de entorno a agregar</h3>
+  <pre><span class="c"># api-maintenance/.env — agregar esta línea para activar sync con Supertransporte</span>
+<span class="n">SICOV_TERM_BASE</span>=<span class="s">https://rutasback.supertransporte.gov.co</span>   <span class="c"># confirmar URL con Supertransporte</span>
+
+<span class="c"># Las siguientes YA están configuradas y son reutilizadas (no hace falta cambiarlas):</span>
+<span class="k">SICOV_AUTH_BASE</span>=<span class="s">https://sisntback.supertransporte.gov.co</span>
+<span class="k">SICOV_USERNAME</span>=<span class="s">900416316</span>
+<span class="k">SICOV_PASSWORD</span>=<span class="s">***</span>
+<span class="k">SICOV_TOKEN_VIGILADO</span>=<span class="s">&lt;token_del_vigilado&gt;</span>
+<span class="k">SICOV_VIGILADO_ID</span>=<span class="s">&lt;NIT_sin_dígito_verificación&gt;</span></pre>
+
+  <div class="alert alert-warning">
+    <span class="alert-icon">⚠️</span>
+    <div><strong>Importante:</strong> Antes de activar producción, confirme con Supertransporte la URL exacta del API de terminales (<code>SICOV_TERM_BASE</code>). Los demás parámetros ya están activos en el servidor.</div>
+  </div>
+
+  <div class="alert alert-success">
+    <span class="alert-icon">✅</span>
+    <div><strong>Sin pérdida de datos:</strong> Todos los registros creados durante el período de prueba permanecen en MongoDB. Al activar producción, use "Reintentar sync" para enviarlos todos a Supertransporte de una vez.</div>
+  </div>
+
+  <h3 class="sub-title">Checklist de activación</h3>
+  <table class="tbl">
+    <thead><tr><th>Tarea</th><th>Estado</th><th>Responsable</th></tr></thead>
+    <tbody>
+      <tr><td>Agregar <code>SICOV_TERM_BASE</code> al servidor</td><td><span class="badge badge-yellow">Pendiente</span></td><td>Equipo técnico</td></tr>
+      <tr><td>Confirmar URL del API terminales con Supertransporte</td><td><span class="badge badge-yellow">Pendiente</span></td><td>Coordinación</td></tr>
+      <tr><td>Insertar 3 entradas en <code>menu_catalog</code> (MongoDB)</td><td><span class="badge badge-yellow">Pendiente</span></td><td>Superadmin</td></tr>
+      <tr><td>Asignar permisos a empresa(s) piloto</td><td><span class="badge badge-yellow">Pendiente</span></td><td>Superadmin</td></tr>
+      <tr><td>Prueba funcional completa (crear + verificar en SICOV)</td><td><span class="badge badge-yellow">Pendiente</span></td><td>QA / Operaciones</td></tr>
+      <tr><td>Ejecutar "Reintentar sync" para registros acumulados</td><td><span class="badge badge-gray">Al activar</span></td><td>Operador terminal</td></tr>
+    </tbody>
+  </table>
+</div>
+
+</div><!-- /.page -->
+
+<footer>
+  <strong>Protegeme SICOV</strong> — Módulo de Despachos v1.0 &nbsp;|&nbsp;
+  Proyecto SENA–MinCiencias &nbsp;|&nbsp; Abril 2026 &nbsp;|&nbsp;
+  Solo para uso interno autorizado
+</footer>
+
+</body>
+</html>

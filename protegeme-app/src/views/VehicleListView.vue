@@ -256,7 +256,7 @@ async function confirmDeactivate() {
 >
   <e-columns>
     <e-column field="placa" headerText="Placa" width="120" />
-    <e-column field="clase" headerText="Clase" width="120" />
+    <e-column field="no_interno" headerText="No Interno" width="120" />
     <e-column field="modelo" headerText="Modelo" width="100" />
     <e-column field="nombre_propietario" headerText="Propietario" width="180" />
     <e-column field="driver.usuario.nombre" headerText="Conductor" width="180" />

@@ -112,6 +112,7 @@
     >
       <e-columns>
         <e-column field="Placa" headerText="Placa" width="100" />
+        <e-column field="NoInterno" headerText="No. Interno" width="110" />
         <e-column field="Estado" headerText="Estado" width="130" template="estadoTemplate" />
         <e-column field="Fecha_planeada" headerText="Fecha planeada" width="150" />
         <e-column field="Fecha_ejecutada" headerText="Fecha ejecutada" width="150" />
@@ -367,6 +368,7 @@ export default {
           _id: item._id,
           _estadoClave: clave,
           Placa: item.placa,
+          NoInterno: item.no_interno || "",
           Estado: getEstadoLabel(clave),
           Fecha_planeada: formatDT(item.scheduledAt),
           Fecha_ejecutada: item.isPlanned ? "—" : formatDT(item.executedAt),
@@ -392,6 +394,7 @@ export default {
       if (!tableData.value.length) return;
       const data = tableData.value.map((r: any) => ({
         Placa: r.Placa,
+        "No. Interno": r.NoInterno || "",
         Estado: r.Estado,
         "Fecha planeada": r.Fecha_planeada,
         "Fecha ejecutada": r.Fecha_ejecutada,

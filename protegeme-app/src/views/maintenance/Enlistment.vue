@@ -158,6 +158,7 @@
         class="p-datatable-sm"
       >
         <Column field="placa" header="Placa" sortable />
+        <Column field="no_interno" header="No. Interno" sortable />
         <Column field="nombresConductor" header="Conductor" sortable />
         <Column field="nombresResponsable" header="Responsable" sortable />
         <Column header="Fecha local" sortable>
@@ -759,6 +760,7 @@ function exportExcel() {
 
   const data = rowsFiltered.value.map((r: any) => ({
     Placa: r.placa || "",
+    "No. Interno": r.no_interno || "",
     Conductor: r.nombresConductor || "",
     Documento: r.numeroIdentificacion || "",
     Responsable: r.nombresResponsable || "",

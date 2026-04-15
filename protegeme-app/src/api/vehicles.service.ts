@@ -6,6 +6,9 @@ export const VehiclesserviceApi = {
   list: (params?: Record<string, any>) =>
     http.get(`${baseURL}/vehicles`, { params }),
 
+  getByPlate: (placa: string) =>
+    http.get(`${baseURL}/vehicles/plate/${placa}`),
+
   get: (id: string) =>
     http.get(`${baseURL}/vehicles/${id}`),
 

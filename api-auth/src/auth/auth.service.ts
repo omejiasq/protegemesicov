@@ -75,17 +75,17 @@ export class AuthService {
       const enterpriseMenuKeys: string[] = (enterprise as any).enterprise_menu_permissions ?? [];
 
       if (userMenuKeys.length > 0) {
-        // Permisos explícitos del usuario
+        // Permisos explícitos del usuario: sobreescribe cualquier permiso de empresa
         resolvedMenuPermissions = userMenuKeys;
       } else if (enterpriseMenuKeys.length > 0) {
-        // Permisos de la empresa
+        // Sin permisos individuales → hereda los de la empresa
         resolvedMenuPermissions = enterpriseMenuKeys;
       } else {
-        // Sin restricciones → todas las opciones activas del catálogo
-        const catalog = await this.menuCatalogModel
-          .find({ enabled: true }, { key: 1 })
-          .lean();
-        resolvedMenuPermissions = catalog.map((c: any) => c.key);
+        // Sin permisos en usuario ni empresa → array vacío.
+        // El frontend interpreta [] como "sin restricciones para can()" pero
+        // canStrict() exige que la clave esté explícitamente presente,
+        // por lo que los módulos restringidos (ej. DESPACHOS) permanecen ocultos.
+        resolvedMenuPermissions = [];
       }
     }
 

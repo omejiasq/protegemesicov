@@ -71,21 +71,21 @@ export class MenuCatalogService {
   }
 
   async create(dto: any, user: any): Promise<MenuCatalog> {
-    if (user?.role !== 'superadmin') throw new ForbiddenException('Solo superadmin');
+    if (user?.roleType !== 'superadmin') throw new ForbiddenException('Solo superadmin');
     const exists = await this.model.findOne({ key: dto.key });
     if (exists) throw new ConflictException(`Ya existe un ítem con key '${dto.key}'`);
     return this.model.create(dto);
   }
 
   async update(id: string, dto: any, user: any): Promise<MenuCatalog> {
-    if (user?.role !== 'superadmin') throw new ForbiddenException('Solo superadmin');
+    if (user?.roleType !== 'superadmin') throw new ForbiddenException('Solo superadmin');
     const item = await this.model.findByIdAndUpdate(id, dto, { new: true });
     if (!item) throw new NotFoundException('Ítem no encontrado');
     return item;
   }
 
   async remove(id: string, user: any): Promise<void> {
-    if (user?.role !== 'superadmin') throw new ForbiddenException('Solo superadmin');
+    if (user?.roleType !== 'superadmin') throw new ForbiddenException('Solo superadmin');
     const item = await this.model.findByIdAndDelete(id);
     if (!item) throw new NotFoundException('Ítem no encontrado');
   }

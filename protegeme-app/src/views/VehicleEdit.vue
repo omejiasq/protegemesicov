@@ -30,7 +30,10 @@
 
         <div class="field">
           <label>Servicio</label>
-          <input v-model="form.servicio" type="text" />
+          <select v-model="form.servicio">
+            <option value="PUBLICO">PUBLICO</option>
+            <option value="PRIVADO">PRIVADO</option>
+          </select>
         </div>
 
         <div class="field">
@@ -153,16 +156,6 @@
         </div>
 
         <div class="field">
-          <label>No. Tecnomecánica</label>
-          <input v-model="form.no_tecnomecanica" type="text" />
-        </div>
-
-        <div class="field">
-          <label>Vencimiento Tecnomecánica</label>
-          <input v-model="form.expiration_tecnomecanica" type="date" />
-        </div>
-
-        <div class="field">
           <label>No. Tarjeta Operación</label>
           <input v-model="form.no_tarjeta_opera" type="text" />
         </div>
@@ -238,7 +231,7 @@ const loadVehicle = async () => {
     clase: data.clase ?? '',
     marca: data.marca ?? '',
     linea: data.Linea ?? '',
-    servicio: data.servicio ?? '',
+    servicio: ['PUBLICO', 'PRIVADO'].includes(data.servicio) ? data.servicio : 'PUBLICO',
     modelo: data.modelo ?? '',
     combustible: data.combustible ?? '',
     color: data.color ?? '',
@@ -265,9 +258,6 @@ const loadVehicle = async () => {
 
     no_rce: data.no_rce ?? '',
     expiration_rce: formatDate(data.expiration_rce),
-
-    no_tecnomecanica: data.no_tecnomecanica ?? '',
-    expiration_tecnomecanica: formatDate(data.expiration_tecnomecanica),
 
     no_tarjeta_opera: data.no_tarjeta_opera ?? '',
     expiration_tarjeta_opera: formatDate(data.expiration_tarjeta_opera),

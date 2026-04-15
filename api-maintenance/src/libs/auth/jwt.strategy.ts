@@ -21,10 +21,11 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     return {
       sub: payload.sub,
       username: payload.username,
-      rol: payload.rol,
+      role: payload.role,
       enterprise_id: payload.enterprise_id,
-      vigiladoId: payload.vigiladoId,   // ✅ CORRECTO
-      vigiladoToken: payload.vigiladoToken
+      vigiladoId: payload.vigiladoId,
+      vigiladoToken: payload.vigiladoToken,
+      tipo_habilitacion: payload.tipo_habilitacion,
     };
   }
   

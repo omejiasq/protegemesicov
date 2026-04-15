@@ -1,135 +1,200 @@
 <template>
-  <div class="p-4">
-    <h2 class="text-xl font-bold mb-4">Permisos de Menú por Usuario</h2>
+  <div class="perms-wrap">
 
-    <!-- Permisos de empresa -->
-    <div class="card mb-4">
-      <div class="flex align-items-center justify-content-between mb-3">
-        <h3 class="text-lg font-semibold m-0">Permisos de la Empresa (defecto para todos los usuarios)</h3>
-        <Button
-          label="Guardar empresa"
-          icon="pi pi-save"
-          class="p-button-sm"
-          :loading="savingEnterprise"
-          @click="saveEnterprisePermissions"
-        />
+    <!-- ══════════════════════════════════════
+         SECCIÓN 1 – PERMISOS DE LA EMPRESA
+         (aplican a todos los usuarios que no
+          tienen permisos individuales)
+    ══════════════════════════════════════ -->
+    <div class="pcard">
+      <div class="pcard-header">
+        <div>
+          <h2 class="pcard-title">Permisos por defecto de la Empresa</h2>
+          <p class="pcard-sub">
+            Se aplican a cualquier usuario que no tenga permisos individuales.
+            Deje todo sin marcar para que los usuarios hereden acceso total
+            a las opciones estándar (pero <strong>nunca</strong> a módulos
+            restringidos como Terminales/DESPACHOS).
+          </p>
+        </div>
+        <Button label="Guardar empresa" icon="pi pi-save" class="p-button-sm btn-save"
+                :loading="savingEnterprise" @click="saveEnterprisePermissions" />
       </div>
-      <p class="text-sm text-color-secondary mb-3">
-        Si un usuario no tiene permisos individuales, se usarán estos. Deje vacío para permitir todo.
-      </p>
+
       <div v-if="loadingCatalog" class="flex justify-content-center p-4">
         <ProgressSpinner style="width:40px;height:40px" />
       </div>
-      <div v-else class="grid">
-        <div
-          v-for="item in webCatalog"
-          :key="item.key"
-          class="col-12 md:col-4 lg:col-3"
-        >
-          <div class="flex align-items-center gap-2 p-2">
-            <Checkbox
-              v-model="enterpriseKeys"
-              :value="item.key"
-              :inputId="`ent-${item.key}`"
-            />
-            <label :for="`ent-${item.key}`" class="cursor-pointer">
-              <i :class="item.icon" class="mr-1 text-xs" />
-              {{ item.label }}
-              <span class="text-xs text-color-secondary ml-1">({{ item.category }})</span>
-            </label>
+      <template v-else>
+        <!-- Opciones Web -->
+        <div class="platform-header">
+          <i class="pi pi-desktop" /> Opciones Web
+        </div>
+        <div v-for="cat in webGroupedCatalog" :key="'ew-'+cat.category" class="cat-block">
+          <div class="cat-label">
+            <Checkbox v-model="selectedCategories" :value="cat.category"
+                      :inputId="`cat-ent-${cat.category}`"
+                      @change="toggleCategory(cat.category, 'enterprise')" />
+            <label :for="`cat-ent-${cat.category}`" class="cat-title cursor-pointer">{{ cat.category }}</label>
+          </div>
+          <div class="items-grid">
+            <div v-for="item in cat.items" :key="item.key" class="perm-item">
+              <Checkbox v-model="enterpriseKeys" :value="item.key"
+                        :inputId="`ent-${item.key}`"
+                        @change="syncCategoryCheck(cat.category, 'enterprise')" />
+              <label :for="`ent-${item.key}`" class="cursor-pointer">
+                <i :class="item.icon" class="mr-1 text-xs" /> {{ item.label }}
+              </label>
+            </div>
           </div>
         </div>
-      </div>
+
+        <!-- Opciones App Móvil -->
+        <div v-if="mobileGroupedCatalog.length" class="platform-header platform-header-mobile mt-3">
+          <i class="pi pi-mobile" /> Opciones App Móvil
+        </div>
+        <div v-for="cat in mobileGroupedCatalog" :key="'em-'+cat.category" class="cat-block">
+          <div class="cat-label">
+            <Checkbox v-model="selectedCategories" :value="'mob_'+cat.category"
+                      :inputId="`cat-ent-mob-${cat.category}`"
+                      @change="toggleCategory(cat.category, 'enterprise')" />
+            <label :for="`cat-ent-mob-${cat.category}`" class="cat-title cursor-pointer">{{ cat.category }}</label>
+          </div>
+          <div class="items-grid">
+            <div v-for="item in cat.items" :key="item.key" class="perm-item">
+              <Checkbox v-model="enterpriseKeys" :value="item.key"
+                        :inputId="`ent-${item.key}`"
+                        @change="syncCategoryCheck(cat.category, 'enterprise')" />
+              <label :for="`ent-${item.key}`" class="cursor-pointer">
+                <i :class="item.icon" class="mr-1 text-xs" /> {{ item.label }}
+              </label>
+            </div>
+          </div>
+        </div>
+      </template>
     </div>
 
-    <!-- Selección de usuario -->
-    <div class="card mb-3">
-      <h3 class="text-lg font-semibold mb-3">Permisos individuales por usuario</h3>
-      <div class="grid">
-        <div class="col-12 md:col-4">
-          <label class="block mb-1 font-medium">Seleccionar usuario</label>
+    <!-- ══════════════════════════════════════
+         SECCIÓN 2 – PERMISOS POR USUARIO
+    ══════════════════════════════════════ -->
+    <div class="pcard">
+      <h2 class="pcard-title">Permisos individuales por usuario</h2>
+      <p class="pcard-sub">
+        Los permisos individuales <strong>reemplazan</strong> completamente
+        los de la empresa para ese usuario. Para revocar una opción específica,
+        seleccione el usuario, desmarque esa opción y guarde.
+      </p>
+
+      <!-- Selector de usuario -->
+      <div class="user-selector">
+        <div class="field-wrap">
+          <label class="field-label">Seleccionar usuario</label>
           <Dropdown
             v-model="selectedUser"
             :options="allUserGroups"
             option-label="displayName"
             option-group-label="groupLabel"
             option-group-children="items"
-            placeholder="Seleccione un usuario"
+            placeholder="Seleccione un usuario..."
             class="w-full"
             filter
             @change="onUserSelect"
           />
         </div>
-        <div v-if="selectedUser" class="col-12 md:col-8 flex align-items-end">
-          <Button
-            label="Heredar de empresa (limpiar)"
-            icon="pi pi-refresh"
-            class="p-button-sm p-button-outlined mr-2"
-            @click="clearUserPermissions"
-          />
-          <Button
-            label="Guardar usuario"
-            icon="pi pi-save"
-            class="p-button-sm"
-            :loading="savingUser"
-            @click="saveUserPermissions"
-          />
-        </div>
       </div>
 
+      <!-- Panel de permisos del usuario -->
       <template v-if="selectedUser">
-        <div class="mt-3">
-          <p class="text-sm text-color-secondary mb-2">
-            Opciones habilitadas para
-            <strong>{{ selectedUser.displayName }}</strong>.
-            Si no selecciona ninguna, hereda los permisos de la empresa.
-          </p>
+        <div class="user-info-bar">
+          <span>
+            <strong>{{ selectedUser.displayName }}</strong>
+          </span>
+          <span :class="userHasIndividual ? 'badge-individual' : 'badge-inherited'">
+            {{ userHasIndividual ? 'Permisos individuales activos' : 'Heredando permisos de empresa' }}
+          </span>
+        </div>
 
-          <!-- Opciones Web -->
-          <div v-if="webCatalogForUser.length" class="mb-3">
-            <p class="text-sm font-semibold mb-2" style="color:#1d4ed8">
-              <i class="pi pi-desktop mr-1" /> Opciones Web
-            </p>
-            <div class="grid">
-              <div
-                v-for="item in webCatalogForUser"
-                :key="item.key"
-                class="col-12 md:col-4 lg:col-3"
-              >
-                <div class="flex align-items-center gap-2 p-2">
-                  <Checkbox v-model="userKeys" :value="item.key" :inputId="`usr-${item.key}`" />
-                  <label :for="`usr-${item.key}`" class="cursor-pointer">
-                    <i :class="item.icon" class="mr-1 text-xs" />
-                    {{ item.label }}
-                    <span class="text-xs text-color-secondary ml-1">({{ item.category }})</span>
-                  </label>
-                </div>
-              </div>
+        <p class="text-sm text-color-secondary mb-3" style="color:#6b7280">
+          <template v-if="userHasIndividual">
+            Este usuario tiene permisos propios. Lo que seleccione aquí
+            reemplaza los de la empresa.
+          </template>
+          <template v-else>
+            Actualmente este usuario hereda los permisos de la empresa (marcados en gris).
+            Si guarda una selección aquí, se convertirán en permisos individuales.
+          </template>
+        </p>
+
+        <!-- Acciones rápidas -->
+        <div class="quick-actions mb-3">
+          <Button label="Marcar igual que empresa" icon="pi pi-copy" size="small"
+                  class="p-button-outlined p-button-sm mr-2"
+                  @click="copyFromEnterprise" />
+          <Button label="Marcar todo" icon="pi pi-check-circle" size="small"
+                  class="p-button-outlined p-button-sm mr-2"
+                  @click="selectAll" />
+          <Button label="Desmarcar todo" icon="pi pi-times-circle" size="small"
+                  class="p-button-outlined p-button-sm p-button-danger mr-2"
+                  @click="clearUserPermissions" />
+          <Button label="Restaurar herencia (quitar permisos individuales)" icon="pi pi-refresh"
+                  size="small" class="p-button-outlined p-button-sm p-button-warning"
+                  v-tooltip="'Elimina los permisos individuales. El usuario vuelve a usar los de la empresa.'"
+                  @click="resetToInheritance" />
+        </div>
+
+        <!-- Opciones Web -->
+        <div class="platform-header">
+          <i class="pi pi-desktop" /> Opciones Web
+        </div>
+        <div v-for="cat in webGroupedCatalog" :key="'uw-'+cat.category" class="cat-block">
+          <div class="cat-label">
+            <Checkbox v-model="selectedUserCategories" :value="cat.category"
+                      :inputId="`cat-usr-${cat.category}`"
+                      @change="toggleCategory(cat.category, 'user')" />
+            <label :for="`cat-usr-${cat.category}`" class="cat-title cursor-pointer">{{ cat.category }}</label>
+          </div>
+          <div class="items-grid">
+            <div v-for="item in cat.items" :key="item.key"
+                 :class="['perm-item', { 'perm-inherited': !userHasIndividual && enterpriseKeys.includes(item.key) }]">
+              <Checkbox v-model="userKeys" :value="item.key"
+                        :inputId="`usr-${item.key}`"
+                        @change="syncCategoryCheck(cat.category, 'user')" />
+              <label :for="`usr-${item.key}`" class="cursor-pointer">
+                <i :class="item.icon" class="mr-1 text-xs" /> {{ item.label }}
+                <span v-if="!userHasIndividual && enterpriseKeys.includes(item.key)" class="inherited-badge">empresa</span>
+              </label>
             </div>
           </div>
+        </div>
 
-          <!-- Opciones Mobile -->
-          <div v-if="mobileCatalogForUser.length">
-            <p class="text-sm font-semibold mb-2" style="color:#059669">
-              <i class="pi pi-mobile mr-1" /> Opciones App Móvil
-            </p>
-            <div class="grid">
-              <div
-                v-for="item in mobileCatalogForUser"
-                :key="item.key"
-                class="col-12 md:col-4 lg:col-3"
-              >
-                <div class="flex align-items-center gap-2 p-2">
-                  <Checkbox v-model="userKeys" :value="item.key" :inputId="`usr-${item.key}`" />
-                  <label :for="`usr-${item.key}`" class="cursor-pointer">
-                    <i :class="item.icon" class="mr-1 text-xs" />
-                    {{ item.label }}
-                    <span class="text-xs text-color-secondary ml-1">({{ item.category }})</span>
-                  </label>
-                </div>
-              </div>
+        <!-- Opciones App Móvil -->
+        <div v-if="mobileGroupedCatalog.length" class="platform-header platform-header-mobile mt-3">
+          <i class="pi pi-mobile" /> Opciones App Móvil
+        </div>
+        <div v-for="cat in mobileGroupedCatalog" :key="'um-'+cat.category" class="cat-block">
+          <div class="cat-label">
+            <Checkbox v-model="selectedUserCategories" :value="'mob_'+cat.category"
+                      :inputId="`cat-usr-mob-${cat.category}`"
+                      @change="toggleCategory(cat.category, 'user')" />
+            <label :for="`cat-usr-mob-${cat.category}`" class="cat-title cursor-pointer">{{ cat.category }}</label>
+          </div>
+          <div class="items-grid">
+            <div v-for="item in cat.items" :key="item.key"
+                 :class="['perm-item', { 'perm-inherited': !userHasIndividual && enterpriseKeys.includes(item.key) }]">
+              <Checkbox v-model="userKeys" :value="item.key"
+                        :inputId="`usr-${item.key}`"
+                        @change="syncCategoryCheck(cat.category, 'user')" />
+              <label :for="`usr-${item.key}`" class="cursor-pointer">
+                <i :class="item.icon" class="mr-1 text-xs" /> {{ item.label }}
+                <span v-if="!userHasIndividual && enterpriseKeys.includes(item.key)" class="inherited-badge">empresa</span>
+              </label>
             </div>
           </div>
+        </div>
+
+        <div class="save-bar">
+          <Button label="Guardar permisos del usuario" icon="pi pi-save"
+                  class="p-button-lg btn-save"
+                  :loading="savingUser" @click="saveUserPermissions" />
         </div>
       </template>
     </div>
@@ -150,21 +215,37 @@ import { useAuthStore } from '../stores/authStore';
 import { AuthserviceApi } from '../api/auth.service';
 import { DriversserviceApi } from '../api/drivers.service';
 
-const toast = useToast();
-const authStore = useAuthStore();
+const toast      = useToast();
+const authStore  = useAuthStore();
 
-// ── Catálogo ─────────────────────────────────────────────────────────────────
+// ── Catálogo agrupado por categoría ──────────────────────────────────────────
 const loadingCatalog = ref(true);
-const webCatalog = ref<any[]>([]);
-const mobileCatalog = ref<any[]>([]);
-const fullCatalog = ref<any[]>([]);
+const fullCatalog    = ref<any[]>([]);
+
+function buildGroups(items: any[]) {
+  const map = new Map<string, any[]>();
+  for (const item of items) {
+    if (!map.has(item.category)) map.set(item.category, []);
+    map.get(item.category)!.push(item);
+  }
+  return Array.from(map.entries()).map(([category, items]) => ({ category, items }));
+}
+
+// Solo ítems web (platform !== 'mobile')
+const webGroupedCatalog = computed(() =>
+  buildGroups(fullCatalog.value.filter(i => i.platform !== 'mobile'))
+);
+// Solo ítems móviles (platform !== 'web')
+const mobileGroupedCatalog = computed(() =>
+  buildGroups(fullCatalog.value.filter(i => i.platform !== 'web'))
+);
+// Todos los grupos combinados (para los helpers de categoría)
+const groupedCatalog = computed(() => buildGroups(fullCatalog.value));
 
 async function loadCatalog() {
   loadingCatalog.value = true;
   try {
     const { data } = await AuthserviceApi.getMenuCatalog() as any;
-    webCatalog.value = (data as any[]).filter(i => i.platform !== 'mobile');
-    mobileCatalog.value = (data as any[]).filter(i => i.platform !== 'web');
     fullCatalog.value = data as any[];
   } catch {
     toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar el catálogo', life: 3000 });
@@ -174,14 +255,15 @@ async function loadCatalog() {
 }
 
 // ── Permisos de empresa ───────────────────────────────────────────────────────
-const enterpriseKeys = ref<string[]>([]);
-const savingEnterprise = ref(false);
+const enterpriseKeys      = ref<string[]>([]);
+const selectedCategories  = ref<string[]>([]); // para los checkboxes de categoría (empresa)
+const savingEnterprise    = ref(false);
 
 async function loadEnterprisePermissions() {
   try {
-    const eid = authStore.enterpriseId!;
-    const { data } = await AuthserviceApi.getEnterpriseMenuPermissions(eid) as any;
+    const { data } = await AuthserviceApi.getEnterpriseMenuPermissions(authStore.enterpriseId!) as any;
     enterpriseKeys.value = data.enterprise_menu_permissions ?? [];
+    syncAllCategoryChecks('enterprise');
   } catch { /* silencioso */ }
 }
 
@@ -189,7 +271,7 @@ async function saveEnterprisePermissions() {
   savingEnterprise.value = true;
   try {
     await AuthserviceApi.setEnterpriseMenuPermissions(authStore.enterpriseId!, enterpriseKeys.value);
-    toast.add({ severity: 'success', summary: 'Guardado', detail: 'Permisos de empresa actualizados', life: 3000 });
+    toast.add({ severity: 'success', summary: 'Guardado', detail: 'Permisos de empresa actualizados. Los usuarios deben volver a iniciar sesión para ver los cambios.', life: 4000 });
   } catch {
     toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo guardar', life: 3000 });
   } finally {
@@ -197,8 +279,8 @@ async function saveEnterprisePermissions() {
   }
 }
 
-// ── Lista de usuarios (staff) ─────────────────────────────────────────────────
-const staffList = ref<any[]>([]);
+// ── Lista de usuarios ─────────────────────────────────────────────────────────
+const staffList   = ref<any[]>([]);
 const driversList = ref<any[]>([]);
 
 async function loadStaff() {
@@ -227,50 +309,156 @@ async function loadDriversWithAccess() {
 }
 
 const allUserGroups = computed(() => {
-  const groups = [];
-  if (staffList.value.length) groups.push({ groupLabel: 'Colaboradores', items: staffList.value });
+  const groups: any[] = [];
+  if (staffList.value.length)   groups.push({ groupLabel: 'Colaboradores', items: staffList.value });
   if (driversList.value.length) groups.push({ groupLabel: 'Conductores con acceso móvil', items: driversList.value });
   return groups;
 });
 
-const webCatalogForUser = computed(() => webCatalog.value);
-const mobileCatalogForUser = computed(() => mobileCatalog.value);
-
 // ── Permisos por usuario ──────────────────────────────────────────────────────
-const selectedUser = ref<any>(null);
-const userKeys = ref<string[]>([]);
-const savingUser = ref(false);
+const selectedUser          = ref<any>(null);
+const userKeys              = ref<string[]>([]);
+const userHasIndividual     = ref(false);   // true = tiene permisos propios guardados
+const selectedUserCategories = ref<string[]>([]);
+const savingUser            = ref(false);
 
 async function onUserSelect() {
   if (!selectedUser.value) return;
   try {
     const { data } = await AuthserviceApi.getUserMenuPermissions(selectedUser.value._id) as any;
-    userKeys.value = data.menu_permissions ?? [];
+    const saved: string[] = data.menu_permissions ?? [];
+    userHasIndividual.value = saved.length > 0;
+    // Si tiene permisos individuales → mostrarlos
+    // Si hereda de empresa → pre-marcar con los de empresa para que el admin
+    //   pueda ver qué tiene el usuario y desmarcar lo que quiera revocar
+    userKeys.value = saved.length > 0 ? [...saved] : [...enterpriseKeys.value];
+    syncAllCategoryChecks('user');
   } catch {
-    userKeys.value = [];
+    userKeys.value = [...enterpriseKeys.value];
+    userHasIndividual.value = false;
+    syncAllCategoryChecks('user');
   }
 }
 
 async function saveUserPermissions() {
   savingUser.value = true;
   try {
-    console.log('[PERMISOS] Guardando para _id:', selectedUser.value._id, '| keys:', userKeys.value);
-    const { data } = await AuthserviceApi.setUserMenuPermissions(selectedUser.value._id, userKeys.value) as any;
-    console.log('[PERMISOS] Respuesta del servidor:', data);
-    toast.add({ severity: 'success', summary: 'Guardado', detail: 'Permisos del usuario actualizados', life: 3000 });
+    await AuthserviceApi.setUserMenuPermissions(selectedUser.value._id, userKeys.value);
+    userHasIndividual.value = userKeys.value.length > 0;
+    toast.add({ severity: 'success', summary: 'Guardado', detail: 'Permisos del usuario actualizados. El usuario debe volver a iniciar sesión para ver los cambios.', life: 4000 });
   } catch (e: any) {
-    console.error('[PERMISOS] Error al guardar:', e?.response?.data ?? e?.message);
     toast.add({ severity: 'error', summary: 'Error', detail: e?.response?.data?.message || 'No se pudo guardar', life: 3000 });
   } finally {
     savingUser.value = false;
   }
 }
 
-function clearUserPermissions() {
-  userKeys.value = [];
+/** Elimina los permisos individuales (el usuario vuelve a heredar los de empresa) */
+async function resetToInheritance() {
+  savingUser.value = true;
+  try {
+    await AuthserviceApi.setUserMenuPermissions(selectedUser.value._id, []);
+    userKeys.value = [...enterpriseKeys.value];
+    userHasIndividual.value = false;
+    syncAllCategoryChecks('user');
+    toast.add({ severity: 'info', summary: 'Listo', detail: 'El usuario vuelve a heredar los permisos de la empresa.', life: 4000 });
+  } catch (e: any) {
+    toast.add({ severity: 'error', summary: 'Error', detail: e?.response?.data?.message || 'No se pudo guardar', life: 3000 });
+  } finally {
+    savingUser.value = false;
+  }
+}
+
+function copyFromEnterprise()  { userKeys.value = [...enterpriseKeys.value]; syncAllCategoryChecks('user'); }
+function selectAll()           { userKeys.value = fullCatalog.value.map(i => i.key); syncAllCategoryChecks('user'); }
+function clearUserPermissions(){ userKeys.value = []; syncAllCategoryChecks('user'); }
+
+// ── Helpers de checkboxes por categoría ──────────────────────────────────────
+function toggleCategory(category: string, target: 'enterprise' | 'user') {
+  const keys   = target === 'enterprise' ? enterpriseKeys   : userKeys;
+  const selCat = target === 'enterprise' ? selectedCategories : selectedUserCategories;
+  const catItems = groupedCatalog.value.find(c => c.category === category)?.items ?? [];
+  const catKeys  = catItems.map((i: any) => i.key);
+
+  if (selCat.value.includes(category)) {
+    // marcar toda la categoría
+    for (const k of catKeys) {
+      if (!keys.value.includes(k)) keys.value.push(k);
+    }
+  } else {
+    // desmarcar toda la categoría
+    keys.value = keys.value.filter(k => !catKeys.includes(k));
+  }
+}
+
+function syncCategoryCheck(category: string, target: 'enterprise' | 'user') {
+  const keys   = target === 'enterprise' ? enterpriseKeys   : userKeys;
+  const selCat = target === 'enterprise' ? selectedCategories : selectedUserCategories;
+  const catItems = groupedCatalog.value.find(c => c.category === category)?.items ?? [];
+  const catKeys  = catItems.map((i: any) => i.key);
+  const allChecked = catKeys.every(k => keys.value.includes(k));
+
+  if (allChecked) {
+    if (!selCat.value.includes(category)) selCat.value.push(category);
+  } else {
+    selCat.value = selCat.value.filter(c => c !== category);
+  }
+}
+
+function syncAllCategoryChecks(target: 'enterprise' | 'user') {
+  for (const cat of groupedCatalog.value) {
+    syncCategoryCheck(cat.category, target);
+  }
 }
 
 onMounted(async () => {
   await Promise.all([loadCatalog(), loadEnterprisePermissions(), loadStaff(), loadDriversWithAccess()]);
 });
 </script>
+
+<style scoped>
+.perms-wrap { display: grid; gap: 1.5rem; padding: 1rem; }
+
+.pcard {
+  background: #fff; border: 1px solid rgba(17,17,17,.07);
+  border-radius: .75rem; padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(17,17,17,.05);
+}
+.pcard-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.pcard-title  { font-size: 1.15rem; font-weight: 700; margin: 0 0 .25rem; color: #111; }
+.pcard-sub    { font-size: .85rem; color: #6b7280; margin: 0; }
+
+.cat-block { margin-bottom: 1.25rem; }
+.cat-label  { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; }
+.cat-title  { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #374151; }
+.items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: .35rem .75rem; padding-left: 1.5rem; }
+.perm-item  { display: flex; align-items: center; gap: .4rem; padding: .2rem 0; font-size: .87rem; color: #374151; }
+.perm-inherited { opacity: .65; }
+.inherited-badge {
+  font-size: .65rem; font-weight: 700; background: #e0f2fe; color: #0369a1;
+  border-radius: 4px; padding: 1px 5px; margin-left: 4px; vertical-align: middle;
+}
+
+.user-selector  { margin-bottom: 1.25rem; }
+.field-wrap     { max-width: 420px; }
+.field-label    { display: block; font-size: .85rem; font-weight: 600; margin-bottom: .35rem; }
+
+.user-info-bar  { display: flex; align-items: center; gap: .75rem; margin-bottom: .5rem; }
+.badge-individual { background: #dcfce7; color: #15803d; border-radius: 6px; font-size: .72rem; font-weight: 700; padding: 2px 8px; }
+.badge-inherited  { background: #fef9c3; color: #92400e; border-radius: 6px; font-size: .72rem; font-weight: 700; padding: 2px 8px; }
+
+.quick-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.save-bar { display: flex; justify-content: flex-end; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #f3f4f6; }
+
+:deep(.btn-save.p-button) { background: #1d4ed8; border-color: #1d4ed8; }
+:deep(.btn-save.p-button:hover) { background: #1e40af; border-color: #1e40af; }
+
+.platform-header {
+  display: flex; align-items: center; gap: .4rem;
+  font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .6px;
+  color: #1d4ed8; padding: .4rem 0 .6rem;
+  border-bottom: 2px solid #dbeafe; margin-bottom: .75rem;
+}
+.platform-header-mobile { color: #059669; border-bottom-color: #d1fae5; }
+.mt-3 { margin-top: 1.25rem; }
+</style>
