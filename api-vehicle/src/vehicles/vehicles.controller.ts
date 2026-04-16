@@ -41,7 +41,7 @@ export class VehiclesController {
   }
 
   /* ===============================
-   * DEACTIVATE — empresa desactiva vehículo con nota
+   * DEACTIVATE — empresa solicita desactivación con nota
    * =============================== */
   @UseGuards(JwtAuthGuard, EnterpriseGuard)
   @Patch(':id/deactivate')
@@ -51,6 +51,43 @@ export class VehiclesController {
     @Req() req: any,
   ) {
     return this.service.deactivateById(id, body, req.user);
+  }
+
+  /* ===============================
+   * REQUEST ACTIVATION — empresa solicita activación (un vehículo)
+   * =============================== */
+  @UseGuards(JwtAuthGuard, EnterpriseGuard)
+  @Patch(':id/request-activation')
+  requestActivation(
+    @Param('id') id: string,
+    @Body() body: { nota_activacion: string },
+    @Req() req: any,
+  ) {
+    return this.service.requestActivation(id, body, req.user);
+  }
+
+  /* ===============================
+   * REQUEST ACTIVATION BULK — empresa solicita activación de varios vehículos
+   * =============================== */
+  @UseGuards(JwtAuthGuard, EnterpriseGuard)
+  @Post('request-activation-bulk')
+  requestActivationBulk(
+    @Body() body: { vehicle_ids: string[]; nota_activacion: string },
+    @Req() req: any,
+  ) {
+    return this.service.requestActivationBulk(body, req.user);
+  }
+
+  /* ===============================
+   * REQUEST DEACTIVATION BULK — empresa solicita desactivación de varios vehículos
+   * =============================== */
+  @UseGuards(JwtAuthGuard, EnterpriseGuard)
+  @Post('request-deactivation-bulk')
+  requestDeactivationBulk(
+    @Body() body: { vehicle_ids: string[]; nota_desactivacion: string },
+    @Req() req: any,
+  ) {
+    return this.service.requestDeactivationBulk(body, req.user);
   }
 
   /* ===============================
@@ -162,11 +199,46 @@ export class VehiclesController {
     return this.service.approveDeactivation(id, req.user);
   }
 
+  /** Aprobar solicitud de desactivación masiva (superadmin) */
+  @UseGuards(JwtAuthGuard, SuperadminGuard)
+  @Post('admin/approve-deactivation-bulk')
+  approveDeactivationBulk(@Body() body: { vehicle_ids: string[] }, @Req() req: any) {
+    return this.service.approveDeactivationBulk(body, req.user);
+  }
+
+  /** Aprobar solicitud de activación masiva (superadmin) */
+  @UseGuards(JwtAuthGuard, SuperadminGuard)
+  @Post('admin/approve-activation-bulk')
+  approveActivationBulk(@Body() body: { vehicle_ids: string[] }, @Req() req: any) {
+    return this.service.approveActivationBulk(body, req.user);
+  }
+
   /** Rechazar solicitud de desactivación (superadmin) */
   @UseGuards(JwtAuthGuard, SuperadminGuard)
   @Patch('admin/:id/reject-deactivation')
   rejectDeactivation(@Param('id') id: string, @Req() req: any) {
     return this.service.rejectDeactivation(id, req.user);
+  }
+
+  /** Vehículos con solicitud de activación pendiente (superadmin) */
+  @UseGuards(JwtAuthGuard, SuperadminGuard)
+  @Get('admin/pending-activations')
+  getPendingActivations() {
+    return this.service.getPendingActivations();
+  }
+
+  /** Aprobar solicitud de activación (superadmin) */
+  @UseGuards(JwtAuthGuard, SuperadminGuard)
+  @Patch('admin/:id/approve-activation')
+  approveActivation(@Param('id') id: string, @Req() req: any) {
+    return this.service.approveActivation(id, req.user);
+  }
+
+  /** Rechazar solicitud de activación (superadmin) */
+  @UseGuards(JwtAuthGuard, SuperadminGuard)
+  @Patch('admin/:id/reject-activation')
+  rejectActivation(@Param('id') id: string, @Req() req: any) {
+    return this.service.rejectActivation(id, req.user);
   }
 
   /** Logs de auditoría de vehículos */

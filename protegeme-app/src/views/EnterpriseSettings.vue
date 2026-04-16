@@ -115,6 +115,39 @@
     </div>
 
     <!-- ══════════════════════════════════════
+         NOTIFICACIONES
+    ══════════════════════════════════════ -->
+    <div class="section">Notificaciones</div>
+    <p class="section-hint">
+      Correo y celular donde se recibirán comunicados del administrador del sistema.
+    </p>
+    <div class="grid">
+
+      <div class="field">
+        <label>Correo de notificación <span class="required">*</span></label>
+        <input
+          v-model="form.notification_email"
+          type="email"
+          placeholder="Ej: notificaciones@empresa.co"
+          :class="{ error: errors.notification_email }"
+        />
+        <small v-if="errors.notification_email" class="error-text">
+          {{ errors.notification_email }}
+        </small>
+      </div>
+
+      <div class="field">
+        <label>Celular de notificación</label>
+        <input
+          v-model="form.notification_phone"
+          type="tel"
+          placeholder="Ej: 3001234567"
+        />
+      </div>
+
+    </div>
+
+    <!-- ══════════════════════════════════════
          INGENIERO MECÁNICO
     ══════════════════════════════════════ -->
     <div class="section">Ingeniero Mecánico</div>
@@ -179,6 +212,41 @@
     </transition>
 
   </form>
+
+  <!-- ══════════════════════════════════════
+       PANEL BROADCAST (solo superadmin)
+  ══════════════════════════════════════ -->
+  <div v-if="authStore.isSuperAdmin" class="broadcast-panel">
+    <div class="section" style="border-top:none; padding-top:0; margin-top:0;">
+      <i class="pi pi-megaphone" style="margin-right:8px; color:#7c3aed;" />
+      Enviar comunicado a todas las empresas
+    </div>
+    <p class="section-hint">
+      El mensaje se enviará al correo de notificación de cada empresa que lo tenga configurado.
+    </p>
+    <div class="field" style="margin-bottom:14px;">
+      <label>Mensaje</label>
+      <textarea
+        v-model="broadcastMessage"
+        rows="5"
+        placeholder="Escriba aquí el mensaje que desea enviar a todas las empresas..."
+        class="broadcast-textarea"
+      />
+    </div>
+    <div style="display:flex; justify-content:flex-end; align-items:center; gap:12px;">
+      <span v-if="broadcastResult" :class="['broadcast-result', broadcastResult.ok ? 'ok' : 'err']">
+        {{ broadcastResult.text }}
+      </span>
+      <button
+        class="btn-broadcast"
+        :disabled="broadcastLoading || !broadcastMessage.trim()"
+        @click="sendBroadcast"
+      >
+        <i class="pi pi-send" />
+        {{ broadcastLoading ? 'Enviando...' : 'Enviar a todas las empresas' }}
+      </button>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -291,7 +359,30 @@ const form = ref({
   mechanic_document_type: null as number | null,
   mechanic_document_number: '',
   mechanic_name: '',
+  notification_email: '',
+  notification_phone: '',
 })
+
+// ── Broadcast ────────────────────────────────────────────────────────────
+const broadcastMessage = ref('')
+const broadcastLoading = ref(false)
+const broadcastResult = ref<{ ok: boolean; text: string } | null>(null)
+
+async function sendBroadcast() {
+  if (!broadcastMessage.value.trim()) return
+  broadcastLoading.value = true
+  broadcastResult.value = null
+  try {
+    const { data } = await AuthserviceApi.sendBroadcast(broadcastMessage.value.trim())
+    broadcastResult.value = { ok: true, text: `Enviado a ${data.sent} empresa(s)` }
+    broadcastMessage.value = ''
+  } catch (e: any) {
+    broadcastResult.value = { ok: false, text: e?.response?.data?.message || 'Error al enviar' }
+  } finally {
+    broadcastLoading.value = false
+    setTimeout(() => { broadcastResult.value = null }, 5000)
+  }
+}
 
 onMounted(async () => {
   try {
@@ -322,6 +413,8 @@ onMounted(async () => {
         mechanic_document_type:             data.mechanic_document_type             ?? null,
         mechanic_document_number:           data.mechanic_document_number           ?? '',
         mechanic_name:                      data.mechanic_name                      ?? '',
+        notification_email:                 data.notification_email                 ?? '',
+        notification_phone:                 data.notification_phone                 ?? '',
       }
       // <select> con v-model no tiene timing issues — asignación directa
       selectedInspectorId.value = data.default_inspector_id ?? ''
@@ -333,6 +426,8 @@ onMounted(async () => {
     loadingData.value = false
   }
 })
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function validate() {
   const e: any = {}
@@ -347,6 +442,11 @@ function validate() {
     !form.value.mechanic_document_type
   ) {
     e.mechanic_document_type = 'Seleccione el tipo de identificación del mecánico'
+  }
+  if (!form.value.notification_email.trim()) {
+    e.notification_email = 'El correo de notificación es obligatorio'
+  } else if (!EMAIL_RE.test(form.value.notification_email.trim())) {
+    e.notification_email = 'Ingrese un correo electrónico válido'
   }
   errors.value = e
   return Object.keys(e).length === 0
@@ -375,6 +475,8 @@ async function onSubmit() {
       default_inspector_document_type:    inspector?.document_type  ?? null,
       default_inspector_document_number:  inspector?.documentNumber ?? '',
       default_inspector_name:             inspector?.nombre         ?? '',
+      notification_email:                 form.value.notification_email,
+      notification_phone:                 form.value.notification_phone,
     })
     showSaveSuccess()
   } catch (e: any) {
@@ -463,6 +565,7 @@ input:focus, select:focus {
 .btn-secondary:hover { background: #e5e7eb; transform: translateY(-1px); }
 .error { border: 1.8px solid #dc2626 !important; background: #fef2f2; }
 .error-text { color: #dc2626; font-size: 12px; margin-top: 4px; }
+.required { color: #dc2626; margin-left: 2px; }
 .section-hint { font-size: 12px; color: #6b7280; margin: -6px 0 12px; }
 
 /* ── Toast de confirmación ── */
@@ -486,9 +589,45 @@ input:focus, select:focus {
 .toast-fade-leave-active { transition: all 0.3s ease; }
 .toast-fade-enter-from,
 .toast-fade-leave-to { opacity: 0; transform: translateY(12px); }
+/* ── Broadcast panel ── */
+.broadcast-panel {
+  margin-top: 40px;
+  padding: 24px 28px;
+  border: 2px dashed #7c3aed;
+  border-radius: 16px;
+  background: #faf5ff;
+}
+.broadcast-textarea {
+  width: 100%; box-sizing: border-box;
+  padding: 10px 12px; border-radius: 10px;
+  border: 1px solid #d1d5db; font-size: 14px;
+  font-family: inherit; resize: vertical;
+  transition: all 0.2s ease;
+}
+.broadcast-textarea:focus {
+  outline: none; border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+}
+.btn-broadcast {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  color: #fff; border: none; border-radius: 12px;
+  padding: 12px 28px; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all 0.25s ease;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.btn-broadcast:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(124,58,237,0.35); }
+.btn-broadcast:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.broadcast-result {
+  font-size: 13px; font-weight: 600; padding: 6px 14px;
+  border-radius: 8px;
+}
+.broadcast-result.ok { background: #dcfce7; color: #166534; }
+.broadcast-result.err { background: #fee2e2; color: #991b1b; }
+
 @media (max-width: 640px) {
   .actions { justify-content: center; flex-direction: column; }
   .btn-primary, .btn-secondary { width: 100%; }
   .logo-section { flex-direction: column; align-items: center; }
+  .btn-broadcast { width: 100%; justify-content: center; }
 }
 </style>

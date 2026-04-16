@@ -12,6 +12,20 @@ import { User } from '../schemas/user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { EmailService } from '../libs/email/email.service';
 
+/** ISO 27001 password policy validator */
+function assertPasswordPolicy(password: string): void {
+  if (!password || password.length < 12)
+    throw new BadRequestException('La contraseña debe tener al menos 12 caracteres');
+  if (!/[A-Z]/.test(password))
+    throw new BadRequestException('La contraseña debe incluir al menos una letra mayúscula');
+  if (!/[a-z]/.test(password))
+    throw new BadRequestException('La contraseña debe incluir al menos una letra minúscula');
+  if (!/[0-9]/.test(password))
+    throw new BadRequestException('La contraseña debe incluir al menos un número');
+  if (!/[!@#$%^&*()\-_=+\[\]{}|;:,.<>?]/.test(password))
+    throw new BadRequestException('La contraseña debe incluir al menos un carácter especial (!@#$%^&*…)');
+}
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -70,6 +84,7 @@ export class UsersService {
       await this.assertEmailUnique(createUserDto.email);
     }
 
+    assertPasswordPolicy(createUserDto.password);
     const hashedPassword = await bcrypt.hash(
       createUserDto.password,
       10,
@@ -281,6 +296,7 @@ export class UsersService {
     if (!user)
       throw new NotFoundException('Usuario no encontrado');
 
+    assertPasswordPolicy(newPassword);
     user.password = await bcrypt.hash(newPassword, 10);
     user.must_change_password = false;
     await user.save();
@@ -372,6 +388,7 @@ export class UsersService {
     }
 
     const plainPassword = dto.password;
+    assertPasswordPolicy(plainPassword);
     const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
     const newUser = await this.userModel.create({
@@ -431,7 +448,8 @@ export class UsersService {
       user.active = updateDto.active;
 
     // Cambio de contraseña opcional (para conductores u otros usuarios)
-    if (updateDto.newPassword && updateDto.newPassword.trim().length >= 6) {
+    if (updateDto.newPassword && updateDto.newPassword.trim()) {
+      assertPasswordPolicy(updateDto.newPassword.trim());
       user.password = await bcrypt.hash(updateDto.newPassword.trim(), 10);
     }
 
@@ -563,6 +581,7 @@ async createStaff(createUserDto: CreateUserDto, currentUser: any) {
     await this.assertEmailUnique(createUserDto.email);
   }
 
+  assertPasswordPolicy(createUserDto.password);
   const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
   const newUser = await this.userModel.create({

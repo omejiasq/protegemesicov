@@ -164,6 +164,16 @@
           <label>Vencimiento Tarjeta Operación</label>
           <input v-model="form.expiration_tarjeta_opera" type="date" />
         </div>
+
+        <div class="field">
+          <label>No carta técnica</label>
+          <input v-model="form.no_tecnomecanica" type="text" />
+        </div>
+
+        <div class="field">
+          <label>Vencimiento carta técnica</label>
+          <input v-model="form.expiration_tecnomecanica" type="date" />
+        </div>
       </div>
 
       <!-- ================= ACCIONES ================= -->
@@ -261,6 +271,9 @@ const loadVehicle = async () => {
 
     no_tarjeta_opera: data.no_tarjeta_opera ?? '',
     expiration_tarjeta_opera: formatDate(data.expiration_tarjeta_opera),
+
+    no_tecnomecanica: data.no_tecnomecanica ?? '',
+    expiration_tecnomecanica: formatDate(data.expiration_tecnomecanica),
   }
 }
 
@@ -349,7 +362,15 @@ const submit = async () => {
  * =============================== */
 const formatDate = (value) => {
   if (!value) return null
-  return new Date(value).toISOString().slice(0, 10)
+  // Si ya viene como string ISO ("2026-04-19" o "2026-04-19T..."), extraer
+  // la parte de fecha directamente sin conversión de zona horaria
+  if (typeof value === 'string') return value.slice(0, 10)
+  // Para objetos Date usar componentes locales (evita el desfase UTC-5)
+  const d = new Date(value)
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
 }
 
 onMounted(() => {

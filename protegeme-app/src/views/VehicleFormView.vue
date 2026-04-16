@@ -20,6 +20,8 @@ const form = reactive<any>({
   nivelServicio: null as number | null,
   soat: "", // <-- string (NO objeto)
   fechaVencimientoSoat: "", // <-- string "YYYY-MM-DD" o Date
+  no_tecnomecanica: "",
+  expiration_tecnomecanica: "",
 });
 
 // Opciones: valores NUMÉRICOS (el backend espera number)
@@ -72,6 +74,10 @@ async function load() {
         : typeof v?.soat === "object" && v?.soat?.fechaVencimiento
         ? String(v.soat.fechaVencimiento).slice(0, 10)
         : "",
+      no_tecnomecanica: v?.no_tecnomecanica ?? "",
+      expiration_tecnomecanica: v?.expiration_tecnomecanica
+        ? String(v.expiration_tecnomecanica).slice(0, 10)
+        : "",
     });
   } finally {
     loading.value = false;
@@ -88,6 +94,8 @@ async function save() {
       nivelServicio: toIntOrUndef(form.nivelServicio),
       soat: form.soat?.trim() || undefined, // string o se omite
       fechaVencimientoSoat: normDate(form.fechaVencimientoSoat), // "YYYY-MM-DD" o ""
+      no_tecnomecanica: form.no_tecnomecanica?.trim() || undefined,
+      expiration_tecnomecanica: normDate(form.expiration_tecnomecanica) || undefined,
     };
 
     // limpiamos indefinidos/vacíos para no mandar basura
@@ -186,6 +194,29 @@ watch(() => props.id, load);
       appendTo="self"
     />
   </div>
+
+  <!-- No carta técnica -->
+  <div class="col-12 md:col-4">
+    <label class="block mb-2">No carta técnica</label>
+    <InputText
+      v-model="form.no_tecnomecanica"
+      class="w-full pv-light"
+      placeholder="Ej: CT-123456"
+    />
+  </div>
+
+  <!-- Vencimiento carta técnica -->
+  <div class="col-12 md:col-4">
+    <label class="block mb-2">Vencimiento carta técnica</label>
+    <Calendar
+      v-model="form.expiration_tecnomecanica"
+      dateFormat="yy-mm-dd"
+      showIcon
+      class="w-full pv-light"
+      appendTo="self"
+    />
+  </div>
+
   <div>
     <div class="col-12 mt-3 flex justify-content-end gap-2">
       <Button

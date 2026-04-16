@@ -7,12 +7,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId } from 'mongoose';
 import { Enterprise } from './schemas/enterprise.schema';
 import { UpsertEnterpriseAdminDto } from './dto/upsert-enterprise-admin.dto';
+import { EmailService } from '../libs/email/email.service';
 
 @Injectable()
 export class EnterpriseService {
   constructor(
     @InjectModel(Enterprise.name)
     private readonly enterpriseModel: Model<Enterprise>,
+    private readonly emailService: EmailService,
   ) {}
 
   // ✅ CREAR empresa (superadmin)
@@ -104,6 +106,8 @@ export class EnterpriseService {
     default_inspector_document_type?: number | null;
     default_inspector_document_number?: string;
     default_inspector_name?: string;
+    notification_email?: string;
+    notification_phone?: string;
   }) {
     if (!isValidObjectId(id)) {
       throw new BadRequestException('Invalid enterprise id');
@@ -202,5 +206,34 @@ export class EnterpriseService {
     );
     if (!updated) throw new NotFoundException('Enterprise not found');
     return { enterprise_menu_permissions: (updated as any).enterprise_menu_permissions };
+  }
+
+  // ✅ ENVIAR BROADCAST a todas las empresas no-admin
+  async sendBroadcast(dto: { message: string; senderName: string }) {
+    if (!dto.message?.trim()) {
+      throw new BadRequestException('El mensaje no puede estar vacío');
+    }
+
+    // Obtener todas las empresas no-admin activas que tengan notification_email
+    const enterprises = await this.enterpriseModel
+      .find({ active: true, admin: { $ne: true } })
+      .select('name document_number notification_email')
+      .lean();
+
+    const recipients = enterprises
+      .map((e: any) => ({ name: e.name, nit: e.document_number, email: e.notification_email }))
+      .filter((e) => e.email && e.email.trim());
+
+    if (!recipients.length) {
+      return { sent: 0, message: 'Ninguna empresa tiene correo de notificación configurado' };
+    }
+
+    await this.emailService.sendBroadcastNotification({
+      recipients,
+      message: dto.message.trim(),
+      senderName: dto.senderName,
+    });
+
+    return { sent: recipients.length };
   }
 }

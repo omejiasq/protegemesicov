@@ -102,6 +102,13 @@ export class Enterprise {
   })
   tipo_habilitacion?: 'CARRETERA' | 'ESPECIAL' | 'MIXTO';
 
+  // ── Contacto para notificaciones ─────────────────────────
+  @Prop({ type: String, default: '' })
+  notification_email?: string;
+
+  @Prop({ type: String, default: '' })
+  notification_phone?: string;
+
 }
 
 export const EnterpriseSchema = SchemaFactory.createForClass(Enterprise);

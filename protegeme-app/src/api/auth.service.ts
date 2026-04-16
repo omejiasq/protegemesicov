@@ -50,6 +50,10 @@ export const AuthserviceApi = {
   setEnterpriseMenuPermissions: (enterpriseId: string, keys: string[]) =>
     http.patch(`${baseURL}/enterprise/${enterpriseId}/menu-permissions`, { keys }),
 
+  // Broadcast a todas las empresas (solo superadmin)
+  sendBroadcast: (message: string) =>
+    http.post(`${baseURL}/enterprise/broadcast`, { message }),
+
   // Catálogo de menú (superadmin)
   getMenuCatalog: () => http.get(`${baseURL}/menu-catalog`),
   createMenuCatalogItem: (data: any) => http.post(`${baseURL}/menu-catalog`, data),

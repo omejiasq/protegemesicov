@@ -54,6 +54,7 @@
       <input
         type="password"
         v-model="form.password"
+        :placeholder="PASSWORD_HINT"
         :class="{ error: errors.password }"
       />
       <small v-if="errors.password" class="error-text">{{ errors.password }}</small>
@@ -82,6 +83,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStaffStore } from '../stores/staffStore'
+import { validatePassword, PASSWORD_HINT } from '../utils/passwordPolicy'
 
 const staffStore = useStaffStore()
 const router = useRouter()
@@ -125,8 +127,8 @@ function validateForm() {
     errors.value.firstName = 'Ingrese el nombre del usuario'
   if (!form.value.roleType)
     errors.value.roleType = 'Seleccione un rol'
-  if (!form.value.password.trim())
-    errors.value.password = 'Ingrese una contraseña'
+  const pwError = validatePassword(form.value.password)
+  if (pwError) errors.value.password = pwError
   return Object.keys(errors.value).length === 0
 }
 

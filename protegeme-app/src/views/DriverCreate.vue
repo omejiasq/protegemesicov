@@ -102,9 +102,11 @@
         <input
           v-model="form.password"
           type="password"
-          placeholder="Mínimo 6 caracteres"
+          :placeholder="PASSWORD_HINT"
           autocomplete="new-password"
+          :class="{ error: errors.password }"
         />
+        <small v-if="errors.password" class="error-text">{{ errors.password }}</small>
       </div>
       <div class="field">
         <label>Confirmar contraseña</label>
@@ -140,6 +142,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 import { useDriversStore } from '../stores/driversStore'
+import { validatePassword, PASSWORD_HINT } from '../utils/passwordPolicy'
 
 const authStore = useAuthStore()
 const driversStore = useDriversStore()
@@ -190,11 +193,13 @@ const validateForm = () => {
   if (!form.value.firstName.trim()) {
     errors.value.firstName = 'Ingrese el nombre del conductor'
   }
-  if (form.value.password && form.value.password !== form.value.confirmPassword) {
-    errors.value.confirmPassword = 'Las contraseñas no coinciden'
-  }
-  if (form.value.password && form.value.password.length < 6) {
-    errors.value.confirmPassword = 'La contraseña debe tener al menos 6 caracteres'
+  if (form.value.password) {
+    const pwError = validatePassword(form.value.password)
+    if (pwError) {
+      errors.value.password = pwError
+    } else if (form.value.password !== form.value.confirmPassword) {
+      errors.value.confirmPassword = 'Las contraseñas no coinciden'
+    }
   }
 
   return Object.keys(errors.value).length === 0
@@ -211,7 +216,7 @@ const onSubmit = async () => {
 
   try {
     const usuario = form.value.usuario.trim() || form.value.documentNumber.trim()
-    const password = form.value.password.trim() || 'Ach153*De'
+    const password = form.value.password.trim() || 'Protegeme2025*!'
 
     const payload: any = {
       usuario,

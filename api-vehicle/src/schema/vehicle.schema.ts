@@ -63,9 +63,9 @@ export class Vehicle {
   @Prop({ type: String, default: null }) no_rce?: string;
   @Prop({ type: Date, default: null })
   expiration_rce?: Date; 
-  @Prop({ type: String, default: null }) no_tecnomecanica?: string;
+  @Prop({ type: String, default: null }) no_tecnomecanica?: string; //el 15 de abril 2026 se cambio para guardar aca No carta ténica
   @Prop({ type: Date, default: null })
-  expiration_tecnomecanica?: Date; 
+  expiration_tecnomecanica?: Date;   //el 15 de abril 2026 se cambio para guardar aca vencimiento carta ténica
   @Prop({ type: String, default: null }) no_tarjeta_opera?: string;
   @Prop({ type: Date, default: null })
   expiration_tarjeta_opera?: Date; 
@@ -124,6 +124,17 @@ export class Vehicle {
   /** Estado de la solicitud de desactivación: null = sin solicitud, 'pendiente' = esperando superadmin, 'aprobada' = desactivado */
   @Prop({ type: String, enum: ['pendiente', 'aprobada', null], default: null })
   deactivation_estado?: 'pendiente' | 'aprobada' | null;
+
+  // ── Solicitud de activación ────────────────────────────────────────────
+  @Prop({ type: String, default: null })
+  nota_activacion?: string | null;
+
+  @Prop({ type: Date, default: null })
+  fecha_solicitud_activacion?: Date | null;
+
+  /** Estado de la solicitud de activación: null = sin solicitud, 'pendiente' = esperando superadmin */
+  @Prop({ type: String, enum: ['pendiente', null], default: null })
+  activation_estado?: 'pendiente' | null;
 
   // ── Tipo de servicio del vehículo ──────────────────────────────────
   /**

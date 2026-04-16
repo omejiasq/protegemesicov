@@ -6,6 +6,7 @@ import { EnterpriseController } from './enterprise.controller';
 import { AuthModule } from '../auth/auth.module';
 import { SuperadminGuard } from '../auth/guards/superadmin.guard';
 import { UsersModule } from '../users/users.module';
+import { EmailService } from '../libs/email/email.service';
 
 @Module({
   imports: [
@@ -16,6 +17,6 @@ import { UsersModule } from '../users/users.module';
     UsersModule,
   ],
   controllers: [EnterpriseController],
-  providers: [EnterpriseService, SuperadminGuard],
+  providers: [EnterpriseService, SuperadminGuard, EmailService],
 })
 export class EnterpriseModule {}

@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -22,6 +23,8 @@ type UserCtx = {
 
 @Injectable()
 export class VehiclesService {
+  private readonly logger = new Logger(VehiclesService.name);
+
   constructor(
     @InjectModel(Vehicle.name)
     private readonly vehicleModel: Model<VehicleDocument>,
@@ -44,8 +47,10 @@ export class VehiclesService {
   private normalizeDate(value?: string | Date): Date | null {
     if (!value) return null;
     const d = new Date(value);
-    d.setHours(0, 0, 0, 0); // solo fecha
-    return isNaN(d.getTime()) ? null : d;
+    if (isNaN(d.getTime())) return null;
+    // Normalizar a medianoche UTC para evitar desfases por zona horaria del servidor.
+    // setHours(0,0,0,0) usaba hora LOCAL → desplazaba la fecha en servidores UTC-5.
+    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
   }
 
   /* =====================================================
@@ -143,10 +148,7 @@ export class VehiclesService {
 
     });
 
-    // Vehículos CARRETERA requieren habilitación manual → notificar
-    if (vehicle.tipo_servicio !== 'ESPECIAL') {
-      this.notifyAdminsNewVehicle(vehicle.toObject(), user).catch(() => { /* no bloquear */ });
-    }
+    // Notificación por creación desactivada intencionalmente
 
     // Registrar en auditoría
     this.auditModel.create({
@@ -208,26 +210,56 @@ export class VehiclesService {
     });
   }
 
-  private async notifySuperadminsDeactivationRequest(vehicle: any, user: UserCtx) {
-    const enterpriseId = new Types.ObjectId(user.enterprise_id);
+  /**
+   * Reúne todos los correos destinatarios para notificaciones al superadmin:
+   *  1. notification_email de empresas con admin=true
+   *  2. correo de usuarios con roleType=superadmin (sin enterprise_id)
+   *  3. variable de entorno SUPERADMIN_NOTIFICATION_EMAIL
+   */
+  private async getSuperadminEmails(): Promise<string[]> {
+    const db = this.vehicleModel.db as any;
 
-    const platformSuperadmins = await this.userRefModel
+    // 1. notification_email de la(s) empresa(s) admin
+    const adminEnterprises = await db
+      .collection('enterprises')
+      .find({ admin: true })
+      .toArray();
+    const enterpriseEmails: string[] = adminEnterprises
+      .map((e: any) => e.notification_email)
+      .filter(Boolean);
+    this.logger.log(`[getSuperadminEmails] Empresas admin encontradas: ${adminEnterprises.length}, emails: ${enterpriseEmails.join(', ') || '(ninguno)'}`);
+
+    // 2. correo de usuarios superadmin de plataforma
+    const superadminUsers = await this.userRefModel
       .find({ roleType: 'superadmin', enterprise_id: { $exists: false } })
       .lean();
+    const userEmails: string[] = superadminUsers
+      .map((u) => u.usuario?.correo)
+      .filter(Boolean) as string[];
+    this.logger.log(`[getSuperadminEmails] Usuarios superadmin encontrados: ${superadminUsers.length}, emails: ${userEmails.join(', ') || '(ninguno)'}`);
 
-    const superadminEnvEmail = process.env.SUPERADMIN_NOTIFICATION_EMAIL;
+    // 3. fallback por variable de entorno
+    const envEmail = process.env.SUPERADMIN_NOTIFICATION_EMAIL;
+    if (envEmail) this.logger.log(`[getSuperadminEmails] SUPERADMIN_NOTIFICATION_EMAIL: ${envEmail}`);
 
-    const emails = [
-      ...platformSuperadmins.map((a) => a.usuario?.correo),
-      ...(superadminEnvEmail ? [superadminEnvEmail] : []),
-    ].filter(Boolean) as string[];
+    const all = [
+      ...enterpriseEmails,
+      ...userEmails,
+      ...(envEmail ? [envEmail] : []),
+    ];
 
-    const uniqueEmails = [...new Set(emails)];
+    const unique = [...new Set(all.filter(Boolean))];
+    this.logger.log(`[getSuperadminEmails] Destinatarios finales: ${unique.join(', ') || '(ninguno)'}`);
+    return unique;
+  }
+
+  private async notifySuperadminsDeactivationRequest(vehicle: any, user: UserCtx) {
+    const uniqueEmails = await this.getSuperadminEmails();
     if (!uniqueEmails.length) return;
 
     const ent = await (this.vehicleModel.db as any)
       .collection('enterprises')
-      .findOne({ _id: enterpriseId });
+      .findOne({ _id: new Types.ObjectId(user.enterprise_id) });
 
     await this.emailService.sendDeactivationRequestNotification({
       toEmails: uniqueEmails,
@@ -237,6 +269,30 @@ export class VehiclesService {
       nota_desactivacion: vehicle.nota_desactivacion,
       requestedBy: user.username ?? user.sub ?? 'Desconocido',
       fecha_solicitud: vehicle.fecha_solicitud_desactivacion,
+    });
+  }
+
+  private async notifySuperadminsStateChange(
+    vehicle: any,
+    user: UserCtx,
+    action: 'activacion' | 'desactivacion',
+  ) {
+    const uniqueEmails = await this.getSuperadminEmails();
+    if (!uniqueEmails.length) return;
+
+    const ent = await (this.vehicleModel.db as any)
+      .collection('enterprises')
+      .findOne({ _id: new Types.ObjectId(user.enterprise_id) });
+
+    await this.emailService.sendVehicleStateChangeNotification({
+      toEmails: uniqueEmails,
+      enterpriseName: ent?.name ?? user.enterprise_id,
+      enterpriseNit: ent?.document_number ?? '',
+      placa: vehicle.placa,
+      clase: vehicle.clase,
+      action,
+      changedBy: user.username ?? user.sub ?? 'Desconocido',
+      fecha: new Date(),
     });
   }
 
@@ -484,6 +540,10 @@ export class VehiclesService {
     vehicle.active = !vehicle.active;
     await vehicle.save();
 
+    // Notificar al superadmin sobre el cambio de estado
+    const action = vehicle.active ? 'activacion' : 'desactivacion';
+    this.notifySuperadminsStateChange(vehicle.toObject(), user, action).catch(() => { /* no bloquear */ });
+
     return {
       _id: vehicle._id,
       active: vehicle.active,
@@ -706,6 +766,11 @@ async updateNonNullFieldsById(
       success: true,
     }).catch(() => { /* no crítico */ });
 
+    // Notificar a la empresa que su vehículo fue desactivado
+    this.notifyEnterpriseStateBulk(
+      vehicle.enterprise_id.toString(), [vehicle.placa], 'desactivacion', user
+    ).catch(() => {});
+
     return vehicle.toObject();
   }
 
@@ -766,6 +831,451 @@ async updateNonNullFieldsById(
       },
       { $unwind: { path: '$enterprise', preserveNullAndEmptyArrays: true } },
       { $sort: { fecha_solicitud_desactivacion: 1 } },
+    ]);
+  }
+
+  /* =====================================================
+   * REQUEST ACTIVATION (empresa) — solicita activación de un vehículo inactivo
+   * ===================================================== */
+  async requestActivation(
+    id: string,
+    dto: { nota_activacion: string },
+    user: UserCtx,
+  ) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('Vehículo no encontrado');
+    }
+
+    const now = new Date();
+
+    const vehicle = await this.vehicleModel.findOneAndUpdate(
+      {
+        _id: new Types.ObjectId(id),
+        enterprise_id: new Types.ObjectId(user.enterprise_id),
+        active: false,
+        activation_estado: { $ne: 'pendiente' },
+      },
+      {
+        $set: {
+          nota_activacion: dto.nota_activacion || 'Sin motivo especificado',
+          fecha_solicitud_activacion: now,
+          activation_estado: 'pendiente',
+        },
+      },
+      { new: true },
+    );
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehículo no encontrado, ya activo, o con solicitud pendiente');
+    }
+
+    await this.auditModel.create({
+      module: 'vehicles',
+      operation: 'requestActivation',
+      entity: 'Vehicle',
+      entityId: id,
+      userId: user.sub,
+      username: user.username,
+      requestPayload: { nota_activacion: dto.nota_activacion },
+      success: true,
+    }).catch(() => { /* no crítico */ });
+
+    // Notificar a superadmins de la plataforma
+    this.notifySuperadminsActivationRequest(vehicle.toObject(), user).catch(() => { /* no bloquear */ });
+
+    return vehicle.toObject();
+  }
+
+  private async notifySuperadminsActivationRequest(vehicle: any, user: UserCtx) {
+    const uniqueEmails = await this.getSuperadminEmails();
+    if (!uniqueEmails.length) return;
+
+    const ent = await (this.vehicleModel.db as any)
+      .collection('enterprises')
+      .findOne({ _id: new Types.ObjectId(user.enterprise_id) });
+
+    await this.emailService.sendActivationRequestNotification({
+      toEmails: uniqueEmails,
+      enterpriseName: ent?.name ?? user.enterprise_id,
+      enterpriseNit: ent?.document_number ?? '',
+      placa: vehicle.placa,
+      clase: vehicle.clase,
+      nota_activacion: vehicle.nota_activacion,
+      requestedBy: user.username ?? user.sub ?? 'Desconocido',
+      fecha_solicitud: vehicle.fecha_solicitud_activacion,
+    });
+  }
+
+  /* =====================================================
+   * REQUEST ACTIVATION BULK (empresa) — solicita activación de múltiples vehículos
+   * ===================================================== */
+  async requestActivationBulk(
+    dto: { vehicle_ids: string[]; nota_activacion: string },
+    user: UserCtx,
+  ) {
+    if (!dto.vehicle_ids?.length) {
+      throw new BadRequestException('Debe seleccionar al menos un vehículo');
+    }
+
+    const validIds = dto.vehicle_ids.filter((id) => Types.ObjectId.isValid(id));
+    if (!validIds.length) throw new BadRequestException('IDs inválidos');
+
+    const now = new Date();
+    const enterpriseId = new Types.ObjectId(user.enterprise_id);
+
+    const result = await this.vehicleModel.updateMany(
+      {
+        _id: { $in: validIds.map((id) => new Types.ObjectId(id)) },
+        enterprise_id: enterpriseId,
+        active: false,
+        activation_estado: { $ne: 'pendiente' },
+      },
+      {
+        $set: {
+          nota_activacion: dto.nota_activacion || 'Sin motivo especificado',
+          fecha_solicitud_activacion: now,
+          activation_estado: 'pendiente',
+        },
+      },
+    );
+
+    if (result.modifiedCount === 0) {
+      throw new BadRequestException('Ningún vehículo fue actualizado. Verifique que estén inactivos y sin solicitud pendiente.');
+    }
+
+    // Obtener las placas afectadas para el correo
+    const vehicles = await this.vehicleModel
+      .find({
+        _id: { $in: validIds.map((id) => new Types.ObjectId(id)) },
+        enterprise_id: enterpriseId,
+      })
+      .select('placa clase')
+      .lean();
+
+    await this.auditModel.create({
+      module: 'vehicles',
+      operation: 'requestActivationBulk',
+      entity: 'Vehicle',
+      entityId: validIds.join(','),
+      userId: user.sub,
+      username: user.username,
+      requestPayload: { vehicle_ids: validIds, nota_activacion: dto.nota_activacion },
+      success: true,
+    }).catch(() => { /* no crítico */ });
+
+    // Notificar a superadmins
+    this.notifySuperadminsActivationBulk(vehicles, user, dto.nota_activacion).catch(() => { /* no bloquear */ });
+
+    return { requested: result.modifiedCount, placas: vehicles.map((v) => v.placa) };
+  }
+
+  private async notifySuperadminsActivationBulk(vehicles: any[], user: UserCtx, nota: string) {
+    const uniqueEmails = await this.getSuperadminEmails();
+    if (!uniqueEmails.length) return;
+
+    const ent = await (this.vehicleModel.db as any)
+      .collection('enterprises')
+      .findOne({ _id: new Types.ObjectId(user.enterprise_id) });
+
+    const placas = vehicles.map((v) => v.placa);
+
+    await this.emailService.sendActivationRequestNotification({
+      toEmails: uniqueEmails,
+      enterpriseName: ent?.name ?? user.enterprise_id,
+      enterpriseNit: ent?.document_number ?? '',
+      placa: placas.join(', '),
+      clase: vehicles.length > 1 ? `${vehicles.length} vehículos` : vehicles[0]?.clase,
+      nota_activacion: nota || 'Sin motivo especificado',
+      requestedBy: user.username ?? user.sub ?? 'Desconocido',
+      fecha_solicitud: new Date(),
+    });
+  }
+
+  /* =====================================================
+   * REQUEST DEACTIVATION BULK (empresa) — solicita desactivación de múltiples vehículos
+   * ===================================================== */
+  async requestDeactivationBulk(
+    dto: { vehicle_ids: string[]; nota_desactivacion: string },
+    user: UserCtx,
+  ) {
+    if (!dto.vehicle_ids?.length) {
+      throw new BadRequestException('Debe seleccionar al menos un vehículo');
+    }
+
+    const validIds = dto.vehicle_ids.filter((id) => Types.ObjectId.isValid(id));
+    if (!validIds.length) throw new BadRequestException('IDs inválidos');
+
+    const now = new Date();
+    const enterpriseId = new Types.ObjectId(user.enterprise_id);
+
+    const result = await this.vehicleModel.updateMany(
+      {
+        _id: { $in: validIds.map((id) => new Types.ObjectId(id)) },
+        enterprise_id: enterpriseId,
+        active: true,
+        deactivation_estado: { $ne: 'pendiente' },
+      },
+      {
+        $set: {
+          nota_desactivacion: dto.nota_desactivacion || 'Sin motivo especificado',
+          fecha_solicitud_desactivacion: now,
+          deactivation_estado: 'pendiente',
+        },
+      },
+    );
+
+    if (result.modifiedCount === 0) {
+      throw new BadRequestException('Ningún vehículo fue actualizado. Verifique que estén activos y sin solicitud pendiente.');
+    }
+
+    const vehicles = await this.vehicleModel
+      .find({
+        _id: { $in: validIds.map((id) => new Types.ObjectId(id)) },
+        enterprise_id: enterpriseId,
+      })
+      .select('placa clase')
+      .lean();
+
+    await this.auditModel.create({
+      module: 'vehicles',
+      operation: 'requestDeactivationBulk',
+      entity: 'Vehicle',
+      entityId: validIds.join(','),
+      userId: user.sub,
+      username: user.username,
+      requestPayload: { vehicle_ids: validIds, nota_desactivacion: dto.nota_desactivacion },
+      success: true,
+    }).catch(() => { /* no crítico */ });
+
+    this.notifySuperadminsDeactivationBulk(vehicles, user, dto.nota_desactivacion).catch(() => { /* no bloquear */ });
+
+    return { requested: result.modifiedCount, placas: vehicles.map((v) => v.placa) };
+  }
+
+  private async notifySuperadminsDeactivationBulk(vehicles: any[], user: UserCtx, nota: string) {
+    const uniqueEmails = await this.getSuperadminEmails();
+    if (!uniqueEmails.length) return;
+
+    const ent = await (this.vehicleModel.db as any)
+      .collection('enterprises')
+      .findOne({ _id: new Types.ObjectId(user.enterprise_id) });
+
+    const placas = vehicles.map((v) => v.placa);
+
+    await this.emailService.sendDeactivationBulkRequestNotification({
+      toEmails: uniqueEmails,
+      enterpriseName: ent?.name ?? user.enterprise_id,
+      enterpriseNit: ent?.document_number ?? '',
+      placas,
+      nota_desactivacion: nota || 'Sin motivo especificado',
+      requestedBy: user.username ?? user.sub ?? 'Desconocido',
+      fecha_solicitud: new Date(),
+    });
+  }
+
+  /** Obtiene emails de contacto de una empresa específica */
+  private async getEnterpriseEmails(enterpriseId: string): Promise<string[]> {
+    const ent = await (this.vehicleModel.db as any)
+      .collection('enterprises')
+      .findOne({ _id: new Types.ObjectId(enterpriseId) });
+
+    const emails: string[] = [];
+    if (ent?.notification_email) emails.push(ent.notification_email);
+
+    // También correos de usuarios admin de esa empresa
+    const adminUsers = await this.userRefModel
+      .find({ enterprise_id: new Types.ObjectId(enterpriseId), roleType: 'admin' })
+      .select('usuario.correo')
+      .lean();
+    for (const u of adminUsers) {
+      const correo = (u as any).usuario?.correo;
+      if (correo) emails.push(correo);
+    }
+
+    return [...new Set(emails.filter(Boolean))];
+  }
+
+  /* =====================================================
+   * APPROVE ACTIVATION (superadmin)
+   * ===================================================== */
+  async approveActivation(id: string, user: UserCtx) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('Vehículo no encontrado');
+    }
+
+    const vehicle = await this.vehicleModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(id), activation_estado: 'pendiente' },
+      {
+        $set: {
+          active: true,
+          fecha_activacion: new Date(),
+          activation_estado: null,
+          nota_activacion: null,
+          fecha_solicitud_activacion: null,
+        },
+      },
+      { new: true },
+    );
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehículo no encontrado o sin solicitud pendiente');
+    }
+
+    await this.auditModel.create({
+      module: 'vehicles',
+      operation: 'approveActivation',
+      entity: 'Vehicle',
+      entityId: id,
+      userId: user.sub,
+      username: user.username,
+      requestPayload: { placa: vehicle.placa },
+      success: true,
+    }).catch(() => { /* no crítico */ });
+
+    // Notificar a la empresa que su vehículo fue activado
+    this.notifyEnterpriseStateBulk(
+      vehicle.enterprise_id.toString(), [vehicle.placa], 'activacion', user
+    ).catch(() => {});
+
+    return vehicle.toObject();
+  }
+
+  /* =====================================================
+   * APPROVE DEACTIVATION BULK (superadmin)
+   * ===================================================== */
+  async approveDeactivationBulk(dto: { vehicle_ids: string[] }, user: UserCtx) {
+    if (!dto.vehicle_ids?.length) throw new BadRequestException('Debe seleccionar al menos un vehículo');
+
+    const validIds = dto.vehicle_ids.filter((id) => Types.ObjectId.isValid(id));
+    if (!validIds.length) throw new BadRequestException('IDs inválidos');
+
+    const now = new Date();
+    await this.vehicleModel.updateMany(
+      { _id: { $in: validIds.map((id) => new Types.ObjectId(id)) }, deactivation_estado: 'pendiente' },
+      { $set: { active: false, fecha_ultima_desactivacion: now, deactivation_estado: 'aprobada' } },
+    );
+
+    const vehicles = await this.vehicleModel
+      .find({ _id: { $in: validIds.map((id) => new Types.ObjectId(id)) } })
+      .select('placa enterprise_id')
+      .lean();
+
+    await this.auditModel.create({
+      module: 'vehicles', operation: 'approveDeactivationBulk', entity: 'Vehicle',
+      entityId: validIds.join(','), userId: user.sub, username: user.username,
+      requestPayload: { vehicle_ids: validIds }, success: true,
+    }).catch(() => {});
+
+    // Agrupar por empresa y notificar a cada una
+    const byEnterprise = new Map<string, string[]>();
+    for (const v of vehicles) {
+      const eid = v.enterprise_id?.toString();
+      if (!eid) continue;
+      if (!byEnterprise.has(eid)) byEnterprise.set(eid, []);
+      byEnterprise.get(eid)!.push(v.placa);
+    }
+    for (const [eid, placas] of byEnterprise) {
+      this.notifyEnterpriseStateBulk(eid, placas, 'desactivacion', user).catch(() => {});
+    }
+
+    return { approved: vehicles.length, placas: vehicles.map((v) => v.placa) };
+  }
+
+  /* =====================================================
+   * APPROVE ACTIVATION BULK (superadmin)
+   * ===================================================== */
+  async approveActivationBulk(dto: { vehicle_ids: string[] }, user: UserCtx) {
+    if (!dto.vehicle_ids?.length) throw new BadRequestException('Debe seleccionar al menos un vehículo');
+
+    const validIds = dto.vehicle_ids.filter((id) => Types.ObjectId.isValid(id));
+    if (!validIds.length) throw new BadRequestException('IDs inválidos');
+
+    const now = new Date();
+    await this.vehicleModel.updateMany(
+      { _id: { $in: validIds.map((id) => new Types.ObjectId(id)) }, activation_estado: 'pendiente' },
+      { $set: { active: true, fecha_activacion: now, activation_estado: null, nota_activacion: null, fecha_solicitud_activacion: null } },
+    );
+
+    const vehicles = await this.vehicleModel
+      .find({ _id: { $in: validIds.map((id) => new Types.ObjectId(id)) } })
+      .select('placa enterprise_id')
+      .lean();
+
+    await this.auditModel.create({
+      module: 'vehicles', operation: 'approveActivationBulk', entity: 'Vehicle',
+      entityId: validIds.join(','), userId: user.sub, username: user.username,
+      requestPayload: { vehicle_ids: validIds }, success: true,
+    }).catch(() => {});
+
+    // Agrupar por empresa y notificar a cada una
+    const byEnterprise = new Map<string, string[]>();
+    for (const v of vehicles) {
+      const eid = v.enterprise_id?.toString();
+      if (!eid) continue;
+      if (!byEnterprise.has(eid)) byEnterprise.set(eid, []);
+      byEnterprise.get(eid)!.push(v.placa);
+    }
+    for (const [eid, placas] of byEnterprise) {
+      this.notifyEnterpriseStateBulk(eid, placas, 'activacion', user).catch(() => {});
+    }
+
+    return { approved: vehicles.length, placas: vehicles.map((v) => v.placa) };
+  }
+
+  /* =====================================================
+   * REJECT ACTIVATION (superadmin)
+   * ===================================================== */
+  async rejectActivation(id: string, user: UserCtx) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('Vehículo no encontrado');
+    }
+
+    const vehicle = await this.vehicleModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(id), activation_estado: 'pendiente' },
+      {
+        $set: {
+          activation_estado: null,
+          nota_activacion: null,
+          fecha_solicitud_activacion: null,
+        },
+      },
+      { new: true },
+    );
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehículo no encontrado o sin solicitud pendiente');
+    }
+
+    await this.auditModel.create({
+      module: 'vehicles',
+      operation: 'rejectActivation',
+      entity: 'Vehicle',
+      entityId: id,
+      userId: user.sub,
+      username: user.username,
+      requestPayload: { placa: vehicle.placa },
+      success: true,
+    }).catch(() => { /* no crítico */ });
+
+    return vehicle.toObject();
+  }
+
+  /* =====================================================
+   * GET PENDING ACTIVATIONS (superadmin)
+   * ===================================================== */
+  async getPendingActivations() {
+    return this.vehicleModel.aggregate([
+      { $match: { activation_estado: 'pendiente' } },
+      {
+        $lookup: {
+          from: 'enterprises',
+          localField: 'enterprise_id',
+          foreignField: '_id',
+          as: 'enterprise',
+        },
+      },
+      { $unwind: { path: '$enterprise', preserveNullAndEmptyArrays: true } },
+      { $sort: { fecha_solicitud_activacion: 1 } },
     ]);
   }
 
@@ -880,11 +1390,37 @@ async updateNonNullFieldsById(
       success: true,
     }).catch(() => { /* no crítico */ });
 
+    // Notificar a la empresa de los vehículos activados
+    this.notifyEnterpriseStateBulk(dto.enterprise_id, placas, 'activacion', user).catch(() => { /* no bloquear */ });
+
     return {
       contrato: contract,
       vehiculos_activados: vehicles.length,
       placas,
     };
+  }
+
+  private async notifyEnterpriseStateBulk(
+    enterpriseId: string,
+    placas: string[],
+    action: 'activacion' | 'desactivacion',
+    user: UserCtx,
+  ) {
+    const emails = await this.getEnterpriseEmails(enterpriseId);
+    if (!emails.length) return;
+
+    const ent = await (this.vehicleModel.db as any)
+      .collection('enterprises')
+      .findOne({ _id: new Types.ObjectId(enterpriseId) });
+
+    await this.emailService.sendBulkStateChangeToEnterprise({
+      toEmails: emails,
+      enterpriseName: ent?.name ?? enterpriseId,
+      placas,
+      action,
+      changedBy: user.username ?? user.sub ?? 'Administrador',
+      fecha: new Date(),
+    });
   }
 
   /* =====================================================

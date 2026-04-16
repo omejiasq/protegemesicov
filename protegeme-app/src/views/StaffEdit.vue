@@ -74,7 +74,7 @@
         <input
           type="password"
           v-model="newPassword"
-          placeholder="Dejar vacío para no cambiar"
+          :placeholder="PASSWORD_HINT"
         />
       </div>
     </div>
@@ -104,6 +104,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useStaffStore } from '../stores/staffStore'
+import { validatePassword, PASSWORD_HINT } from '../utils/passwordPolicy'
 
 const staffStore = useStaffStore()
 const router = useRouter()
@@ -186,6 +187,11 @@ async function onSubmit() {
 
 async function onChangePassword() {
   if (!newPassword.value.trim()) return
+  const pwError = validatePassword(newPassword.value)
+  if (pwError) {
+    alert(pwError)
+    return
+  }
   loading.value = true
   try {
     await staffStore.updatePassword(staffId, newPassword.value)

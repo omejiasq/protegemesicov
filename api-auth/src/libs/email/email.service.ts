@@ -48,6 +48,45 @@ export class EmailService {
     }
   }
 
+  async sendBroadcastNotification(params: {
+    recipients: Array<{ name: string; nit: string; email: string }>;
+    message: string;
+    senderName: string;
+  }): Promise<void> {
+    const from = process.env.SMTP_FROM || 'no-reply@protegemesicov.co';
+    const appName = 'Protegeme SICOV';
+
+    for (const recipient of params.recipients) {
+      try {
+        const html = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+            <div style="background: #1e40af; color: white; padding: 1.5rem 2rem;">
+              <h2 style="margin: 0; font-size: 1.25rem;">Comunicado — ${appName}</h2>
+            </div>
+            <div style="padding: 1.5rem 2rem;">
+              <p>Estimada empresa <strong>${recipient.name}</strong>,</p>
+              <div style="background: #eff6ff; border-left: 4px solid #1e40af; padding: 1rem 1.5rem; margin: 1.25rem 0; font-size: 0.95rem; color: #1e3a8a; border-radius: 4px; white-space: pre-line;">
+                ${params.message}
+              </div>
+              <p style="color: #6b7280; font-size: 0.85rem; margin-top: 1.5rem;">
+                Mensaje enviado por: <strong>${params.senderName}</strong><br/>
+                Este correo fue generado automáticamente por ${appName}. Por favor no responda a este mensaje.
+              </p>
+            </div>
+          </div>
+        `;
+        await this.transporter.sendMail({
+          from: `"${appName}" <${from}>`,
+          to: recipient.email,
+          subject: `[${appName}] Comunicado del Administrador`,
+          html,
+        });
+      } catch (e: any) {
+        this.logger.error(`Error enviando broadcast a ${recipient.email}: ${e.message}`);
+      }
+    }
+  }
+
   async sendEnterpriseWelcome(
     to: string,
     username: string,

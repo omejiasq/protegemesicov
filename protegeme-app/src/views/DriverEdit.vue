@@ -90,9 +90,11 @@
           <input
             v-model="form.newPassword"
             type="password"
-            placeholder="Dejar en blanco para no cambiar"
+            :placeholder="PASSWORD_HINT"
             autocomplete="new-password"
+            :class="{ error: errors.newPassword }"
           />
+          <small v-if="errors.newPassword" class="error-text">{{ errors.newPassword }}</small>
         </div>
         <div class="field">
           <label>Confirmar Contraseña</label>
@@ -123,6 +125,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useDriversStore } from '../stores/driversStore'
+import { validatePassword, PASSWORD_HINT } from '../utils/passwordPolicy'
 
 const driversStore = useDriversStore()
 const router = useRouter()
@@ -199,7 +202,8 @@ function validate() {
   //if (!form.value.no_licencia_conduccion.trim()) e.no_licencia_conduccion = 'Ingrese el número de licencia'
   //if (!form.value.vencimiento_licencia_conduccion) e.vencimiento_licencia_conduccion = 'Ingrese la fecha de vencimiento'
   if (form.value.newPassword) {
-    if (form.value.newPassword.length < 6) e.confirmPassword = 'La contraseña debe tener al menos 6 caracteres'
+    const pwError = validatePassword(form.value.newPassword)
+    if (pwError) e.newPassword = pwError
     else if (form.value.newPassword !== form.value.confirmPassword) e.confirmPassword = 'Las contraseñas no coinciden'
   }
   errors.value = e

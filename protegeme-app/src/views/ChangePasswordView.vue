@@ -14,7 +14,7 @@
             <input
               :type="showNew ? 'text' : 'password'"
               v-model="form.newPassword"
-              placeholder="Mínimo 8 caracteres"
+              :placeholder="PASSWORD_HINT"
               autocomplete="new-password"
             />
             <button type="button" class="eye-btn" @click="showNew = !showNew">
@@ -56,6 +56,7 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 import { AuthserviceApi } from '../api/auth.service'
+import { validatePassword, PASSWORD_HINT } from '../utils/passwordPolicy'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -72,10 +73,9 @@ function validate() {
   errors.newPassword = ''
   errors.confirmPassword = ''
 
-  if (!form.newPassword || form.newPassword.length < 8) {
-    errors.newPassword = 'La contraseña debe tener al menos 8 caracteres'
-  }
-  if (form.newPassword !== form.confirmPassword) {
+  const pwError = validatePassword(form.newPassword)
+  if (pwError) errors.newPassword = pwError
+  if (!errors.newPassword && form.newPassword !== form.confirmPassword) {
     errors.confirmPassword = 'Las contraseñas no coinciden'
   }
   return !errors.newPassword && !errors.confirmPassword

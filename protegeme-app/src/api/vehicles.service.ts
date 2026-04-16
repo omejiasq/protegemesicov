@@ -25,6 +25,18 @@ export const VehiclesserviceApi = {
   deactivate: (id: string, nota_desactivacion: string) =>
     http.patch(`${baseURL}/vehicles/${id}/deactivate`, { nota_desactivacion }),
 
+  /** Solicitar activación de un vehículo inactivo */
+  requestActivation: (id: string, nota_activacion: string) =>
+    http.patch(`${baseURL}/vehicles/${id}/request-activation`, { nota_activacion }),
+
+  /** Solicitar activación de múltiples vehículos */
+  requestActivationBulk: (vehicle_ids: string[], nota_activacion: string) =>
+    http.post(`${baseURL}/vehicles/request-activation-bulk`, { vehicle_ids, nota_activacion }),
+
+  /** Solicitar desactivación de múltiples vehículos */
+  requestDeactivationBulk: (vehicle_ids: string[], nota_desactivacion: string) =>
+    http.post(`${baseURL}/vehicles/request-deactivation-bulk`, { vehicle_ids, nota_desactivacion }),
+
   // ── Superadmin ────────────────────────────────────────────────────
   /** Vehículos de una empresa específica (superadmin) */
   getByEnterprise: (enterpriseId: string) =>
@@ -61,4 +73,24 @@ export const VehiclesserviceApi = {
   /** Rechazar solicitud de desactivación (superadmin) */
   rejectDeactivation: (id: string) =>
     http.patch(`${baseURL}/vehicles/admin/${id}/reject-deactivation`),
+
+  /** Vehículos con solicitud de activación pendiente (superadmin) */
+  getPendingActivations: () =>
+    http.get(`${baseURL}/vehicles/admin/pending-activations`),
+
+  /** Aprobar solicitud de activación (superadmin) */
+  approveActivation: (id: string) =>
+    http.patch(`${baseURL}/vehicles/admin/${id}/approve-activation`),
+
+  /** Rechazar solicitud de activación (superadmin) */
+  rejectActivation: (id: string) =>
+    http.patch(`${baseURL}/vehicles/admin/${id}/reject-activation`),
+
+  /** Aprobar solicitud de desactivación de múltiples vehículos (superadmin) */
+  approveDeactivationBulk: (vehicle_ids: string[]) =>
+    http.post(`${baseURL}/vehicles/admin/approve-deactivation-bulk`, { vehicle_ids }),
+
+  /** Aprobar solicitud de activación de múltiples vehículos (superadmin) */
+  approveActivationBulk: (vehicle_ids: string[]) =>
+    http.post(`${baseURL}/vehicles/admin/approve-activation-bulk`, { vehicle_ids }),
 };

@@ -195,6 +195,16 @@
             <label>Vencimiento Tarjeta Operación</label>
             <input v-model="form.expiration_tarjeta_opera" type="date" />
           </div>
+
+          <div class="field">
+            <label>No carta técnica</label>
+            <input v-model="form.no_tecnomecanica" type="text" />
+          </div>
+
+          <div class="field">
+            <label>Vencimiento carta técnica</label>
+            <input v-model="form.expiration_tecnomecanica" type="date" />
+          </div>
         </div>
 
         <!-- ================= ACCIONES ================= -->
@@ -261,6 +271,8 @@ const form = ref({
   expiration_rce: '',
   no_tarjeta_opera: '',
   expiration_tarjeta_opera: '',
+  no_tecnomecanica: '',
+  expiration_tecnomecanica: '',
 })
 
 const loadDrivers = async () => {
@@ -298,6 +310,7 @@ const submit = async () => {
       'no_rcc', 'expiration_rcc',
       'no_rce', 'expiration_rce',
       'no_tarjeta_opera', 'expiration_tarjeta_opera',
+      'no_tecnomecanica', 'expiration_tecnomecanica',
     ]
     for (const key of textFields) {
       if (form.value[key]) payload[key] = form.value[key]

@@ -452,77 +452,137 @@
 
           <!-- TAB: VEHÍCULOS -->
           <template v-else-if="vehiclesPanelTab === 'vehicles'">
-            <!-- Bulk activate bar -->
-            <div class="activate-bar">
-              <span class="activate-info">
-                {{ selectedVehicleIds.length }} vehículo(s) seleccionado(s)
+
+            <!-- ── Barra 1: Habilitar inactivos con fecha ── -->
+            <div v-if="selectedForActivate.length > 0" class="action-bar action-bar-blue">
+              <span class="action-bar-info">
+                <i class="pi pi-check-circle" />
+                {{ selectedForActivate.length }} vehículo(s) inactivo(s) para habilitar
               </span>
               <div class="activate-controls">
-                <label class="activate-label">Fecha de habilitación:</label>
-                <input
-                  v-model="activationDate"
-                  type="date"
-                  class="date-input"
-                />
+                <label class="activate-label">Fecha habilitación:</label>
+                <input v-model="activationDate" type="date" class="date-input" />
                 <button
                   class="btn-primary btn-sm"
-                  :disabled="selectedVehicleIds.length === 0 || !activationDate || activating"
+                  :disabled="!activationDate || activating"
                   @click="activateSelected"
                 >
                   <i class="pi pi-check-circle" />
-                  {{ activating ? 'Activando...' : 'Activar seleccionados' }}
+                  {{ activating ? 'Activando...' : 'Habilitar' }}
                 </button>
               </div>
             </div>
 
+            <!-- ── Barra 2: Aprobar activaciones pendientes ── -->
+            <div v-if="selectedForActApprove.length > 0" class="action-bar action-bar-green">
+              <span class="action-bar-info">
+                <i class="pi pi-check" />
+                {{ selectedForActApprove.length }} solicitud(es) de activación seleccionada(s)
+              </span>
+              <button
+                class="btn-sm btn-success"
+                :disabled="approvingActBulk"
+                @click="approveActivationBulk"
+              >
+                <i class="pi pi-check-circle" />
+                {{ approvingActBulk ? 'Aprobando...' : 'Aprobar activaciones' }}
+              </button>
+            </div>
+
+            <!-- ── Barra 3: Aprobar desactivaciones pendientes ── -->
+            <div v-if="selectedForDeactApprove.length > 0" class="action-bar action-bar-orange">
+              <span class="action-bar-info">
+                <i class="pi pi-ban" />
+                {{ selectedForDeactApprove.length }} solicitud(es) de desactivación seleccionada(s)
+              </span>
+              <button
+                class="btn-sm btn-danger"
+                :disabled="approvingDeactBulk"
+                @click="approveDeactivationBulk"
+              >
+                <i class="pi pi-check" />
+                {{ approvingDeactBulk ? 'Aprobando...' : 'Aprobar desactivaciones' }}
+              </button>
+            </div>
+
             <!-- Vehicles table -->
-            <div class="table-wrap" style="margin-top: 0.75rem;">
+            <div class="table-wrap" style="margin-top: 0.5rem; overflow-x: auto;">
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th style="width: 40px;"></th>
+                    <th style="width:36px;"></th>
                     <th>Placa</th>
                     <th>Clase</th>
                     <th>Modelo</th>
                     <th>Estado</th>
                     <th>F. Creación</th>
                     <th>F. Habilitación</th>
-                    <th>F. Solicitud Desact.</th>
+                    <th>F. Sol. Activación</th>
+                    <th>F. Sol. Desactivación</th>
                     <th>F. Desactivación</th>
                     <th>SICOV</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="v in vehiclesList" :key="v._id" :class="{ 'row-pending-deact': v.deactivation_estado === 'pendiente' }">
+                  <tr
+                    v-for="v in vehiclesList" :key="v._id"
+                    :class="{
+                      'row-pending-deact': v.deactivation_estado === 'pendiente',
+                      'row-pending-act': v.activation_estado === 'pendiente',
+                    }"
+                  >
+                    <!-- Checkbox según tipo de estado -->
                     <td>
+                      <!-- Inactivo sin solicitud → para habilitar con fecha -->
                       <input
-                        v-if="!v.active"
+                        v-if="!v.active && !v.activation_estado"
                         type="checkbox"
                         :value="v._id"
-                        v-model="selectedVehicleIds"
+                        v-model="selectedForActivate"
+                        style="accent-color:#1d4ed8; cursor:pointer;"
+                        title="Seleccionar para habilitar"
+                      />
+                      <!-- Pendiente activación → para aprobar activación -->
+                      <input
+                        v-else-if="!v.active && v.activation_estado === 'pendiente'"
+                        type="checkbox"
+                        :value="v._id"
+                        v-model="selectedForActApprove"
+                        style="accent-color:#16a34a; cursor:pointer;"
+                        title="Seleccionar para aprobar activación"
+                      />
+                      <!-- Pendiente desactivación → para aprobar desactivación -->
+                      <input
+                        v-else-if="v.active && v.deactivation_estado === 'pendiente'"
+                        type="checkbox"
+                        :value="v._id"
+                        v-model="selectedForDeactApprove"
+                        style="accent-color:#dc2626; cursor:pointer;"
+                        title="Seleccionar para aprobar desactivación"
                       />
                     </td>
+
                     <td><strong>{{ v.placa }}</strong></td>
-                    <td>{{ v.clase }}</td>
-                    <td>{{ v.modelo }}</td>
+                    <td>{{ v.clase || '—' }}</td>
+                    <td>{{ v.modelo || '—' }}</td>
+
                     <td>
-                      <span v-if="v.active && v.deactivation_estado === 'pendiente'" class="badge badge-yellow">
-                        Desact. pendiente
-                      </span>
-                      <span v-else :class="['badge', v.active ? 'badge-green' : 'badge-red']">
-                        {{ v.active ? 'Activo' : 'Inactivo' }}
-                      </span>
+                      <span v-if="v.active && v.deactivation_estado === 'pendiente'" class="badge badge-yellow">Desact. pendiente</span>
+                      <span v-else-if="!v.active && v.activation_estado === 'pendiente'" class="badge badge-cyan">Act. pendiente</span>
+                      <span v-else :class="['badge', v.active ? 'badge-green' : 'badge-red']">{{ v.active ? 'Activo' : 'Inactivo' }}</span>
                     </td>
-                    <td style="font-size:0.78rem;">{{ v.createdAt ? new Date(v.createdAt).toLocaleDateString('es-CO') : '—' }}</td>
-                    <td style="font-size:0.78rem;">{{ v.fecha_activacion ? new Date(v.fecha_activacion).toLocaleDateString('es-CO') : '—' }}</td>
-                    <td style="font-size:0.78rem;">
-                      <span v-if="v.fecha_solicitud_desactivacion" style="color:#92400e; font-weight:600;">
-                        {{ new Date(v.fecha_solicitud_desactivacion).toLocaleDateString('es-CO') }}
-                      </span>
-                      <span v-else>—</span>
+
+                    <td class="date-cell">{{ fmtDate(v.createdAt) }}</td>
+                    <td class="date-cell">{{ fmtDate(v.fecha_activacion) }}</td>
+                    <td class="date-cell" :style="v.fecha_solicitud_activacion ? 'color:#166534;font-weight:600' : ''">
+                      {{ fmtDate(v.fecha_solicitud_activacion) }}
                     </td>
-                    <td style="font-size:0.78rem;">{{ v.fecha_ultima_desactivacion ? new Date(v.fecha_ultima_desactivacion).toLocaleDateString('es-CO') : '—' }}</td>
+                    <td class="date-cell" :style="v.fecha_solicitud_desactivacion ? 'color:#92400e;font-weight:600' : ''">
+                      {{ fmtDate(v.fecha_solicitud_desactivacion) }}
+                    </td>
+                    <td class="date-cell">{{ fmtDate(v.fecha_ultima_desactivacion) }}</td>
+
                     <td>
                       <button
                         :class="['toggle-btn', v.sicov_sync_enabled ? 'toggle-on' : 'toggle-off']"
@@ -533,7 +593,9 @@
                         {{ v.sicov_sync_enabled ? 'ON' : 'OFF' }}
                       </button>
                     </td>
+
                     <td style="white-space:nowrap;">
+                      <!-- Aprobar/Rechazar desactivación -->
                       <template v-if="v.deactivation_estado === 'pendiente'">
                         <button
                           class="btn-sm btn-danger"
@@ -544,18 +606,29 @@
                         >
                           <i class="pi pi-check" /> Aprobar
                         </button>
+                        <button class="btn-sm btn-secondary" :disabled="approvingDeact" @click="rejectDeactivation(v)">
+                          <i class="pi pi-times" /> Rechazar
+                        </button>
+                      </template>
+                      <!-- Aprobar/Rechazar activación -->
+                      <template v-else-if="v.activation_estado === 'pendiente'">
                         <button
-                          class="btn-sm btn-secondary"
+                          class="btn-sm btn-success"
+                          style="margin-right:0.3rem;"
+                          :title="`Motivo: ${v.nota_activacion}`"
                           :disabled="approvingDeact"
-                          @click="rejectDeactivation(v)"
+                          @click="approveActivationSingle(v)"
                         >
+                          <i class="pi pi-check" /> Aprobar
+                        </button>
+                        <button class="btn-sm btn-secondary" :disabled="approvingDeact" @click="rejectActivationSingle(v)">
                           <i class="pi pi-times" /> Rechazar
                         </button>
                       </template>
                     </td>
                   </tr>
                   <tr v-if="vehiclesList.length === 0">
-                    <td colspan="11" class="empty-cell">No hay vehículos registrados</td>
+                    <td colspan="12" class="empty-cell">No hay vehículos registrados</td>
                   </tr>
                 </tbody>
               </table>
@@ -1098,14 +1171,24 @@ const vehiclesList = ref<any[]>([])
 const contractsList = ref<any[]>([])
 const auditLogs = ref<any[]>([])
 const vehiclesLoading = ref(false)
-const selectedVehicleIds = ref<string[]>([])
 const activationDate = ref(new Date().toISOString().split('T')[0])
 const activating = ref(false)
+
+// ── Selección por tipo de acción ──────────────────────────────────────
+const selectedForActivate = ref<string[]>([])       // inactivos sin solicitud → habilitación con fecha
+const selectedForActApprove = ref<string[]>([])     // pendiente activación → aprobar activación
+const selectedForDeactApprove = ref<string[]>([])   // pendiente desactivación → aprobar desactivación
+
+function clearAllSelections() {
+  selectedForActivate.value = []
+  selectedForActApprove.value = []
+  selectedForDeactApprove.value = []
+}
 
 async function openVehiclesPanel(ent: Enterprise) {
   vehiclesPanelEnterprise.value = ent
   vehiclesPanelTab.value = 'vehicles'
-  selectedVehicleIds.value = []
+  clearAllSelections()
   activationDate.value = new Date().toISOString().split('T')[0]
   showVehiclesPanel.value = true
   await loadVehiclesData(ent._id)
@@ -1113,6 +1196,7 @@ async function openVehiclesPanel(ent: Enterprise) {
 
 async function loadVehiclesData(enterpriseId: string) {
   vehiclesLoading.value = true
+  clearAllSelections()
   try {
     const [vRes, cRes, aRes] = await Promise.all([
       VehiclesserviceApi.getByEnterprise(enterpriseId),
@@ -1129,23 +1213,60 @@ async function loadVehiclesData(enterpriseId: string) {
   }
 }
 
+// ── Activar (inactivos sin solicitud) con fecha ───────────────────────
 async function activateSelected() {
-  if (!selectedVehicleIds.value.length || !activationDate.value) return
+  if (!selectedForActivate.value.length || !activationDate.value) return
   activating.value = true
   try {
     await VehiclesserviceApi.activateBulk({
       enterprise_id: vehiclesPanelEnterprise.value!._id,
-      vehicle_ids: selectedVehicleIds.value,
+      vehicle_ids: selectedForActivate.value,
       fecha_activacion: activationDate.value,
     })
-    const count = selectedVehicleIds.value.length
-    selectedVehicleIds.value = []
+    const count = selectedForActivate.value.length
+    clearAllSelections()
     showToast(`${count} vehículo(s) habilitado(s) correctamente`)
     await loadVehiclesData(vehiclesPanelEnterprise.value!._id)
   } catch (e: any) {
     showToast(e?.response?.data?.message || 'Error al activar vehículos', 'error')
   } finally {
     activating.value = false
+  }
+}
+
+// ── Aprobar activación masiva (pendiente activación) ──────────────────
+const approvingActBulk = ref(false)
+async function approveActivationBulk() {
+  if (!selectedForActApprove.value.length) return
+  if (!confirm(`¿Aprobar activación de ${selectedForActApprove.value.length} vehículo(s)?`)) return
+  approvingActBulk.value = true
+  try {
+    const res = await VehiclesserviceApi.approveActivationBulk(selectedForActApprove.value)
+    showToast(`${res.data.approved} vehículo(s) activado(s). Se notificó a la empresa.`)
+    clearAllSelections()
+    await loadVehiclesData(vehiclesPanelEnterprise.value!._id)
+  } catch (e: any) {
+    showToast(e?.response?.data?.message || 'Error al aprobar activaciones', 'error')
+  } finally {
+    approvingActBulk.value = false
+  }
+}
+
+// ── Aprobar desactivación masiva (pendiente desactivación) ────────────
+const approvingDeactBulk = ref(false)
+async function approveDeactivationBulk() {
+  if (!selectedForDeactApprove.value.length) return
+  if (!confirm(`¿Aprobar desactivación de ${selectedForDeactApprove.value.length} vehículo(s)?`)) return
+  approvingDeactBulk.value = true
+  try {
+    const res = await VehiclesserviceApi.approveDeactivationBulk(selectedForDeactApprove.value)
+    showToast(`${res.data.approved} vehículo(s) desactivado(s). Se notificó a la empresa.`)
+    clearAllSelections()
+    await loadVehiclesData(vehiclesPanelEnterprise.value!._id)
+  } catch (e: any) {
+    showToast(e?.response?.data?.message || 'Error al aprobar desactivaciones', 'error')
+  } finally {
+    approvingDeactBulk.value = false
   }
 }
 
@@ -1166,7 +1287,7 @@ async function approveDeactivation(vehicle: any) {
   approvingDeact.value = true
   try {
     await VehiclesserviceApi.approveDeactivation(vehicle._id)
-    showToast(`Vehículo ${vehicle.placa} desactivado correctamente`)
+    showToast(`Vehículo ${vehicle.placa} desactivado. Se notificó a la empresa.`)
     await loadVehiclesData(vehiclesPanelEnterprise.value!._id)
   } catch (e: any) {
     showToast(e?.response?.data?.message || 'Error al aprobar desactivación', 'error')
@@ -1187,6 +1308,40 @@ async function rejectDeactivation(vehicle: any) {
   } finally {
     approvingDeact.value = false
   }
+}
+
+async function approveActivationSingle(vehicle: any) {
+  if (!confirm(`¿Aprobar activación de ${vehicle.placa}?`)) return
+  approvingDeact.value = true
+  try {
+    await VehiclesserviceApi.approveActivation(vehicle._id)
+    showToast(`Vehículo ${vehicle.placa} activado. Se notificó a la empresa.`)
+    await loadVehiclesData(vehiclesPanelEnterprise.value!._id)
+  } catch (e: any) {
+    showToast(e?.response?.data?.message || 'Error al aprobar activación', 'error')
+  } finally {
+    approvingDeact.value = false
+  }
+}
+
+async function rejectActivationSingle(vehicle: any) {
+  if (!confirm(`¿Rechazar solicitud de activación de ${vehicle.placa}?`)) return
+  approvingDeact.value = true
+  try {
+    await VehiclesserviceApi.rejectActivation(vehicle._id)
+    showToast(`Solicitud de activación de ${vehicle.placa} rechazada`)
+    await loadVehiclesData(vehiclesPanelEnterprise.value!._id)
+  } catch (e: any) {
+    showToast(e?.response?.data?.message || 'Error al rechazar solicitud', 'error')
+  } finally {
+    approvingDeact.value = false
+  }
+}
+
+// Helper para formatear fechas
+function fmtDate(d: string | Date | null | undefined): string {
+  if (!d) return '—'
+  return new Date(d).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 onMounted(async () => {
@@ -1224,7 +1379,29 @@ onMounted(async () => {
 .badge-blue { background: #dbeafe; color: #1d4ed8; }
 .badge-gray { background: #f3f4f6; color: #374151; }
 .badge-yellow { background: #fef3c7; color: #92400e; }
+.badge-cyan { background: #d1fae5; color: #065f46; }
 .row-pending-deact td { background: #fffbeb !important; }
+.row-pending-act td { background: #f0fdf4 !important; }
+.date-cell { font-size: 0.78rem; white-space: nowrap; }
+
+/* ── Barras de acción masiva ── */
+.action-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.55rem 0.9rem; border-radius: 6px; margin-bottom: 0.4rem;
+  font-size: 0.85rem;
+}
+.action-bar-blue  { background: #eff6ff; border: 1px solid #93c5fd; }
+.action-bar-green { background: #f0fdf4; border: 1px solid #86efac; }
+.action-bar-orange{ background: #fffbeb; border: 1px solid #fcd34d; }
+.action-bar-info  { display: flex; align-items: center; gap: 0.4rem; font-weight: 600; }
+
+.btn-success {
+  background: #16a34a; color: #fff; border: none; border-radius: 6px;
+  padding: 0.3rem 0.7rem; font-size: 0.8rem; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 0.3rem;
+}
+.btn-success:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-success:hover:not(:disabled) { background: #15803d; }
 
 .btn-primary { background: #1e40af; color: white; border: none; padding: 0.5rem 1.25rem; border-radius: 6px; cursor: pointer; font-size: 0.875rem; font-weight: 500; display: inline-flex; align-items: center; gap: 0.4rem; }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }

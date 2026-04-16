@@ -48,6 +48,17 @@ export class EnterpriseController {
     return this.enterpriseService.findAll();
   }
 
+  /** Enviar comunicado a todas las empresas no-admin (solo superadmin) */
+  @UseGuards(JwtAuthGuard, SuperadminGuard)
+  @Post('broadcast')
+  sendBroadcast(
+    @Body() dto: { message: string },
+    @Req() req: any,
+  ) {
+    const senderName = req.user?.username ?? 'Administrador';
+    return this.enterpriseService.sendBroadcast({ message: dto.message, senderName });
+  }
+
   /** Toggle activo/inactivo de una empresa */
   @UseGuards(JwtAuthGuard, SuperadminGuard)
   @Patch(':id/toggle-active')
