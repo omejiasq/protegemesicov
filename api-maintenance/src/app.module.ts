@@ -23,6 +23,11 @@ import { AuditReportModule } from './audit-report/audit-report.module';
 import { MaintenanceAiModule } from './maintenance-ai/maintenance-ai.module';
 import { DocumentAlertModule } from './document-alert/document-alert.module';
 import { TerminalesModule } from './terminales/terminales.module';
+import { ReportsModule } from './reports/reports.module';
+import { DatabaseErrorFilter } from './libs/database/database-error.filter';
+import { DatabaseHealthService } from './libs/database/database-health.service';
+import { HealthController } from './health/health.controller';
+import { APP_FILTER } from '@nestjs/core';
 
 
 @Module({
@@ -32,6 +37,30 @@ import { TerminalesModule } from './terminales/terminales.module';
       inject: [ConfigService],
       useFactory: (cfg: ConfigService) => ({
         uri: cfg.get<string>('MONGO_URI'),
+        connectionFactory: (connection) => {
+          connection.on('connected', () => {
+            console.log('✅ MongoDB connected successfully');
+          });
+          connection.on('disconnected', () => {
+            console.log('❌ MongoDB disconnected');
+          });
+          connection.on('error', (error) => {
+            console.log('❌ MongoDB connection error:', error.message);
+          });
+          return connection;
+        },
+        // Configuraciones mejoradas para MongoDB Atlas
+        serverSelectionTimeoutMS: 10000, // Timeout de selección del servidor
+        connectTimeoutMS: 10000, // Timeout de conexión
+        socketTimeoutMS: 45000, // Timeout para operaciones
+        maxPoolSize: 10, // Máximo 10 conexiones en pool
+        retryWrites: true,
+        retryReads: true,
+        // Configuraciones adicionales para estabilidad
+        // bufferMaxEntries: 0, // ❌ ELIMINADO - Opción obsoleta en versiones modernas
+        bufferCommands: false, // Mantener - útil para no encolar comandos
+        // Heartbeat configuration
+        heartbeatFrequencyMS: 10000,
       }),
     }),
     // Habilita el scheduler para el cron job de reintentos SICOV
@@ -64,7 +93,17 @@ import { TerminalesModule } from './terminales/terminales.module';
     DocumentAlertModule,
     // Módulo de terminales: salidas, llegadas y novedades (solo empresas CARRETERA)
     TerminalesModule,
+    // Constructor de reportes avanzado con detección automática de campos
+    ReportsModule,
   ],
-  providers: [JwtStrategy],
+  controllers: [HealthController],
+  providers: [
+    JwtStrategy,
+    DatabaseHealthService,
+    {
+      provide: APP_FILTER,
+      useClass: DatabaseErrorFilter,
+    },
+  ],
 })
 export class AppModule {}

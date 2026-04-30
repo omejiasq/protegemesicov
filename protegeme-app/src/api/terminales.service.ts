@@ -23,4 +23,25 @@ export const TerminalesApi = {
   listNovedades:  (params?: any)           => http.get(url("/novedades"), { params }),
   toggleNovedad:  (id: string)             => http.patch(url(`/novedades/${id}/toggle`), {}),
   retryNovedades: ()                       => http.post(url("/novedades/retry"), {}),
+
+  // ── Nuevos endpoints para vista unificada ──────────────────────────────
+
+  // Vista unificada de despachos
+  getDespachos:   (params?: any)           => http.get(url("/despachos"), { params }),
+  cerrarDespacho: (id: string)             => http.patch(url(`/despachos/${id}/cerrar`), {}),
+
+  // Flujos mejorados
+  createSalidaEnhanced:  (data: any)       => http.post(url("/salidas/enhanced"), data),
+  createLlegadaEnhanced: (data: any)       => http.post(url("/llegadas/enhanced"), data),
+
+  // Integración con APIs externas
+  getRutasSupertransporte: ()              => http.get(url("/rutas/supertransporte")),
+  searchVehiculos: (placa: string)         => http.get(url("/vehiculos/search"), { params: { placa } }),
+
+  // Configuración
+  getConfig:      ()                       => http.get(url("/config")),
+  updateConfig:   (data: any)              => http.put(url("/config"), data),
+
+  // Consultar integradora SICOV
+  consultarIntegradora: (data: any)        => http.post(url("/consultar-integradora"), data),
 };

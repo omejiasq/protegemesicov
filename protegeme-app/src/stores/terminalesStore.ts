@@ -21,6 +21,7 @@ export const useTerminalesStore = defineStore("terminales", {
     salidas:   emptyList(),
     llegadas:  emptyList(),
     novedades: emptyList(),
+    despachos: emptyList(), // Vista unificada
     saving: false,
     saveError: "",
   }),
@@ -156,6 +157,114 @@ export const useTerminalesStore = defineStore("terminales", {
 
     async retryNovedades() {
       return TerminalesApi.retryNovedades();
+    },
+
+    // ── Vista Unificada de Despachos ─────────────────────────────────────
+
+    async fetchDespachos(params?: any) {
+      this.despachos.loading = true;
+      this.despachos.error = "";
+      try {
+        const { data } = await TerminalesApi.getDespachos(params);
+        this.despachos.items = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.items)
+          ? data.items
+          : [];
+        this.despachos.total = data?.total ?? this.despachos.items.length;
+      } catch (e: any) {
+        this.despachos.error = e?.response?.data?.message ?? e?.message ?? "Error";
+      } finally {
+        this.despachos.loading = false;
+      }
+    },
+
+    async createSalidaEnhanced(payload: any) {
+      this.saving = true;
+      this.saveError = "";
+      try {
+        const { data } = await TerminalesApi.createSalidaEnhanced(payload);
+        return data;
+      } catch (e: any) {
+        this.saveError = e?.response?.data?.message ?? e?.message ?? "Error";
+        throw e;
+      } finally {
+        this.saving = false;
+      }
+    },
+
+    async createLlegadaEnhanced(payload: any) {
+      this.saving = true;
+      this.saveError = "";
+      try {
+        const { data } = await TerminalesApi.createLlegadaEnhanced(payload);
+        return data;
+      } catch (e: any) {
+        this.saveError = e?.response?.data?.message ?? e?.message ?? "Error";
+        throw e;
+      } finally {
+        this.saving = false;
+      }
+    },
+
+    async searchVehiculos(placa: string) {
+      try {
+        const { data } = await TerminalesApi.searchVehiculos(placa);
+        return data;
+      } catch (e: any) {
+        console.error('Error searching vehicles:', e);
+        return [];
+      }
+    },
+
+    async getRutasSupertransporte() {
+      try {
+        const { data } = await TerminalesApi.getRutasSupertransporte();
+        return data;
+      } catch (e: any) {
+        console.error('Error loading Supertransporte routes:', e);
+        return [];
+      }
+    },
+
+    async cerrarDespacho(id: string) {
+      try {
+        const { data } = await TerminalesApi.cerrarDespacho(id);
+        return data;
+      } catch (e: any) {
+        this.saveError = e?.response?.data?.message ?? e?.message ?? "Error";
+        throw e;
+      }
+    },
+
+    async retrySync() {
+      // Retry sync for all pending items
+      try {
+        await Promise.all([
+          this.retrySalidas(),
+          this.retryLlegadas(),
+          this.retryNovedades()
+        ]);
+      } catch (e: any) {
+        console.error('Error retrying sync:', e);
+        throw e;
+      }
+    },
+
+    async consultarIntegradora(payload: {
+      numeroIdentificacion1: string;
+      numeroIdentificacion2?: string;
+      placa: string;
+      nit: string;
+      fechaConsulta: string;
+    }) {
+      try {
+        const { data } = await TerminalesApi.consultarIntegradora(payload);
+        return data;
+      } catch (e: any) {
+        console.error('Error consulting integradora:', e);
+        throw e;
+      }
     },
   },
 });

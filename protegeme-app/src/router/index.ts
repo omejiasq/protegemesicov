@@ -270,6 +270,11 @@ const routes: RouteRecordRaw[] = [
         name: 'pesv-km-importer',
         component: () => import('../views/pesv/GpsKmImporter.vue'),
       },
+      {
+        path: 'pesv/reports',
+        name: 'pesv-reports',
+        component: () => import('../views/reports/Reports.vue'),
+      },
 
       // ─── ALERTAS DE DOCUMENTOS ───
       {
@@ -287,19 +292,24 @@ const routes: RouteRecordRaw[] = [
 
       // ─── DESPACHOS (solo empresas CARRETERA) ───
       {
-        path: 'despachos/salidas',
-        name: 'despachos-salidas',
-        component: () => import('../views/terminales/Salidas.vue'),
-      },
-      {
-        path: 'despachos/llegadas',
-        name: 'despachos-llegadas',
-        component: () => import('../views/terminales/Llegadas.vue'),
+        path: 'despachos',
+        name: 'despachos',
+        component: () => import('../views/terminales/Despachos.vue'),
       },
       {
         path: 'despachos/novedades',
         name: 'despachos-novedades',
         component: () => import('../views/terminales/Novedades.vue'),
+      },
+
+      // ─── REDIRECCIONES PARA COMPATIBILIDAD ───
+      {
+        path: 'despachos/salidas',
+        redirect: '/despachos',
+      },
+      {
+        path: 'despachos/llegadas',
+        redirect: '/despachos',
       },
 
       // ─── SUPERADMIN ───

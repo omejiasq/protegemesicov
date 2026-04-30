@@ -365,6 +365,18 @@
                 </router-link>
               </li>
 
+              <li v-if="can('web_pesv_reports')">
+                <router-link
+                  to="/pesv/reports"
+                  class="layout-menuitem-link"
+                  :class="{ 'active-menuitem': $route.path === '/pesv/reports' }"
+                >
+                  <i class="pi pi-chart-bar layout-menuitem-icon"></i>
+                  <span class="layout-menuitem-text">Constructor de Reportes</span>
+                  <span class="badge-new">AUTO</span>
+                </router-link>
+              </li>
+
             </ul>
           </li>
 
@@ -390,24 +402,14 @@
               v-if="esCarretera && (canStrict('web_despachos_salidas') || canStrict('web_despachos_llegadas') || canStrict('web_despachos_novedades'))">
             <div class="layout-menuitem-root-text">DESPACHOS</div>
             <ul>
-              <li v-if="canStrict('web_despachos_salidas')">
+              <li v-if="canStrict('web_despachos_salidas') || canStrict('web_despachos_llegadas')">
                 <router-link
-                  to="/despachos/salidas"
+                  to="/despachos"
                   class="layout-menuitem-link"
-                  :class="{ 'active-menuitem': $route.path.includes('/despachos/salidas') }"
+                  :class="{ 'active-menuitem': $route.path.includes('/despachos') && !$route.path.includes('/despachos/novedades') }"
                 >
-                  <i class="pi pi-arrow-up-right layout-menuitem-icon"></i>
-                  <span class="layout-menuitem-text">Salidas Terminal</span>
-                </router-link>
-              </li>
-              <li v-if="canStrict('web_despachos_llegadas')">
-                <router-link
-                  to="/despachos/llegadas"
-                  class="layout-menuitem-link"
-                  :class="{ 'active-menuitem': $route.path.includes('/despachos/llegadas') }"
-                >
-                  <i class="pi pi-arrow-down-left layout-menuitem-icon"></i>
-                  <span class="layout-menuitem-text">Llegadas Terminal</span>
+                  <i class="pi pi-truck layout-menuitem-icon"></i>
+                  <span class="layout-menuitem-text">Gestión de Despachos</span>
                 </router-link>
               </li>
               <li v-if="canStrict('web_despachos_novedades')">

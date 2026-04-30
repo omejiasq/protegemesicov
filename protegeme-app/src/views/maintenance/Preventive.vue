@@ -139,20 +139,7 @@
             title="Ver reporte"
             @click="goToReport(data)"
           />
-          <Button
-            v-if="data._estadoClave === 'planeado'"
-            icon="pi pi-check"
-            class="p-button-text p-button-success p-button-sm"
-            title="Marcar como ejecutado"
-            @click="marcarEjecutado(data)"
-          />
-          <Button
-            v-if="data._estadoClave === 'ejecutado'"
-            icon="pi pi-image"
-            class="p-button-text p-button-warning p-button-sm"
-            title="Subir evidencia del taller"
-            @click="abrirEvidencia(data)"
-          />
+
         </div>
       </template>
     </EjsGrid>

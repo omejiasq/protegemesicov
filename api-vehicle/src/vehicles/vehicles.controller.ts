@@ -8,6 +8,7 @@ import {
   Query,
   Req,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { EnterpriseGuard } from '../common/guards/enterprise.guard';
@@ -15,6 +16,7 @@ import { SuperadminGuard } from '../common/guards/superadmin.guard';
 import { VehiclesService } from './vehicles.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
+import { AuditInterceptor, Audit } from '../libs/audit/audit.interceptor';
 
 @Controller('vehicles')
 export class VehiclesController {
@@ -26,6 +28,8 @@ export class VehiclesController {
    * CREATE
    * =============================== */
   @UseGuards(JwtAuthGuard, EnterpriseGuard)
+  @UseInterceptors(AuditInterceptor)
+  @Audit('create')
   @Post()
   create(@Body() dto: CreateVehicleDto, @Req() req: any) {
     return this.service.create(dto, req.user);
@@ -94,6 +98,8 @@ export class VehiclesController {
    * UPDATE
    * =============================== */
   @UseGuards(JwtAuthGuard, EnterpriseGuard)
+  @UseInterceptors(AuditInterceptor)
+  @Audit('update')
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -113,6 +119,8 @@ export class VehiclesController {
   }
 
   @UseGuards(JwtAuthGuard, EnterpriseGuard)
+  @UseInterceptors(AuditInterceptor)
+  @Audit('update')
   @Patch('by-plate/:placa/modelo')
   updateModeloByPlate(
     @Param('placa') placa: string,
@@ -123,6 +131,8 @@ export class VehiclesController {
   }
 
   @UseGuards(JwtAuthGuard, EnterpriseGuard)
+  @UseInterceptors(AuditInterceptor)
+  @Audit('update')
   @Patch(':id/partial')
   updateNonNullFields(
     @Param('id') id: string,
@@ -133,12 +143,30 @@ export class VehiclesController {
   }
 
   /* ===============================
-  * GET BY ID / PLATE (enterprise)
+  * GET BY ID / PLATE / DRIVER (enterprise)
   * =============================== */
   @UseGuards(JwtAuthGuard, EnterpriseGuard)
   @Get('plate/:plate')
   findByPlate(@Param('plate') plate: string, @Req() req: any) {
     return this.service.getByPlate(plate, req.user);
+  }
+
+  /** Vehículo asignado a un conductor — usado por app móvil */
+  @UseGuards(JwtAuthGuard, EnterpriseGuard)
+  @Get('by-driver/:driverId')
+  findByDriver(@Param('driverId') driverId: string, @Req() req: any) {
+    return this.service.getByDriver(driverId, req.user);
+  }
+
+  /** Asignar conductor a vehículo por ID — usado por app móvil (foto de placa) */
+  @UseGuards(JwtAuthGuard, EnterpriseGuard)
+  @Patch(':id/assign-driver')
+  assignDriver(
+    @Param('id') id: string,
+    @Body('driver_id') driverId: string,
+    @Req() req: any,
+  ) {
+    return this.service.assignDriver(id, driverId, req.user);
   }
 
   @UseGuards(JwtAuthGuard, EnterpriseGuard)

@@ -123,10 +123,6 @@
           <label>Valor Total Tasa Uso</label>
           <InputNumber v-model="form.valorTotalTasaUso" class="w-full" mode="currency" currency="COP" locale="es-CO" />
         </div>
-        <div class="col-12 md:col-6">
-          <label>Valor Prueba Alcoholimetría</label>
-          <InputNumber v-model="form.valorPruebaAlcoholimetria" class="w-full" mode="currency" currency="COP" locale="es-CO" />
-        </div>
         <div class="col-12">
           <label>Observaciones</label>
           <Textarea v-model="form.observaciones" class="w-full" rows="2" />
@@ -172,7 +168,7 @@ const emptyForm = () => ({
   razonSocial: enterpriseName.value,
   numeroPasajero: null as number | null,
   valorTiquete: null as number | null, valorTotalTasaUso: null as number | null,
-  valorPruebaAlcoholimetria: null as number | null, observaciones: "",
+  observaciones: "",
 });
 const form = ref(emptyForm());
 

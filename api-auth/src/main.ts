@@ -14,7 +14,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Siempre habilitamos localhost para desarrollo
-  const STATIC_LOCAL = ['http://localhost:5173', 'http://127.0.0.1:5173','http://23.227.173.137','http://23.227.173.137:5173','https://sicov.protegeme.com.co'];
+  const STATIC_LOCAL = ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://127.0.0.1:5173','http://23.227.173.137','http://23.227.173.137:5173','https://sicov.protegeme.com.co','https://seguimiento.protegeme.com.co'];
   const ENV_ALLOWED = new Set([...STATIC_LOCAL, ...parseAllowedFromEnv()]);
 
   app.enableCors({
@@ -28,7 +28,7 @@ async function bootstrap() {
         // Permitimos:
         // 1) orígenes listados en CORS_ALLOWED (y localhost)
         // 2) cualquier preview/prod de Vercel (*.vercel.app)
-        const ok = ENV_ALLOWED.has(origin) || host.endsWith('.vercel.app');
+        const ok = ENV_ALLOWED.has(origin) || host.endsWith('.vercel.app') || host === 'localhost' || host === '127.0.0.1';
 
         return cb(ok ? null : new Error('Not allowed by CORS'), ok);
       } catch {

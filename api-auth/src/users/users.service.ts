@@ -69,6 +69,73 @@ export class UsersService {
   }
 
   //-----------------------------------------------------
+  // UTIL — GENERAR USERNAME ÚNICO A PARTIR DEL DOCUMENTO
+  //-----------------------------------------------------
+  private async generateUniqueUsername(documentNumber: string, excludeId?: string): Promise<string> {
+    if (!documentNumber || !documentNumber.trim()) {
+      throw new BadRequestException('Número de documento requerido para generar username');
+    }
+
+    const baseUsername = documentNumber.trim();
+    let username = baseUsername;
+    let suffix = 0;
+
+    // Verificar si el username base está disponible
+    while (true) {
+      const query: any = { 'usuario.usuario': username };
+      if (excludeId) query._id = { $ne: excludeId };
+
+      const exists = await this.userModel.findOne(query).lean();
+      if (!exists) {
+        return username; // Username disponible
+      }
+
+      // Si está ocupado, probar con sufijo
+      suffix++;
+      username = `${baseUsername}_${suffix}`;
+
+      // Evitar bucles infinitos (límite de 1000 intentos)
+      if (suffix > 1000) {
+        throw new BadRequestException('No se pudo generar un username único para este documento');
+      }
+    }
+  }
+
+  //-----------------------------------------------------
+  // UTIL — SINCRONIZAR USERNAME CON DOCUMENTO
+  //-----------------------------------------------------
+  private async syncUsernameWithDocument(userId: string, newDocumentNumber: string): Promise<void> {
+    if (!newDocumentNumber || !newDocumentNumber.trim()) {
+      return; // No hacer nada si no hay documento
+    }
+
+    const currentUser = await this.userModel.findById(userId);
+    if (!currentUser) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    const currentUsername = currentUser.usuario.usuario;
+    const currentDocument = currentUser.usuario.documentNumber;
+
+    // Si el documento no cambió, no hacer nada
+    if (currentDocument === newDocumentNumber.trim()) {
+      return;
+    }
+
+    // Generar nuevo username único basado en el nuevo documento
+    const newUsername = await this.generateUniqueUsername(newDocumentNumber.trim(), userId);
+
+    // Solo actualizar si el username cambió
+    if (currentUsername !== newUsername) {
+      await this.userModel.findByIdAndUpdate(userId, {
+        'usuario.usuario': newUsername,
+      });
+
+      console.log(`🔄 Username sincronizado: ${currentUsername} → ${newUsername} (documento: ${currentDocument} → ${newDocumentNumber})`);
+    }
+  }
+
+  //-----------------------------------------------------
   // CREATE (DESDE TOKEN)
   //-----------------------------------------------------
   async create(createUserDto: CreateUserDto, currentUser: any) {
@@ -78,7 +145,20 @@ export class UsersService {
       );
     }
 
-    await this.assertUsernameUnique(createUserDto.usuario);
+    // Si no se proporciona username pero sí documentNumber, generar username automáticamente
+    let finalUsername = createUserDto.usuario;
+    if (!finalUsername && createUserDto.documentNumber) {
+      finalUsername = await this.generateUniqueUsername(createUserDto.documentNumber);
+    } else if (!finalUsername && !createUserDto.documentNumber) {
+      throw new BadRequestException('Se requiere usuario o número de documento para crear el usuario');
+    } else if (finalUsername) {
+      await this.assertUsernameUnique(finalUsername);
+    }
+
+    // Si no se proporcionó username, usar el documento
+    if (!finalUsername && createUserDto.documentNumber) {
+      finalUsername = createUserDto.documentNumber;
+    }
 
     if (createUserDto.email) {
       await this.assertEmailUnique(createUserDto.email);
@@ -95,7 +175,7 @@ export class UsersService {
 
       const newUser = await this.userModel.create({
         usuario: {
-          usuario: createUserDto.usuario,
+          usuario: finalUsername, // Usar el username generado o validado
           nombre: createUserDto.firstName ?? undefined,
           apellido: createUserDto.lastName ?? undefined,
           telefono: createUserDto.phone ?? undefined,
@@ -117,6 +197,9 @@ export class UsersService {
 
         // Conductores siempre reciben permiso de alistamiento móvil por defecto
         menu_permissions: isDriver ? ['mob_enlistment'] : [],
+
+        // Campos de auditoría del interceptor
+        createdBy: (createUserDto as any).createdBy ? new Types.ObjectId((createUserDto as any).createdBy) : undefined,
 
         active: true,
       });
@@ -432,6 +515,12 @@ export class UsersService {
       await this.assertEmailUnique(updateDto.email, id);
     }
 
+    // 🔄 SINCRONIZACIÓN AUTOMÁTICA: Si cambia documentNumber, sincronizar username
+    let shouldSyncUsername = false;
+    if (updateDto.documentNumber && updateDto.documentNumber !== user.usuario.documentNumber) {
+      shouldSyncUsername = true;
+    }
+
     if (updateDto.usuario)      user.usuario.usuario       = updateDto.usuario;
     if (updateDto.firstName)    user.usuario.nombre        = updateDto.firstName;
     if (updateDto.lastName  !== undefined) user.usuario.apellido     = updateDto.lastName;
@@ -439,6 +528,14 @@ export class UsersService {
     if (updateDto.email)        user.usuario.correo        = updateDto.email;
     if (updateDto.documentType) user.usuario.document_type = updateDto.documentType;
     if (updateDto.documentNumber) user.usuario.documentNumber = updateDto.documentNumber;
+
+    // Si cambió el documento y no se especificó un username manualmente, sincronizar automáticamente
+    if (shouldSyncUsername && !updateDto.usuario) {
+      const newUsername = await this.generateUniqueUsername(updateDto.documentNumber, id);
+      user.usuario.usuario = newUsername;
+      console.log(`🔄 Username auto-sincronizado: ${user.usuario.usuario} → ${newUsername} (documento actualizado)`);
+    }
+
     user.markModified('usuario');
 
     if (updateDto.roleType)
@@ -468,8 +565,139 @@ export class UsersService {
           : undefined;
     }
 
+    // Campos de auditoría del interceptor
+    if ((updateDto as any).updatedBy) {
+      user.updatedBy = new Types.ObjectId((updateDto as any).updatedBy);
+    }
+
     await user.save();
     return this.sanitize(user.toObject());
+  }
+
+  //-----------------------------------------------------
+  // MIGRACIÓN / DIAGNÓSTICO DE USERNAMES
+  //-----------------------------------------------------
+
+  /**
+   * Detecta usuarios con problemas de sincronización username/documento
+   */
+  async diagnoseUsernameIssues() {
+    const users = await this.userModel.find({
+      'usuario.documentNumber': { $exists: true, $ne: null, $nin: ['', null] }
+    }).lean();
+
+    const issues: Array<
+      | {
+          userId: Types.ObjectId;
+          username: string;
+          documentNumber: string | undefined;
+          issue: string;
+          description: string;
+        }
+      | {
+          documentNumber: any;
+          users: any;
+          issue: string;
+          description: string;
+        }
+    > = [];
+    const conflicts = new Map();
+
+    for (const user of users) {
+      const username = user.usuario.usuario;
+      const documentNumber = user.usuario.documentNumber;
+
+      // Problema 1: Username no coincide con documento
+      if (username !== documentNumber) {
+        issues.push({
+          userId: user._id,
+          username,
+          documentNumber,
+          issue: 'username_document_mismatch',
+          description: `Username '${username}' no coincide con documento '${documentNumber}'`
+        });
+      }
+
+      // Problema 2: Múltiples usuarios con mismo documento
+      if (conflicts.has(documentNumber)) {
+        conflicts.get(documentNumber).push(user);
+      } else {
+        conflicts.set(documentNumber, [user]);
+      }
+    }
+
+    // Agregar conflictos de documentos duplicados
+    for (const [documentNumber, userList] of conflicts.entries()) {
+      if (userList.length > 1) {
+        issues.push({
+          documentNumber,
+          users: userList.map(u => ({ userId: u._id, username: u.usuario.usuario })),
+          issue: 'duplicate_documents',
+          description: `${userList.length} usuarios tienen el mismo documento '${documentNumber}'`
+        });
+      }
+    }
+
+    return {
+      totalUsers: users.length,
+      totalIssues: issues.length,
+      issues
+    };
+  }
+
+  /**
+   * Corrige automáticamente los problemas de sincronización
+   */
+  async fixUsernameIssues(dryRun = true) {
+    const diagnosis = await this.diagnoseUsernameIssues();
+    const actions: Array<{
+      userId: any;
+      action: string;
+      from?: any;
+      to?: string;
+      error?: any;
+      executed: boolean;
+    }> = [];
+
+    for (const issue of diagnosis.issues) {
+      if (issue.issue === 'username_document_mismatch' && 'userId' in issue && issue.documentNumber) {
+        try {
+          const newUsername = await this.generateUniqueUsername(issue.documentNumber, String(issue.userId));
+
+          if (!dryRun) {
+            await this.userModel.findByIdAndUpdate(issue.userId, {
+              'usuario.usuario': newUsername
+            });
+          }
+
+          actions.push({
+            userId: issue.userId,
+            action: 'update_username',
+            from: issue.username,
+            to: newUsername,
+            executed: !dryRun
+          });
+        } catch (error) {
+          actions.push({
+            userId: issue.userId,
+            action: 'error',
+            error: error.message,
+            executed: false
+          });
+        }
+      }
+    }
+
+    return {
+      dryRun,
+      diagnosis,
+      actions,
+      summary: {
+        totalActions: actions.length,
+        executed: actions.filter(a => a.executed).length,
+        errors: actions.filter(a => a.action === 'error').length
+      }
+    };
   }
 
   //-----------------------------------------------------
@@ -570,11 +798,14 @@ async createStaff(createUserDto: CreateUserDto, currentUser: any) {
     );
   }
 
-  const exists = await this.userModel.findOne({
-    'usuario.usuario': createUserDto.usuario,
-  });
-  if (exists) {
-    throw new BadRequestException('El nombre de usuario ya existe');
+  // Si no se proporciona username pero sí documentNumber, generar username automáticamente
+  let finalUsername = createUserDto.usuario;
+  if (!finalUsername && createUserDto.documentNumber) {
+    finalUsername = await this.generateUniqueUsername(createUserDto.documentNumber);
+  } else if (!finalUsername && !createUserDto.documentNumber) {
+    throw new BadRequestException('Se requiere usuario o número de documento para crear el usuario');
+  } else if (finalUsername) {
+    await this.assertUsernameUnique(finalUsername);
   }
 
   if (createUserDto.email) {
@@ -586,7 +817,7 @@ async createStaff(createUserDto: CreateUserDto, currentUser: any) {
 
   const newUser = await this.userModel.create({
     usuario: {
-      usuario: createUserDto.usuario,
+      usuario: finalUsername, // Usar el username generado o validado
       nombre: createUserDto.firstName ?? undefined,
       apellido: createUserDto.lastName ?? undefined,
       telefono: createUserDto.phone ?? undefined,
@@ -597,6 +828,10 @@ async createStaff(createUserDto: CreateUserDto, currentUser: any) {
     password: hashedPassword,
     roleType: role,
     enterprise_id: new Types.ObjectId(currentUser.enterprise_id),
+
+    // Campos de auditoría del interceptor
+    createdBy: (createUserDto as any).createdBy ? new Types.ObjectId((createUserDto as any).createdBy) : undefined,
+
     active: true,
   });
 

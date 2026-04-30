@@ -142,6 +142,8 @@
           </div>
         </div>
 
+        <!-- Los campos de dispositivo se gestionan desde protegeme-seguimiento -->
+
         <!-- ================= DOCUMENTACIÓN ================= -->
         <h3 class="section">Documentación</h3>
 
@@ -261,6 +263,8 @@ const form = ref({
   telefono_propietario: '',
   direccion_propietario: '',
 
+  // device_type por defecto: vehiculo (se asigna automáticamente en backend)
+
   no_rtm: '',
   expiration_rtm: '',
   no_soat: '',
@@ -305,6 +309,7 @@ const submit = async () => {
       'tipo_vehiculo', 'modalidad', 'no_interno', 'motor', 'no_chasis',
       'nombre_propietario', 'cedula_propietario', 'telefono_propietario',
       'direccion_propietario',
+      // device_type se asigna automáticamente como 'vehiculo' en el backend
       'no_rtm', 'expiration_rtm',
       'no_soat', 'expiration_soat',
       'no_rcc', 'expiration_rcc',

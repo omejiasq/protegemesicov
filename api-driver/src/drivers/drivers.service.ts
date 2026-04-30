@@ -193,7 +193,7 @@ export class DriversService {
 
     const doc = await this.model.create({
       enterprise_id: user?.enterprise_id,
-      createdBy: user?.sub,
+      createdBy: (body as any).createdBy || user?.sub,
       estado: true,
       ...(idDesp !== undefined ? { idDespacho: idDesp } : {}),
       tipoIdentificacionPrincipal: String(body.tipoIdentificacionPrincipal),
@@ -327,6 +327,9 @@ export class DriversService {
     if (body.licenciaConduccionSecundario != null) update.licenciaConduccionSecundario = String(body.licenciaConduccionSecundario);
 
     if (body.observaciones != null) update.observaciones = String(body.observaciones);
+
+    // Campos de auditoría del interceptor
+    if ((body as any).updatedBy) update.updatedBy = (body as any).updatedBy;
 
     const updated = await this.model
       .findOneAndUpdate({ _id: new Types.ObjectId(id), ...this.tenant(user) }, { $set: update }, { new: true })

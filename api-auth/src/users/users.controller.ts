@@ -6,13 +6,15 @@ import {
   Param,
   UseGuards,
   BadRequestException,
-  Query
+  Query,
+  UseInterceptors
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 //import { Get, Req } from '@nestjs/common';
 import {  Get, Req , Put, NotFoundException } from '@nestjs/common';
+import { AuditInterceptor, Audit } from '../libs/audit/audit.interceptor';
 
 @Controller('users')
 export class UsersController {
@@ -22,6 +24,8 @@ export class UsersController {
    * Crear usuario (protección con JWT)
    */
   @UseGuards(JwtAuthGuard)
+  @UseInterceptors(AuditInterceptor)
+  @Audit('create')
   @Post()
   create(
     @Body() createUserDto: CreateUserDto,
@@ -68,13 +72,17 @@ async getDriverById(@Param('id') id: string) {
 
 @Put(':id')
 @UseGuards(JwtAuthGuard)
-async updateUser(@Param('id') id: string, @Body() body: any) {
+@UseInterceptors(AuditInterceptor)
+@Audit('update')
+async updateUser(@Param('id') id: string, @Body() body: any, @Req() req: any) {
   return this.usersService.update(id, body);
 }
 
 // POST /users/staff
 @Post('staff')
 @UseGuards(JwtAuthGuard)
+@UseInterceptors(AuditInterceptor)
+@Audit('create')
 createStaff(@Body() dto: CreateUserDto, @Req() req: any) {
   return this.usersService.createStaff(dto, req.user);
 }
@@ -134,6 +142,37 @@ async setMenuPermissions(
   @Req() req: any,
 ) {
   return this.usersService.setMenuPermissions(id, keys, req.user);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ADMINISTRACIÓN Y MIGRACIÓN DE USERNAMES
+// ═══════════════════════════════════════════════════════════════
+
+// GET /users/admin/username-diagnosis
+@Get('admin/username-diagnosis')
+@UseGuards(JwtAuthGuard)
+async diagnoseUsernameIssues(@Req() req: any) {
+  // Solo permitir a superadmins o admins
+  if (req.user?.roleType !== 'superadmin' && req.user?.roleType !== 'admin') {
+    throw new BadRequestException('Solo administradores pueden ejecutar este diagnóstico');
+  }
+
+  return this.usersService.diagnoseUsernameIssues();
+}
+
+// POST /users/admin/fix-usernames
+@Post('admin/fix-usernames')
+@UseGuards(JwtAuthGuard)
+async fixUsernameIssues(
+  @Body('dryRun') dryRun: boolean = true,
+  @Req() req: any
+) {
+  // Solo permitir a superadmins
+  if (req.user?.roleType !== 'superadmin') {
+    throw new BadRequestException('Solo superadministradores pueden ejecutar correcciones automáticas');
+  }
+
+  return this.usersService.fixUsernameIssues(dryRun);
 }
 
 }

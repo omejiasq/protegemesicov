@@ -46,7 +46,11 @@ export class Driver {
   @Prop({ type: Boolean, default: true, index: true })
   estado!: boolean;
 
+  // =============================
+  // AUDITORÍA
+  // =============================
   @Prop({ type: String }) createdBy?: string;
+  @Prop({ type: String }) updatedBy?: string;
 }
 
 const DriverSchema = SchemaFactory.createForClass(Driver);

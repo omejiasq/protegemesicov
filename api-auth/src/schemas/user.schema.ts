@@ -128,6 +128,15 @@ export class User {
    */
   @Prop({ type: [String], default: [] })
   menu_permissions: string[];
+
+  // =============================
+  // AUDITORÍA
+  // =============================
+  @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+  createdBy?: Types.ObjectId | null;
+
+  @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+  updatedBy?: Types.ObjectId | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

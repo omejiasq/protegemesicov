@@ -29,8 +29,26 @@ export class Vehicle {
   })
   driver_id?: Types.ObjectId;
 
+  // =============================
+  // DISPOSITIVOS GPS/TRACKING (SIMPLIFICADO)
+  // =============================
+  @Prop({ type: String, sparse: true, index: true })
+  imei?: string; // IMEI del dispositivo GPS/smartphone asignado
+
+  @Prop({ type: String, sparse: true })
+  serial?: string; // Serial del dispositivo (si aplica)
+
+  @Prop({ type: String, default: 'vehiculo', enum: ['vehiculo', 'alcoholimetro_moto', 'alcoholimetro_carro', 'smartphone', 'dispositivo_distracciones', 'gps_tradicional', 'otro'] })
+  device_type?: string; // Tipo de dispositivo de seguimiento
+
+  // =============================
+  // AUDITORÍA
+  // =============================
   @Prop({ type: String })
   createdBy?: string;
+
+  @Prop({ type: String })
+  updatedBy?: string;
 
   // ===== campos vehiculo eestandar =====
   @Prop({ type: String, index: true, required: true })

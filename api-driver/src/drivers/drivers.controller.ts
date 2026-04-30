@@ -11,9 +11,11 @@ import {
   UseGuards,
   UsePipes,
   ValidationPipe,
+  UseInterceptors,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../libs/auth/jwt-auth.guard';
 import { DriversService } from './drivers.service';
+import { AuditInterceptor, Audit } from '../libs/audit/audit.interceptor';
 import {
   IsBooleanString,
   IsInt,
@@ -78,6 +80,8 @@ export class DriversController {
   constructor(private readonly svc: DriversService) {}
 
   @Post('create')
+  @UseInterceptors(AuditInterceptor)
+  @Audit('create')
   @UsePipes(
     new ValidationPipe({
       whitelist: true,
@@ -108,6 +112,8 @@ export class DriversController {
   }
 
   @Put('updateById/:id')
+  @UseInterceptors(AuditInterceptor)
+  @Audit('update')
   update(
     @Param('id') id: string,
     @Body() dto: UpdateDriverDto,

@@ -5,6 +5,7 @@ import {
     IsNumber,
     IsOptional,
     IsString,
+    IsIn,
   } from 'class-validator';
   
   export class CreateVehicleDto {
@@ -53,7 +54,21 @@ import {
     @IsOptional()
     @IsMongoId()
     driver_id?: string;
-  
+
+    // Campos de dispositivo simplificados
+    @IsOptional()
+    @IsString()
+    imei?: string;
+
+    @IsOptional()
+    @IsString()
+    serial?: string;
+
+    @IsOptional()
+    @IsString()
+    @IsIn(['vehiculo', 'alcoholimetro_moto', 'alcoholimetro_carro', 'smartphone', 'dispositivo_distracciones', 'gps_tradicional', 'otro'])
+    device_type?: string;
+
     @IsOptional()
     @IsBoolean()
     estado?: boolean;

@@ -22,6 +22,7 @@ const form = reactive<any>({
   fechaVencimientoSoat: "", // <-- string "YYYY-MM-DD" o Date
   no_tecnomecanica: "",
   expiration_tecnomecanica: "",
+  // Nota: campos de dispositivo manejados desde app de seguimiento
 });
 
 // Opciones: valores NUMÉRICOS (el backend espera number)
@@ -35,6 +36,8 @@ const nivelServicioOptions = [
   { label: "2", value: 2 },
   { label: "3", value: 3 },
 ];
+
+// Los tipos de dispositivo se manejan desde protegeme-seguimiento
 
 // -------- Helpers --------
 function toIntOrUndef(v: any): number | undefined {
@@ -78,6 +81,7 @@ async function load() {
       expiration_tecnomecanica: v?.expiration_tecnomecanica
         ? String(v.expiration_tecnomecanica).slice(0, 10)
         : "",
+      // Campos de dispositivo: solo lectura desde protegeme-seguimiento
     });
   } finally {
     loading.value = false;
@@ -96,6 +100,7 @@ async function save() {
       fechaVencimientoSoat: normDate(form.fechaVencimientoSoat), // "YYYY-MM-DD" o ""
       no_tecnomecanica: form.no_tecnomecanica?.trim() || undefined,
       expiration_tecnomecanica: normDate(form.expiration_tecnomecanica) || undefined,
+      // Campos de dispositivo: no se modifican desde aquí
     };
 
     // limpiamos indefinidos/vacíos para no mandar basura
@@ -216,6 +221,8 @@ watch(() => props.id, load);
       appendTo="self"
     />
   </div>
+
+  <!-- Los campos de dispositivo se gestionan desde protegeme-seguimiento -->
 
   <div>
     <div class="col-12 mt-3 flex justify-content-end gap-2">

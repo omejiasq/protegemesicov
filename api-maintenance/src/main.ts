@@ -14,7 +14,7 @@ async function bootstrap() {
 
   // Siempre habilitamos localhost para desarrollo
   //const STATIC_LOCAL = ['http://localhost:5173', 'http://127.0.0.1:5173','https://sicov.protegeme.com.co'];
-  const STATIC_LOCAL = ['http://localhost:5173', 'http://127.0.0.1:5173','http://23.227.173.137','http://23.227.173.137:5173','https://sicov.protegeme.com.co'];
+  const STATIC_LOCAL = ['http://localhost:5173', 'http://127.0.0.1:5173','http://23.227.173.137','http://23.227.173.137:5173','https://sicov.protegeme.com.co','https://seguimiento.protegeme.com.co'];
   const ENV_ALLOWED = new Set([...STATIC_LOCAL, ...parseAllowedFromEnv()]);
 
   app.enableCors({

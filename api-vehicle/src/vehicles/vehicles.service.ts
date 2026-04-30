@@ -1502,4 +1502,64 @@ async updateNonNullFieldsById(
       .lean();
   }
 
+  /* =====================================================
+   * GET BY DRIVER (app móvil — busca vehículo asignado a un conductor)
+   * ===================================================== */
+  async getByDriver(driverId: string, user: UserCtx) {
+    if (!Types.ObjectId.isValid(driverId)) {
+      throw new BadRequestException('driver_id inválido');
+    }
+    if (!user?.enterprise_id) {
+      throw new BadRequestException('enterprise_id no presente en el token');
+    }
+    const vehicle = await this.vehicleModel.findOne({
+      driver_id: new Types.ObjectId(driverId),
+      enterprise_id: new Types.ObjectId(user.enterprise_id),
+    }).lean();
+
+    if (!vehicle) {
+      throw new NotFoundException('No hay vehículo asignado a este conductor');
+    }
+    return vehicle;
+  }
+
+  /* =====================================================
+   * ASSIGN DRIVER — asigna un conductor a un vehículo (desde app móvil)
+   * Solo actualiza driver_id; no permite cambiar otros campos.
+   * ===================================================== */
+  async assignDriver(vehicleId: string, driverId: string, user: UserCtx) {
+    if (!Types.ObjectId.isValid(vehicleId)) {
+      throw new BadRequestException('vehicle_id inválido');
+    }
+    if (!Types.ObjectId.isValid(driverId)) {
+      throw new BadRequestException('driver_id inválido');
+    }
+    if (!user?.enterprise_id) {
+      throw new BadRequestException('enterprise_id no presente en el token');
+    }
+
+    const vehicle = await this.vehicleModel.findOneAndUpdate(
+      {
+        _id: new Types.ObjectId(vehicleId),
+        enterprise_id: new Types.ObjectId(user.enterprise_id),
+      },
+      { $set: { driver_id: new Types.ObjectId(driverId) } },
+      { new: true },
+    ).lean();
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehículo no encontrado');
+    }
+
+    await this.auditModel.create({
+      entityId: vehicleId,
+      entityType: 'Vehicle',
+      operation: 'assign-driver',
+      performedBy: user.sub ?? 'system',
+      changes: { driver_id: driverId },
+    }).catch(() => {});
+
+    return vehicle;
+  }
+
 }

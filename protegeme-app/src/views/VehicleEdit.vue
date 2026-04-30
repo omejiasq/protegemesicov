@@ -111,6 +111,8 @@
         </div>
       </div>
 
+      <!-- Los campos de dispositivo se gestionan desde protegeme-seguimiento -->
+
       <!-- ================= DOCUMENTACIÓN ================= -->
       <h3 class="section">Documentación</h3>
 
@@ -256,6 +258,8 @@ const loadVehicle = async () => {
     cedula_propietario: data.cedula_propietario ?? '',
     telefono_propietario: data.telefono_propietario ?? '',
     direccion_propietario: data.direccion_propietario ?? '',
+
+    // Campos de dispositivo: solo lectura desde protegeme-seguimiento
 
     no_rtm: data.no_rtm ?? '',
     expiration_rtm: formatDate(data.expiration_rtm),
