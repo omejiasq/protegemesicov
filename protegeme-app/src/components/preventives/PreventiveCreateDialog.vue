@@ -369,7 +369,23 @@ function closeDialog() {
 async function onSave() {
   if (!validateForm()) return;
   saving.value = true;
-  await emit("save", { ...form, isPlanned: isPlanned.value });
+
+  // Convertir tipos de datos para que coincidan con el DTO del backend
+  const formData = {
+    ...form,
+    nit: form.nit ? Number(form.nit) : 0, // DTO espera number, no string
+    tipoIdentificacion: form.tipoIdentificacion ? Number(form.tipoIdentificacion) : 0, // DTO espera number
+    fecha: form.fecha ? form.fecha.toISOString().split('T')[0] : '', // Convertir Date a string YYYY-MM-DD
+    isPlanned: isPlanned.value
+  };
+
+  // Eliminar mantenimientoId si está vacío para que el backend lo genere
+  if (!formData.mantenimientoId) {
+    delete (formData as any).mantenimientoId;
+  }
+
+
+  await emit("save", formData);
   saving.value = false;
 }
 

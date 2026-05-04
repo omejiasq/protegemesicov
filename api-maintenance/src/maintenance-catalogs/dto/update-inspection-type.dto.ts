@@ -22,6 +22,11 @@ export class UpdateInspectionTypeDto {
   dispositivo?: string;
 
   @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  clase_vehiculo?: string;
+
+  @IsOptional()
   @IsBoolean()
   obligatorio?: boolean;
 

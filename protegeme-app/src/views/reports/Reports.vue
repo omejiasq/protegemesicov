@@ -5,471 +5,256 @@
       <div class="header-content">
         <h1 class="page-title">
           <i class="pi pi-chart-bar mr-3"></i>
-          Constructor de Reportes
+          Reportes Dinámicos de Alistamientos
         </h1>
         <p class="page-description">
-          Crea, gestiona y genera reportes personalizados de manera visual
+          Crea reportes personalizados, aplica filtros y exporta a Excel/PDF de manera visual
         </p>
       </div>
       <div class="header-actions">
         <Button
-          label="Nueva Plantilla"
-          icon="pi pi-plus"
-          @click="showCreateDialog = true"
-          class="primary-button"
+          label="Exportar a Excel"
+          icon="pi pi-file-excel"
+          @click="exportToExcel"
+          :disabled="!hasResults || exporting"
+          :loading="exporting && exportFormat === 'excel'"
+          class="mr-2"
+        />
+        <Button
+          label="Exportar a PDF"
+          icon="pi pi-file-pdf"
+          @click="exportToPDF"
+          :disabled="!hasResults || exporting"
+          :loading="exporting && exportFormat === 'pdf'"
+          severity="secondary"
         />
       </div>
     </div>
 
-    <!-- Filtros y Búsqueda -->
-    <div class="filters-section">
-      <Card class="filter-card">
-        <template #content>
-          <div class="filter-controls">
-            <div class="search-input">
-              <IconField iconPosition="left">
-                <InputIcon class="pi pi-search" />
-                <InputText
-                  v-model="searchQuery"
-                  placeholder="Buscar plantillas..."
-                  class="w-full"
-                />
-              </IconField>
+    <!-- Panel de Acceso Rápido a Reportes Guardados -->
+    <div class="quick-reports-section" v-if="quickReports.length > 0">
+      <Card>
+        <template #title>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center">
+              <i class="pi pi-bookmark mr-2"></i>
+              Reportes Guardados
             </div>
-
-            <Dropdown
-              v-model="selectedCategory"
-              :options="categoryOptions"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Todas las categorías"
-              showClear
-              class="category-filter"
-            />
-
-            <ToggleButton
-              v-model="showOnlyActive"
-              onLabel="Solo activos"
-              offLabel="Todos"
-              onIcon="pi pi-eye"
-              offIcon="pi pi-eye-slash"
-              class="status-toggle"
-            />
-
             <Button
               icon="pi pi-refresh"
-              outlined
-              @click="loadTemplates"
-              :loading="loading"
-              class="refresh-button"
+              text
+              @click="loadQuickReports"
+              :loading="loadingQuickReports"
+              title="Actualizar"
             />
+          </div>
+        </template>
+
+        <template #content>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div
+              v-for="report in quickReports"
+              :key="report._id"
+              class="quick-report-card"
+            >
+              <div class="p-4 border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md hover:border-blue-400"
+                @click="executeQuickReport(report)"
+              >
+                <div class="flex items-start justify-between mb-2">
+                  <h4 class="font-semibold text-sm text-gray-800 line-clamp-2">
+                    {{ report.name }}
+                  </h4>
+                  <span v-if="report.is_public" class="text-green-600 text-xs">
+                    <i class="pi pi-users"></i>
+                  </span>
+                </div>
+
+                <p v-if="report.description" class="text-xs text-gray-500 mb-3 line-clamp-2">
+                  {{ report.description }}
+                </p>
+
+                <div class="flex items-center justify-between text-xs text-gray-400">
+                  <span>{{ report.fields?.length || 0 }} campos</span>
+                  <span v-if="report.createdAt">
+                    {{ formatQuickDate(report.createdAt) }}
+                  </span>
+                </div>
+
+                <div class="flex items-center justify-between mt-3">
+                  <Button
+                    label="Ejecutar"
+                    size="small"
+                    @click.stop="executeQuickReport(report)"
+                    :loading="executingReport === report._id"
+                    class="flex-1 mr-2"
+                  />
+                  <Button
+                    icon="pi pi-pencil"
+                    size="small"
+                    outlined
+                    @click.stop="editQuickReport(report)"
+                    title="Editar en constructor"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </template>
       </Card>
     </div>
 
-    <!-- Lista de Plantillas -->
-    <div class="templates-section">
-      <DataTable
-        :value="filteredTemplates"
-        :loading="loading"
-        paginator
-        :rows="10"
-        :rowsPerPageOptions="[10, 25, 50]"
-        paginatorTemplate="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
-        currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} plantillas"
-        responsiveLayout="scroll"
-        class="templates-table"
-        :globalFilterFields="['nombre', 'descripcion', 'tags']"
-        :lazy="false"
-        :virtualScrollerOptions="{ itemSize: 46 }"
-      >
-        <template #header>
-          <div class="table-header">
-            <h3>Plantillas de Reportes</h3>
-            <div class="table-actions">
-              <Button
-                label="Exportar Lista"
-                icon="pi pi-download"
-                outlined
-                size="small"
-                @click="exportTemplatesList"
-              />
-            </div>
-          </div>
-        </template>
-
-        <Column field="nombre" header="Nombre" sortable>
-          <template #body="slotProps">
-            <div class="template-name">
-              <i :class="getCategoryIcon(slotProps.data.categoria)" class="mr-2"></i>
-              <span class="font-semibold">{{ slotProps.data.nombre }}</span>
-              <div class="template-meta" v-if="slotProps.data.descripcion">
-                <small>{{ slotProps.data.descripcion }}</small>
-              </div>
-            </div>
-          </template>
-        </Column>
-
-        <Column field="categoria" header="Categoría" sortable>
-          <template #body="slotProps">
-            <Badge
-              :value="formatCategory(slotProps.data.categoria)"
-              :severity="getCategorySeverity(slotProps.data.categoria)"
-            />
-          </template>
-        </Column>
-
-        <Column field="configuracion.collections" header="Fuentes de Datos">
-          <template #body="slotProps">
-            <div class="data-sources">
-              <Tag
-                v-for="collection in slotProps.data.configuracion.collections"
-                :key="collection"
-                :value="getCollectionDisplayName(collection)"
-                rounded
-                class="mr-1 mb-1"
-              />
-            </div>
-          </template>
-        </Column>
-
-        <Column field="usageCount" header="Usos" sortable>
-          <template #body="slotProps">
-            <div class="usage-info">
-              <span class="font-semibold">{{ slotProps.data.usageCount }}</span>
-              <div class="text-xs text-gray-500" v-if="slotProps.data.lastUsed">
-                Último: {{ formatDate(slotProps.data.lastUsed) }}
-              </div>
-            </div>
-          </template>
-        </Column>
-
-        <Column field="activo" header="Estado" sortable>
-          <template #body="slotProps">
-            <Badge
-              :value="slotProps.data.activo ? 'Activo' : 'Inactivo'"
-              :severity="slotProps.data.activo ? 'success' : 'danger'"
-            />
-          </template>
-        </Column>
-
-        <Column field="createdAt" header="Creado" sortable>
-          <template #body="slotProps">
-            {{ formatDate(slotProps.data.createdAt) }}
-          </template>
-        </Column>
-
-        <Column header="Acciones" class="action-column">
-          <template #body="slotProps">
-            <div class="action-buttons">
-              <Button
-                icon="pi pi-play"
-                size="small"
-                outlined
-                v-tooltip="'Generar reporte'"
-                @click="generateReport(slotProps.data)"
-              />
-              <Button
-                icon="pi pi-eye"
-                size="small"
-                outlined
-                v-tooltip="'Ver detalles'"
-                @click="viewTemplate(slotProps.data)"
-              />
-              <Button
-                icon="pi pi-pencil"
-                size="small"
-                outlined
-                v-tooltip="'Editar'"
-                @click="editTemplate(slotProps.data)"
-              />
-              <Button
-                icon="pi pi-copy"
-                size="small"
-                outlined
-                v-tooltip="'Duplicar'"
-                @click="duplicateTemplate(slotProps.data)"
-              />
-              <Button
-                icon="pi pi-trash"
-                size="small"
-                outlined
-                severity="danger"
-                v-tooltip="'Eliminar'"
-                @click="confirmDeleteTemplate(slotProps.data)"
-              />
-            </div>
-          </template>
-        </Column>
-
-        <template #empty>
-          <div class="empty-state">
-            <i class="pi pi-chart-bar text-6xl text-gray-400 mb-4"></i>
-            <h3 class="text-xl font-semibold text-gray-600 mb-2">No hay plantillas</h3>
-            <p class="text-gray-500 mb-4">Comienza creando tu primera plantilla de reporte</p>
-            <Button
-              label="Crear Plantilla"
-              icon="pi pi-plus"
-              @click="showCreateDialog = true"
-            />
-          </div>
-        </template>
-      </DataTable>
+    <!-- Constructor de Consultas -->
+    <div class="query-builder-section">
+      <DynamicQueryBuilder
+        @queryExecuted="handleQueryResult"
+        @loading="handleLoading"
+      />
     </div>
 
-    <!-- Dialog: Crear/Editar Plantilla -->
+    <!-- Resultados -->
+    <div class="results-section" v-if="hasResults">
+      <Card>
+        <template #title>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center">
+              <i class="pi pi-table mr-2"></i>
+              Resultados del Reporte
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-sm text-gray-600">
+                {{ queryResult?.totalRecords || 0 }} registros encontrados
+              </span>
+              <Button
+                icon="pi pi-refresh"
+                outlined
+                size="small"
+                @click="refreshResults"
+                title="Actualizar resultados"
+              />
+            </div>
+          </div>
+        </template>
+
+        <template #content>
+          <div class="results-table-container">
+            <DataTable
+              :value="queryResult?.data || []"
+              :loading="queryLoading"
+              paginator
+              :rows="20"
+              :rowsPerPageOptions="[10, 20, 50, 100]"
+              paginatorTemplate="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
+              currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} registros"
+              responsiveLayout="scroll"
+              class="results-table"
+              scrollable
+              scrollHeight="600px"
+              :virtualScrollerOptions="{ itemSize: 46 }"
+            >
+              <Column
+                v-for="field in displayFields"
+                :key="field.key"
+                :field="field.key"
+                :header="field.label"
+                :sortable="true"
+              >
+                <template #body="slotProps">
+                  <span :class="getFieldValueClass(field.type)">
+                    {{ formatFieldValue(slotProps.data[field.key], field.type) }}
+                  </span>
+                </template>
+              </Column>
+
+              <template #empty>
+                <div class="empty-results">
+                  <i class="pi pi-info-circle text-4xl text-gray-400 mb-4"></i>
+                  <h3 class="text-lg font-semibold text-gray-600 mb-2">No se encontraron resultados</h3>
+                  <p class="text-gray-500">Ajusta los filtros o cambia la consulta para obtener datos</p>
+                </div>
+              </template>
+            </DataTable>
+          </div>
+        </template>
+      </Card>
+    </div>
+
+    <!-- Estado vacío cuando no hay resultados -->
+    <div class="empty-state-container" v-else-if="!queryLoading">
+      <Card>
+        <template #content>
+          <div class="text-center py-12">
+            <i class="pi pi-search text-6xl text-gray-400 mb-4"></i>
+            <h3 class="text-xl font-semibold text-gray-600 mb-2">Construye tu primer reporte</h3>
+            <p class="text-gray-500 mb-4">
+              Selecciona los campos que deseas incluir, aplica filtros y ejecuta la consulta para ver los resultados
+            </p>
+          </div>
+        </template>
+      </Card>
+    </div>
+
+    <!-- Dialog: Opciones de Exportación -->
     <Dialog
-      v-model:visible="showCreateDialog"
-      :header="editingTemplate ? 'Editar Plantilla' : 'Nueva Plantilla de Reporte'"
+      v-model:visible="showExportDialog"
+      header="Configurar Exportación"
       modal
-      :style="{ width: '90vw', height: '90vh' }"
-      :maximizable="true"
-      class="template-dialog"
+      :style="{ width: '500px' }"
     >
-      <div class="template-form">
-        <!-- Información Básica -->
-        <div class="form-section">
-          <h4 class="section-title">Información Básica</h4>
-          <div class="form-grid">
-            <div class="form-field">
-              <label>Nombre de la Plantilla *</label>
-              <InputText
-                v-model="templateForm.nombre"
-                placeholder="Ej: Reporte de Despachos Mensuales"
-                class="w-full"
-              />
-            </div>
+      <div class="export-form">
+        <div class="form-field">
+          <label class="block text-sm font-medium mb-2">Título del reporte</label>
+          <InputText
+            v-model="exportOptions.customTitle"
+            placeholder="Reporte de Alistamientos"
+            class="w-full"
+          />
+        </div>
 
-            <div class="form-field">
-              <label>Categoría</label>
-              <Dropdown
-                v-model="templateForm.categoria"
-                :options="categoryOptions"
-                optionLabel="label"
-                optionValue="value"
-                placeholder="Seleccionar categoría"
-                class="w-full"
-              />
+        <div class="form-field">
+          <label class="block text-sm font-medium mb-2">Opciones de encabezado</label>
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center gap-2">
+              <Checkbox v-model="exportOptions.includeHeader" binary inputId="includeHeader" />
+              <label for="includeHeader">Incluir encabezado empresarial</label>
             </div>
-
-            <div class="form-field span-2">
-              <label>Descripción</label>
-              <Textarea
-                v-model="templateForm.descripcion"
-                placeholder="Describe el propósito y contenido del reporte"
-                rows="3"
-                class="w-full"
-              />
-            </div>
-
-            <div class="form-field">
-              <label>Tags (opcional)</label>
-              <Chips
-                v-model="templateForm.tags"
-                placeholder="Agregar tags"
-                class="w-full"
-              />
-            </div>
-
-            <div class="form-field">
-              <div class="checkbox-field">
-                <Checkbox
-                  v-model="templateForm.isPublic"
-                  binary
-                  inputId="isPublic"
-                />
-                <label for="isPublic">Compartir con otras empresas</label>
-              </div>
+            <div class="flex items-center gap-2">
+              <Checkbox v-model="exportOptions.includeLogo" binary inputId="includeLogo" />
+              <label for="includeLogo">Incluir logo de la empresa</label>
             </div>
           </div>
         </div>
 
-        <!-- Constructor de Consulta -->
-        <div class="form-section">
-          <h4 class="section-title">Configuración del Reporte</h4>
-          <Suspense>
-            <template #default>
-              <QueryBuilder v-model="templateForm.configuracion" />
-            </template>
-            <template #fallback>
-              <div class="loading-placeholder">
-                <i class="pi pi-spin pi-spinner"></i>
-                Cargando constructor de consultas...
-              </div>
-            </template>
-          </Suspense>
-        </div>
-
-        <!-- Configuración de Branding -->
-        <div class="form-section">
-          <h4 class="section-title">Personalización Visual</h4>
-          <div class="branding-grid">
-            <div class="branding-field">
-              <div class="checkbox-field">
-                <Checkbox
-                  v-model="templateForm.branding.includeHeader"
-                  binary
-                  inputId="includeHeader"
-                />
-                <label for="includeHeader">Incluir encabezado empresarial</label>
-              </div>
+        <div class="form-field" v-if="exportOptions.includeHeader">
+          <label class="block text-sm font-medium mb-2">Colores del encabezado</label>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs text-gray-600 mb-1">Color de fondo</label>
+              <InputText v-model="exportOptions.headerColor" placeholder="#2563EB" />
             </div>
-
-            <div class="branding-field">
-              <div class="checkbox-field">
-                <Checkbox
-                  v-model="templateForm.branding.includeLogo"
-                  binary
-                  inputId="includeLogo"
-                />
-                <label for="includeLogo">Incluir logo</label>
-              </div>
-            </div>
-
-            <div class="branding-field">
-              <label>Color del encabezado</label>
-              <ColorPicker v-model="templateForm.branding.headerColor" />
-            </div>
-
-            <div class="branding-field">
-              <label>Color del texto</label>
-              <ColorPicker v-model="templateForm.branding.textColor" />
-            </div>
-
-            <div class="branding-field span-2">
-              <label>Título personalizado</label>
-              <InputText
-                v-model="templateForm.branding.customTitle"
-                placeholder="Ej: Reporte Gerencial de Operaciones"
-                class="w-full"
-              />
+            <div>
+              <label class="block text-xs text-gray-600 mb-1">Color de texto</label>
+              <InputText v-model="exportOptions.textColor" placeholder="#FFFFFF" />
             </div>
           </div>
         </div>
       </div>
 
       <template #footer>
-        <div class="dialog-footer">
+        <div class="flex justify-end gap-2">
           <Button
             label="Cancelar"
             outlined
-            @click="closeCreateDialog"
-            class="mr-2"
+            @click="showExportDialog = false"
           />
           <Button
-            label="Vista Previa"
-            outlined
-            icon="pi pi-eye"
-            @click="previewTemplate"
-            :loading="previewing"
-            class="mr-2"
-          />
-          <Button
-            :label="editingTemplate ? 'Actualizar' : 'Crear'"
-            icon="pi pi-save"
-            @click="saveTemplate"
-            :loading="saving"
+            :label="`Exportar ${exportFormat === 'excel' ? 'Excel' : 'PDF'}`"
+            :icon="`pi pi-file-${exportFormat === 'excel' ? 'excel' : 'pdf'}`"
+            @click="executeExport"
+            :loading="exporting"
           />
         </div>
       </template>
     </Dialog>
-
-    <!-- Dialog: Generar Reporte -->
-    <Dialog
-      v-model:visible="showGenerateDialog"
-      header="Generar Reporte"
-      modal
-      :style="{ width: '600px' }"
-      class="generate-dialog"
-    >
-      <div class="generate-form" v-if="selectedTemplate">
-        <h4 class="mb-4">{{ selectedTemplate.nombre }}</h4>
-
-        <div class="form-field">
-          <label>Rango de Fechas (opcional)</label>
-          <Calendar
-            v-model="generateForm.dateRange"
-            selectionMode="range"
-            dateFormat="yy-mm-dd"
-            placeholder="Seleccionar rango"
-            class="w-full"
-          />
-        </div>
-
-        <div class="form-field">
-          <label>Formato de Exportación</label>
-          <SelectButton
-            v-model="generateForm.format"
-            :options="exportFormatOptions"
-            optionLabel="label"
-            optionValue="value"
-            class="w-full"
-          />
-        </div>
-
-        <div class="form-field">
-          <div class="checkbox-field">
-            <Checkbox
-              v-model="generateForm.includeCharts"
-              binary
-              inputId="includeCharts"
-            />
-            <label for="includeCharts">Incluir gráficos (disponible en Excel)</label>
-          </div>
-        </div>
-      </div>
-
-      <template #footer>
-        <div class="dialog-footer">
-          <Button
-            label="Cancelar"
-            outlined
-            @click="showGenerateDialog = false"
-            class="mr-2"
-          />
-          <Button
-            label="Generar y Descargar"
-            icon="pi pi-download"
-            @click="executeGenerate"
-            :loading="generating"
-          />
-        </div>
-      </template>
-    </Dialog>
-
-    <!-- Dialog: Vista Previa -->
-    <Dialog
-      v-model:visible="showPreviewDialog"
-      header="Vista Previa del Reporte"
-      modal
-      :style="{ width: '90vw', height: '80vh' }"
-      :maximizable="true"
-    >
-      <div class="preview-content" v-if="previewData">
-        <div class="preview-info">
-          <h4>{{ previewData.template?.nombre }}</h4>
-          <p class="text-gray-600">{{ previewData.data?.length || 0 }} registros encontrados</p>
-        </div>
-
-        <DataTable
-          :value="previewData.data"
-          scrollable
-          scrollHeight="400px"
-          class="preview-table"
-        >
-          <Column
-            v-for="campo in visibleFields"
-            :key="campo.path"
-            :field="campo.path"
-            :header="campo.label"
-          />
-        </DataTable>
-      </div>
-    </Dialog>
-
-    <!-- Dialog: Confirmación de Eliminación -->
-    <ConfirmDialog />
 
     <!-- Toast Messages -->
     <Toast />
@@ -477,421 +262,306 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
-import { useConfirm } from 'primevue/useconfirm'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
-import Textarea from 'primevue/textarea'
-import Dropdown from 'primevue/dropdown'
-import Chips from 'primevue/chips'
 import Checkbox from 'primevue/checkbox'
-import Calendar from 'primevue/calendar'
-import SelectButton from 'primevue/selectbutton'
-import Badge from 'primevue/badge'
-import Tag from 'primevue/tag'
-import ToggleButton from 'primevue/togglebutton'
-import ColorPicker from 'primevue/colorpicker'
-import ConfirmDialog from 'primevue/confirmdialog'
 import Toast from 'primevue/toast'
-import IconField from 'primevue/iconfield'
-import InputIcon from 'primevue/inputicon'
-import { ReportsApi, type ReportTemplate, type CreateReportTemplateDto, REPORT_CATEGORIES, EXPORT_FORMATS } from '../../api/reports.service'
-import QueryBuilder from '../../components/reports/QueryBuilder.vue'
+import { DynamicReportsApi, type ExportQuery, type DatasetField, type SavedReport } from '../../api/dynamic-reports.service'
+import DynamicQueryBuilder from '../../components/reports/DynamicQueryBuilder.vue'
 
 // Composables
 const toast = useToast()
-const confirm = useConfirm()
 
 // Estado reactivo
-const loading = ref(false)
-const saving = ref(false)
-const generating = ref(false)
-const previewing = ref(false)
-const templates = ref<ReportTemplate[]>([])
+const queryLoading = ref(false)
+const exporting = ref(false)
+const exportFormat = ref<'excel' | 'pdf'>('excel')
+const showExportDialog = ref(false)
+const queryResult = ref<any>(null)
+const lastQuery = ref<any>(null)
 
-// Filtros con debouncing
-const searchQuery = ref('')
-const selectedCategory = ref('')
-const showOnlyActive = ref(true)
+// Estado para reportes rápidos
+const quickReports = ref<SavedReport[]>([])
+const loadingQuickReports = ref(false)
+const executingReport = ref<string | null>(null)
 
-// Dialogs
-const showCreateDialog = ref(false)
-const showGenerateDialog = ref(false)
-const showPreviewDialog = ref(false)
-
-// Formularios
-const editingTemplate = ref<ReportTemplate | null>(null)
-const selectedTemplate = ref<ReportTemplate | null>(null)
-const previewData = ref<any>(null)
-
-const templateForm = reactive<CreateReportTemplateDto>({
-  nombre: '',
-  descripcion: '',
-  categoria: 'operacional',
-  configuracion: {
-    tipo: 'personalizado',
-    collections: [],
-    campos: [],
-    filtros: [],
-    ordenamiento: [],
-    agrupacion: [],
-    limite: 1000
-  },
-  branding: {
-    includeHeader: true,
-    includeLogo: true,
-    headerColor: '#2563EB',
-    textColor: '#1F2937',
-    customTitle: ''
-  },
-  isPublic: false,
-  tags: []
+// Opciones de exportación
+const exportOptions = reactive({
+  customTitle: 'Reporte de Alistamientos',
+  includeHeader: true,
+  includeLogo: false,
+  headerColor: '#2563EB',
+  textColor: '#FFFFFF'
 })
 
-const generateForm = reactive({
-  dateRange: null,
-  format: 'excel',
-  includeCharts: false,
-  additionalFilters: {}
+// Computed properties
+const hasResults = computed(() => {
+  return queryResult.value && queryResult.value.data && queryResult.value.data.length > 0
 })
 
-// Opciones para dropdowns
-const categoryOptions = REPORT_CATEGORIES.map(cat => ({
-  label: cat.label,
-  value: cat.value
-}))
+const displayFields = computed(() => {
+  if (!queryResult.value || !lastQuery.value) return []
 
-const exportFormatOptions = EXPORT_FORMATS.map(format => ({
-  label: format.label,
-  value: format.value
-}))
+  // Obtener los campos que se solicitaron en la consulta
+  const requestedFields = lastQuery.value.fields || []
 
-// Computed properties con debouncing para mejorar rendimiento
-const filteredTemplates = computed(() => {
-  // Cache básico para evitar recálculos innecesarios
-  const cacheKey = `${searchQuery.value}-${selectedCategory.value}-${showOnlyActive.value}-${templates.value.length}`
-
-  let filtered = [...templates.value] // Copia superficial para evitar mutaciones
-
-  if (searchQuery.value && searchQuery.value.length > 1) { // Solo filtrar con más de 1 caracter
-    const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(t => {
-      const nombre = t.nombre?.toLowerCase() || ''
-      const descripcion = t.descripcion?.toLowerCase() || ''
-      const tags = t.tags?.some(tag => tag.toLowerCase().includes(query)) || false
-
-      return nombre.includes(query) || descripcion.includes(query) || tags
-    })
-  }
-
-  if (selectedCategory.value) {
-    filtered = filtered.filter(t => t.categoria === selectedCategory.value)
-  }
-
-  if (showOnlyActive.value) {
-    filtered = filtered.filter(t => t.activo)
-  }
-
-  // Ordenamiento optimizado
-  return filtered.sort((a, b) => {
-    const aTime = a.lastUsed ? new Date(a.lastUsed).getTime() : 0
-    const bTime = b.lastUsed ? new Date(b.lastUsed).getTime() : 0
-
-    if (aTime !== bTime) return bTime - aTime
-
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  // Mapear a objetos con etiquetas
+  return requestedFields.map((fieldKey: string) => {
+    // Para simplificar, usamos el fieldKey como label también
+    // En una implementación real, buscarías la definición del campo en el dataset
+    return {
+      key: fieldKey,
+      label: formatFieldLabel(fieldKey),
+      type: inferFieldType(fieldKey)
+    }
   })
-})
-
-const visibleFields = computed(() => {
-  return previewData.value?.template?.configuracion?.campos?.filter((c: any) => c.visible !== false) || []
 })
 
 // Métodos principales
-const loadTemplates = async () => {
-  loading.value = true
-  try {
-    const { data } = await ReportsApi.getTemplates()
-    templates.value = data
-  } catch (error) {
+const handleQueryResult = (result: any) => {
+  queryResult.value = result.data
+  lastQuery.value = result.data.query
+  toast.add({
+    severity: 'success',
+    summary: 'Consulta exitosa',
+    detail: result.message,
+    life: 3000
+  })
+}
+
+const handleLoading = (loading: boolean) => {
+  queryLoading.value = loading
+}
+
+const refreshResults = () => {
+  // Reejecutar la última consulta
+  if (lastQuery.value) {
+    // Aquí podrías emitir un evento al QueryBuilder para que reejecutar la consulta
     toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Error al cargar las plantillas de reportes',
-      life: 3000
+      severity: 'info',
+      summary: 'Actualizando',
+      detail: 'Reejecutando la consulta...',
+      life: 2000
     })
-  } finally {
-    loading.value = false
   }
 }
 
-const saveTemplate = async () => {
-  saving.value = true
+// Métodos de exportación
+const exportToExcel = () => {
+  exportFormat.value = 'excel'
+  showExportDialog.value = true
+}
+
+const exportToPDF = () => {
+  exportFormat.value = 'pdf'
+  showExportDialog.value = true
+}
+
+const executeExport = async () => {
+  if (!queryResult.value || !lastQuery.value) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Sin datos',
+      detail: 'No hay datos para exportar. Ejecuta una consulta primero.',
+      life: 3000
+    })
+    return
+  }
+
   try {
-    if (editingTemplate.value) {
-      await ReportsApi.updateTemplate(editingTemplate.value._id, templateForm)
-      toast.add({
-        severity: 'success',
-        summary: 'Éxito',
-        detail: 'Plantilla actualizada exitosamente',
-        life: 3000
-      })
+    exporting.value = true
+
+    // Construir la consulta de exportación
+    const exportQuery: ExportQuery = {
+      ...lastQuery.value,
+      format: exportFormat.value,
+      customTitle: exportOptions.customTitle,
+      includeHeader: exportOptions.includeHeader,
+      includeLogo: exportOptions.includeLogo,
+      headerColor: exportOptions.headerColor,
+      textColor: exportOptions.textColor
+    }
+
+    const timestamp = new Date().toISOString().split('T')[0]
+    const filename = `alistamientos_${timestamp}.${exportFormat.value === 'excel' ? 'xlsx' : 'pdf'}`
+
+    if (exportFormat.value === 'excel') {
+      await DynamicReportsApi.exportToExcel(exportQuery, filename)
     } else {
-      await ReportsApi.createTemplate(templateForm)
-      toast.add({
-        severity: 'success',
-        summary: 'Éxito',
-        detail: 'Plantilla creada exitosamente',
-        life: 3000
-      })
+      await DynamicReportsApi.exportToPDF(exportQuery, filename)
     }
-
-    await loadTemplates()
-    closeCreateDialog()
-  } catch (error: any) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.message || 'Error al guardar la plantilla',
-      life: 3000
-    })
-  } finally {
-    saving.value = false
-  }
-}
-
-const previewTemplate = async () => {
-  previewing.value = true
-  try {
-    const { data } = await ReportsApi.getReportPreview(templateForm.configuracion, 20)
-    previewData.value = {
-      template: { ...templateForm },
-      data: data
-    }
-    showPreviewDialog.value = true
-  } catch (error: any) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.message || 'Error al generar vista previa',
-      life: 3000
-    })
-  } finally {
-    previewing.value = false
-  }
-}
-
-const generateReport = (template: ReportTemplate) => {
-  selectedTemplate.value = template
-  generateForm.dateRange = null
-  generateForm.format = 'excel'
-  generateForm.includeCharts = false
-  showGenerateDialog.value = true
-}
-
-const executeGenerate = async () => {
-  if (!selectedTemplate.value) return
-
-  generating.value = true
-  try {
-    const params = {
-      format: generateForm.format,
-      includeCharts: generateForm.includeCharts,
-      dateRange: generateForm.dateRange ? {
-        start: generateForm.dateRange[0]?.toISOString().split('T')[0],
-        end: generateForm.dateRange[1]?.toISOString().split('T')[0]
-      } : undefined
-    }
-
-    await ReportsApi.downloadReport(
-      selectedTemplate.value._id,
-      params,
-      `${selectedTemplate.value.nombre.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}`
-    )
 
     toast.add({
       severity: 'success',
-      summary: 'Éxito',
-      detail: 'Reporte generado y descargado exitosamente',
+      summary: 'Exportación exitosa',
+      detail: `Archivo ${filename} descargado correctamente`,
       life: 3000
     })
 
-    showGenerateDialog.value = false
-    await loadTemplates() // Actualizar contadores de uso
+    showExportDialog.value = false
   } catch (error: any) {
+    console.error('Export error:', error)
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.message || 'Error al generar el reporte',
+      summary: 'Error de exportación',
+      detail: error.response?.data?.message || `Error al exportar a ${exportFormat.value.toUpperCase()}`,
       life: 3000
     })
   } finally {
-    generating.value = false
+    exporting.value = false
   }
 }
 
-const viewTemplate = (template: ReportTemplate) => {
-  // Implementar vista de detalles
-  console.log('View template:', template)
+// Helpers para formateo
+const formatFieldLabel = (fieldKey: string): string => {
+  const labels: Record<string, string> = {
+    'placa': 'Placa',
+    'nombresResponsable': 'Responsable',
+    'nombresConductor': 'Conductor',
+    'numeroIdentificacionConductor': 'Cédula Conductor',
+    'estado': 'Estado',
+    'sicov_sync_status': 'Estado SICOV',
+    'createdAt': 'Fecha Creación',
+    'fechaSyncSicov': 'Fecha Sync SICOV',
+    'total_items': 'Total Ítems',
+    'items_ok': 'Ítems Conformes',
+    'items_falla': 'Ítems No Conformes',
+    'porcentaje_conformidad': '% Conformidad'
+  }
+  return labels[fieldKey] || fieldKey
 }
 
-const editTemplate = (template: ReportTemplate) => {
-  editingTemplate.value = template
-  Object.assign(templateForm, {
-    nombre: template.nombre,
-    descripcion: template.descripcion,
-    categoria: template.categoria,
-    configuracion: template.configuracion,
-    branding: template.branding || {},
-    isPublic: template.isPublic,
-    tags: template.tags
-  })
-  showCreateDialog.value = true
+const inferFieldType = (fieldKey: string): string => {
+  const types: Record<string, string> = {
+    'placa': 'string',
+    'nombresResponsable': 'string',
+    'nombresConductor': 'string',
+    'numeroIdentificacionConductor': 'string',
+    'estado': 'boolean',
+    'sicov_sync_status': 'string',
+    'createdAt': 'date',
+    'fechaSyncSicov': 'date',
+    'total_items': 'number',
+    'items_ok': 'number',
+    'items_falla': 'number',
+    'porcentaje_conformidad': 'number'
+  }
+  return types[fieldKey] || 'string'
 }
 
-const duplicateTemplate = async (template: ReportTemplate) => {
+const formatFieldValue = (value: any, type: string): string => {
+  if (value === null || value === undefined) return ''
+
+  switch (type) {
+    case 'date':
+      return new Date(value).toLocaleDateString('es-CO')
+    case 'number':
+      return typeof value === 'number' ? value.toLocaleString('es-CO') : value
+    case 'boolean':
+      return value ? 'Sí' : 'No'
+    default:
+      return String(value)
+  }
+}
+
+const getFieldValueClass = (type: string): string => {
+  switch (type) {
+    case 'number':
+      return 'text-right font-mono'
+    case 'date':
+      return 'text-gray-600'
+    case 'boolean':
+      return 'font-medium'
+    default:
+      return ''
+  }
+}
+
+// ── Métodos para Reportes Rápidos ──────────────────────────────────────────
+
+const loadQuickReports = async () => {
   try {
-    await ReportsApi.duplicateTemplate(template._id, `Copia de ${template.nombre}`)
-    toast.add({
-      severity: 'success',
-      summary: 'Éxito',
-      detail: 'Plantilla duplicada exitosamente',
-      life: 3000
-    })
-    await loadTemplates()
+    loadingQuickReports.value = true
+    const { data } = await DynamicReportsApi.getSavedReports()
+    // Limitar a los primeros 8 reportes para el panel rápido
+    quickReports.value = (data || []).slice(0, 8)
   } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Error al duplicar la plantilla',
-      life: 3000
-    })
+    console.error('Error loading quick reports:', error)
+    quickReports.value = []
+  } finally {
+    loadingQuickReports.value = false
   }
 }
 
-const confirmDeleteTemplate = (template: ReportTemplate) => {
-  confirm.require({
-    message: `¿Está seguro de eliminar la plantilla "${template.nombre}"?`,
-    header: 'Confirmar Eliminación',
-    icon: 'pi pi-exclamation-triangle',
-    rejectClass: 'p-button-secondary p-button-outlined',
-    acceptClass: 'p-button-danger',
-    accept: () => deleteTemplate(template)
-  })
-}
+const executeQuickReport = async (report: SavedReport) => {
+  if (!report._id) return
 
-const deleteTemplate = async (template: ReportTemplate) => {
   try {
-    await ReportsApi.deleteTemplate(template._id)
+    executingReport.value = report._id
+    const result = await DynamicReportsApi.executeReport(report._id)
+
+    queryResult.value = result.data
+    lastQuery.value = result.data.query
+
     toast.add({
       severity: 'success',
-      summary: 'Éxito',
-      detail: 'Plantilla eliminada exitosamente',
+      summary: 'Reporte ejecutado',
+      detail: `"${report.name}" ejecutado exitosamente. ${result.data.totalRecords} registros encontrados.`,
       life: 3000
     })
-    await loadTemplates()
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Error executing quick report:', error)
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: 'Error al eliminar la plantilla',
+      summary: 'Error al ejecutar',
+      detail: error.response?.data?.message || `Error al ejecutar el reporte "${report.name}"`,
       life: 3000
     })
+  } finally {
+    executingReport.value = null
   }
 }
 
-const closeCreateDialog = () => {
-  showCreateDialog.value = false
-  editingTemplate.value = null
-
-  // Resetear formulario
-  Object.assign(templateForm, {
-    nombre: '',
-    descripcion: '',
-    categoria: 'operacional',
-    configuracion: {
-      tipo: 'personalizado',
-      collections: [],
-      campos: [],
-      filtros: [],
-      ordenamiento: [],
-      agrupacion: [],
-      limite: 1000
-    },
-    branding: {
-      includeHeader: true,
-      includeLogo: true,
-      headerColor: '#2563EB',
-      textColor: '#1F2937',
-      customTitle: ''
-    },
-    isPublic: false,
-    tags: []
+const editQuickReport = (report: SavedReport) => {
+  // Emitir evento para que el QueryBuilder cargue este reporte
+  // Para esto, necesitaremos una referencia al componente QueryBuilder
+  toast.add({
+    severity: 'info',
+    summary: 'Cargando reporte',
+    detail: `Cargando "${report.name}" en el constructor de consultas`,
+    life: 2000
   })
-}
 
-const exportTemplatesList = async () => {
-  // Implementar exportación de lista de plantillas
-  console.log('Export templates list')
-}
-
-// Helpers
-const formatCategory = (categoria: string): string => {
-  const found = REPORT_CATEGORIES.find(c => c.value === categoria)
-  return found?.label || categoria
-}
-
-const getCategoryIcon = (categoria: string): string => {
-  const icons: Record<string, string> = {
-    operacional: 'pi pi-cog',
-    gerencial: 'pi pi-chart-line',
-    regulatorio: 'pi pi-shield',
-    personalizado: 'pi pi-user'
+  // Hacer scroll hacia el constructor de consultas
+  const queryBuilder = document.querySelector('.query-builder-section')
+  if (queryBuilder) {
+    queryBuilder.scrollIntoView({ behavior: 'smooth' })
   }
-  return icons[categoria] || 'pi pi-file'
 }
 
-const getCategorySeverity = (categoria: string): string => {
-  const severities: Record<string, string> = {
-    operacional: 'info',
-    gerencial: 'success',
-    regulatorio: 'warning',
-    personalizado: 'secondary'
-  }
-  return severities[categoria] || 'secondary'
-}
-
-const getCollectionDisplayName = (collection: string): string => {
-  const names: Record<string, string> = {
-    'terminal_salidas': 'Despachos',
-    'terminal_llegadas': 'Llegadas',
-    'terminal_novedades': 'Novedades',
-    'users': 'Usuarios',
-    'vehicles': 'Vehículos',
-    'alistamientos': 'Alistamientos'
-  }
-  return names[collection] || collection
-}
-
-const formatDate = (date: string | Date): string => {
-  return new Date(date).toLocaleDateString('es-CO')
+const formatQuickDate = (dateString: string): string => {
+  return new Date(dateString).toLocaleDateString('es-CO', {
+    month: 'short',
+    day: 'numeric'
+  })
 }
 
 // Inicialización
 onMounted(() => {
-  loadTemplates()
+  loadQuickReports()
 })
 </script>
 
 <style scoped>
 .reports-container {
   padding: 1.5rem;
-  max-width: 80rem;
+  max-width: 100%;
   margin: 0 auto;
 }
 
@@ -924,147 +594,132 @@ onMounted(() => {
   gap: 0.75rem;
 }
 
-.filters-section {
-  margin-bottom: 1.5rem;
+.quick-reports-section {
+  margin-bottom: 2rem;
 }
 
-.filter-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem;
+.query-builder-section {
+  margin-bottom: 2rem;
 }
 
-.search-input {
-  flex: 1;
-  min-width: 300px;
+.results-section {
+  margin-bottom: 2rem;
 }
 
-.templates-section {
+.quick-report-card {
+  height: 100%;
+}
+
+.quick-report-card .p-card-content {
+  padding: 0;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.results-table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.results-table {
   @apply bg-white rounded-lg shadow-sm;
+  border: 1px solid #e5e7eb;
 }
 
-.table-header {
-  @apply flex justify-between items-center;
-}
-
-.table-actions {
-  @apply flex gap-2;
-}
-
-.template-name {
-  @apply space-y-1;
-}
-
-.template-meta {
-  @apply text-gray-500;
-}
-
-.data-sources {
-  @apply flex flex-wrap gap-1;
-}
-
-.usage-info {
-  @apply text-center;
-}
-
-.action-column {
-  @apply w-48;
-}
-
-.action-buttons {
-  @apply flex gap-1;
-}
-
-.empty-state {
+.empty-results {
   @apply text-center py-12;
 }
 
-.template-dialog {
-  @apply z-50;
+.empty-state-container {
+  margin-top: 2rem;
 }
 
-.template-form {
-  @apply max-h-[70vh] overflow-y-auto;
-}
-
-.form-section {
-  @apply mb-8 pb-6 border-b border-gray-200 last:border-b-0;
-}
-
-.section-title {
-  @apply text-lg font-semibold text-gray-800 mb-4;
-}
-
-.form-grid {
-  @apply grid grid-cols-1 lg:grid-cols-2 gap-6;
+.export-form {
+  @apply space-y-6;
 }
 
 .form-field {
   @apply space-y-2;
 }
 
-.form-field.span-2 {
-  @apply lg:col-span-2;
-}
-
 .form-field label {
   @apply block text-sm font-medium text-gray-700;
 }
 
-.checkbox-field {
-  @apply flex items-center gap-2;
+/* Estilos específicos para valores de tabla */
+.text-right {
+  text-align: right;
 }
 
-.branding-grid {
-  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4;
+.font-mono {
+  font-family: 'Courier New', monospace;
 }
 
-.branding-field {
-  @apply space-y-2;
+.text-gray-600 {
+  color: #6b7280;
 }
 
-.branding-field.span-2 {
-  @apply md:col-span-2;
+.font-medium {
+  font-weight: 500;
 }
 
-.dialog-footer {
-  @apply flex justify-end;
+/* Responsive */
+@media (max-width: 768px) {
+  .reports-container {
+    padding: 1rem;
+  }
+
+  .page-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
-.generate-form {
-  @apply space-y-6;
+/* Mejoras visuales para la tabla de resultados */
+.results-table :deep(.p-datatable-thead) {
+  background: #f8fafc;
 }
 
-.preview-content {
-  @apply space-y-4;
+.results-table :deep(.p-datatable-thead th) {
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 2px solid #e5e7eb;
 }
 
-.preview-info {
-  @apply border-b pb-4;
+.results-table :deep(.p-datatable-tbody tr:nth-child(even)) {
+  background: #f9fafb;
 }
 
-.preview-table {
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
+.results-table :deep(.p-datatable-tbody tr:hover) {
+  background: #f3f4f6;
 }
 
-.loading-placeholder {
+/* Loading states */
+.loading-overlay {
+  position: relative;
+}
+
+.loading-overlay::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 2rem;
-  color: #6b7280;
-  font-size: 0.875rem;
-}
-
-/* Optimizaciones adicionales para reducir reflow */
-.query-builder * {
-  box-sizing: border-box;
-}
-
-.templates-table {
-  contain: layout style;
+  z-index: 10;
 }
 </style>

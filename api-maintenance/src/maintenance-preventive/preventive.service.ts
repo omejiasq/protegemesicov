@@ -107,7 +107,7 @@ async create(
     const { doc, externalId, sicovDown } = await this.maintenanceService.create(
       maintPayload,
       userForMaintenance,
-      { awaitExternal: true },
+      { awaitExternal: false }, // 🔥 No esperar SICOV, similar a alistamientos
     );
 
     const localId = (doc as any)?._id ?? (doc as any)?.id;
@@ -745,7 +745,7 @@ async markAsExecuted(
     const { doc: maintDoc, externalId, sicovDown: down } = await this.maintenanceService.create(
       { placa: doc.placa, tipoId: 1 as const, vigiladoId },
       { ...user, vigiladoId },
-      { awaitExternal: true },
+      { awaitExternal: false }, // 🔥 No esperar SICOV, procesar en background
     );
 
     const localId = (maintDoc as any)?._id ?? (maintDoc as any)?.id;

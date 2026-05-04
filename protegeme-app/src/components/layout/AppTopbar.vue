@@ -21,7 +21,7 @@
           class="p-button-text p-button-rounded notif-bell"
           :class="{ 'bell-active': unreadCount > 0 }"
           @click="goToAlerts"
-          v-tooltip.bottom="unreadCount > 0 ? `${unreadCount} alerta${unreadCount > 1 ? 's' : ''} sin gestionar` : 'Alertas de documentos'"
+          :title="unreadCount > 0 ? `${unreadCount} alerta${unreadCount > 1 ? 's' : ''} sin gestionar` : 'Alertas de documentos'"
         />
         <span v-if="unreadCount > 0" class="notif-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
       </div>

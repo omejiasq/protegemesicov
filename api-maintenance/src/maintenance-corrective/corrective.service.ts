@@ -120,7 +120,7 @@ export class CorrectiveService {
       const { doc, externalId, sicovDown } = await this.maintenanceService.create(
         maintPayload,
         userForMaintenance,
-        { awaitExternal: true },
+        { awaitExternal: false }, // 🔥 No esperar SICOV, similar a alistamientos
       );
 
       const localId = (doc as any)?._id ?? (doc as any)?.id;

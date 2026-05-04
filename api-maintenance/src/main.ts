@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 
 function parseAllowedFromEnv(): string[] {
@@ -12,9 +13,18 @@ function parseAllowedFromEnv(): string[] {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Configurar validación global
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // Solo acepta propiedades definidas en el DTO
+      forbidNonWhitelisted: true, // Rechaza propiedades no permitidas
+      transform: true, // Transforma tipos automáticamente
+    }),
+  );
+
   // Siempre habilitamos localhost para desarrollo
   //const STATIC_LOCAL = ['http://localhost:5173', 'http://127.0.0.1:5173','https://sicov.protegeme.com.co'];
-  const STATIC_LOCAL = ['http://localhost:5173', 'http://127.0.0.1:5173','http://23.227.173.137','http://23.227.173.137:5173','https://sicov.protegeme.com.co','https://seguimiento.protegeme.com.co'];
+  const STATIC_LOCAL = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://127.0.0.1:5174', 'http://127.0.0.1:5175','http://23.227.173.137','http://23.227.173.137:5173','https://sicov.protegeme.com.co','https://seguimiento.protegeme.com.co'];
   const ENV_ALLOWED = new Set([...STATIC_LOCAL, ...parseAllowedFromEnv()]);
 
   app.enableCors({

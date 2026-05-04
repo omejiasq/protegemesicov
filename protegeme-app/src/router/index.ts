@@ -270,10 +270,33 @@ const routes: RouteRecordRaw[] = [
         name: 'pesv-km-importer',
         component: () => import('../views/pesv/GpsKmImporter.vue'),
       },
+      // ─── REPORTES DINÁMICOS (PESV) ───
       {
         path: 'pesv/reports',
         name: 'pesv-reports',
-        component: () => import('../views/reports/Reports.vue'),
+        component: () => import('../views/reports/ReportsManager.vue'),
+      },
+      {
+        path: 'pesv/reports/create',
+        name: 'pesv-reports-create',
+        component: () => import('../views/reports/CreateReport.vue'),
+      },
+      {
+        path: 'pesv/reports/view/:id',
+        name: 'pesv-reports-view',
+        component: () => import('../views/reports/ViewReport.vue'),
+        props: true,
+      },
+      {
+        path: 'pesv/reports/edit/:id',
+        name: 'pesv-reports-edit',
+        component: () => import('../views/reports/EditReport.vue'),
+        props: true,
+      },
+      {
+        path: 'pesv/reports/results',
+        name: 'pesv-reports-results',
+        component: () => import('../views/reports/ResultsReport.vue'),
       },
 
       // ─── ALERTAS DE DOCUMENTOS ───

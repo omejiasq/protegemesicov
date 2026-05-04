@@ -40,10 +40,21 @@ let pollTimer: ReturnType<typeof setInterval> | null = null
 async function fetchUnreadCount() {
   if (!auth.token) return
   try {
-    const res = await fetch(`${API}/maintenance/document-alerts/unread-count`, {
+    const res = await fetch(`${API}/document-alerts/unread-count`, {
       headers: { Authorization: `Bearer ${auth.token}` },
     })
-    if (!res.ok) return
+    if (!res.ok) {
+      // Si es un 404, el endpoint no existe - ignorar completamente
+      if (res.status === 404) {
+        // Detener el polling si el endpoint no existe
+        if (pollTimer) {
+          clearInterval(pollTimer)
+          pollTimer = null
+        }
+        return
+      }
+      return
+    }
     const { count } = await res.json()
     const prev = unreadAlerts.value
     unreadAlerts.value = count
@@ -58,7 +69,13 @@ async function fetchUnreadCount() {
         life: 8000,
       })
     }
-  } catch { /* silencioso — es polling */ }
+  } catch (error) {
+    // Detener el polling si hay errores de conectividad
+    if (pollTimer) {
+      clearInterval(pollTimer)
+      pollTimer = null
+    }
+  }
 }
 
 onMounted(() => {

@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 
@@ -48,31 +48,116 @@ export class InspectionTypesService {
   }
 
   /** Crear ítem propio de la empresa (company viene del JWT) */
-  createForCompany(company: string, dto: CreateInspectionTypeDto) {
-    return this.model.create({
-      ...dto,
-      clase_vehiculo: dto.clase_vehiculo || 'GENERAL',
-      company: new Types.ObjectId(company),
+  async createForCompany(company: string, dto: CreateInspectionTypeDto) {
+    if (!Types.ObjectId.isValid(company)) {
+      throw new BadRequestException('company inválido');
+    }
+
+    const companyObjectId = new Types.ObjectId(company);
+    const claseVehiculo = dto.clase_vehiculo || 'GENERAL';
+
+    // Verificar si ya existe un ítem con la misma combinación
+    const existingItem = await this.model.findOne({
+      company: companyObjectId,
+      clase_vehiculo: claseVehiculo,
+      dispositivo: dto.dispositivo,
     });
+
+    if (existingItem) {
+      throw new ConflictException(
+        `Ya existe un tipo de inspección para la clase de vehículo '${claseVehiculo}' y dispositivo '${dto.dispositivo}'`
+      );
+    }
+
+    try {
+      return await this.model.create({
+        ...dto,
+        clase_vehiculo: claseVehiculo,
+        company: companyObjectId,
+      });
+    } catch (error: any) {
+      // Manejar error de duplicado en caso de condición de carrera
+      if (error.code === 11000) {
+        throw new ConflictException(
+          `Ya existe un tipo de inspección para la clase de vehículo '${claseVehiculo}' y dispositivo '${dto.dispositivo}'`
+        );
+      }
+      throw error;
+    }
   }
 
   /** Actualizar campos de un ítem propio */
-  update(id: string, company: string, dto: UpdateInspectionTypeDto) {
-    return this.model.findOneAndUpdate(
-      { _id: id, company: new Types.ObjectId(company) },
-      { $set: dto },
-      { new: true },
-    );
+  async update(id: string, company: string, dto: UpdateInspectionTypeDto) {
+    if (!Types.ObjectId.isValid(company) || !Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('ID o company inválido');
+    }
+
+    const companyObjectId = new Types.ObjectId(company);
+
+    // Si se actualiza clase_vehiculo o dispositivo, verificar que no cause duplicado
+    if (dto.clase_vehiculo || dto.dispositivo) {
+      // Obtener el documento actual
+      const currentDoc = await this.model.findOne({
+        _id: id,
+        company: companyObjectId,
+      });
+
+      if (!currentDoc) {
+        throw new BadRequestException('Tipo de inspección no encontrado');
+      }
+
+      const newClaseVehiculo = dto.clase_vehiculo || currentDoc.clase_vehiculo;
+      const newDispositivo = dto.dispositivo || currentDoc.dispositivo;
+
+      // Verificar si ya existe otro ítem con la nueva combinación
+      const existingItem = await this.model.findOne({
+        _id: { $ne: id }, // Excluir el documento actual
+        company: companyObjectId,
+        clase_vehiculo: newClaseVehiculo,
+        dispositivo: newDispositivo,
+      });
+
+      if (existingItem) {
+        throw new ConflictException(
+          `Ya existe otro tipo de inspección para la clase de vehículo '${newClaseVehiculo}' y dispositivo '${newDispositivo}'`
+        );
+      }
+    }
+
+    try {
+      return await this.model.findOneAndUpdate(
+        { _id: id, company: companyObjectId },
+        { $set: dto },
+        { new: true },
+      );
+    } catch (error: any) {
+      // Manejar error de duplicado en caso de condición de carrera
+      if (error.code === 11000) {
+        throw new ConflictException(
+          'La combinación de clase de vehículo y dispositivo ya existe'
+        );
+      }
+      throw error;
+    }
   }
 
   /** Habilitar / deshabilitar */
   async toggle(id: string, company: string) {
+    if (!Types.ObjectId.isValid(company) || !Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('ID o company inválido');
+    }
+
+    const companyObjectId = new Types.ObjectId(company);
     const doc = await this.model.findOne(
-      { _id: id, company: new Types.ObjectId(company) },
+      { _id: id, company: companyObjectId },
     ).lean();
-    if (!doc) return null;
+
+    if (!doc) {
+      throw new BadRequestException('Tipo de inspección no encontrado');
+    }
+
     return this.model.findOneAndUpdate(
-      { _id: id, company: new Types.ObjectId(company) },
+      { _id: id, company: companyObjectId },
       { $set: { enabled: !doc.enabled } },
       { new: true },
     );

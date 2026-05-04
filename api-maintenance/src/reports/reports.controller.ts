@@ -1,4 +1,3 @@
-// src/reports/reports.controller.ts
 import {
   Controller,
   Get,
@@ -7,7 +6,6 @@ import {
   Delete,
   Body,
   Param,
-  Query,
   Req,
   Res,
   UseGuards,
@@ -17,35 +15,274 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../libs/auth/jwt-auth.guard';
+import { DynamicReportsService } from './services/dynamic-reports.service';
+import { ExportService } from './services/export.service';
+import { EnterpriseService } from './services/enterprise.service';
 import { ReportTemplateService } from './services/report-template.service';
-import { ExcelExportService } from './services/excel-export.service';
-import { FieldDiscoveryService } from './services/field-discovery.service';
+import { CreateTemplateDto, UpdateTemplateDto } from './dto/template.dto';
 import {
-  CreateReportTemplateDto,
-  UpdateReportTemplateDto,
-  GenerateReportDto,
-  ReportFieldsQueryDto,
-  DuplicateTemplateDto
-} from './dto/report-template.dto';
+  DynamicQueryDto,
+  ExportQueryDto,
+  DatasetResponseDto,
+  QueryResultDto
+} from './dto/dynamic-reports.dto';
 
 @Controller('reports')
 @UseGuards(JwtAuthGuard)
 export class ReportsController {
   constructor(
-    private readonly reportTemplateService: ReportTemplateService,
-    private readonly excelExportService: ExcelExportService,
-    private readonly fieldDiscoveryService: FieldDiscoveryService,
+    private readonly dynamicReportsService: DynamicReportsService,
+    private readonly exportService: ExportService,
+    private readonly enterpriseService: EnterpriseService,
+    private readonly templateService: ReportTemplateService,
   ) {}
 
-  // ── Gestión de plantillas de reportes ────────────────────────────────
+  // ── Gestión de Datasets ──────────────────────────────────────────────────────────────────────────────
 
+  /**
+   * Obtiene todos los datasets disponibles
+   */
+  @Get('datasets')
+  async getAvailableDatasets(): Promise<{ success: boolean; data: DatasetResponseDto[] }> {
+    try {
+      const datasets = await this.dynamicReportsService.getAvailableDatasets();
+
+      return {
+        success: true,
+        data: datasets
+      };
+    } catch (error) {
+      throw new HttpException(
+        'Error al obtener los datasets disponibles',
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  /**
+   * Obtiene la definición de un dataset específico
+   */
+  @Get('datasets/alistamientos')
+  async getAlistamientosDataset(): Promise<{ success: boolean; data: DatasetResponseDto }> {
+    try {
+      const dataset = await this.dynamicReportsService.getAlistamientosDataset();
+
+      return {
+        success: true,
+        data: dataset
+      };
+    } catch (error) {
+      throw new HttpException(
+        'Error al obtener el dataset de alistamientos',
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  // ── Consultas Dinámicas ──────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Ejecuta una consulta dinámica contra un dataset
+   */
+  @Post('query')
+  async executeQuery(
+    @Body(ValidationPipe) queryDto: DynamicQueryDto,
+    @Req() req: any
+  ): Promise<{ success: boolean; data: QueryResultDto; message: string }> {
+    try {
+      const result = await this.dynamicReportsService.executeQuery(
+        queryDto,
+        req.user.enterprise_id
+      );
+
+      return {
+        success: true,
+        data: result,
+        message: `Consulta ejecutada exitosamente. ${result.totalRecords} registros encontrados.`
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Error al ejecutar la consulta',
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
+  // ── Exportación ──────────────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Exporta los resultados de una consulta a Excel
+   */
+  @Post('export/excel')
+  async exportToExcel(
+    @Body(ValidationPipe) queryDto: ExportQueryDto,
+    @Req() req: any,
+    @Res() res: Response
+  ) {
+    try {
+      // Ejecutar la consulta
+      const result = await this.dynamicReportsService.executeQuery(
+        queryDto,
+        req.user.enterprise_id
+      );
+
+      // Obtener información de la empresa desde la colección enterprises
+      const enterpriseInfo = await this.enterpriseService.getEnterpriseInfo(req.user.enterprise_id) || {
+        _id: req.user.enterprise_id,
+        name: 'Empresa',
+        vigiladoId: 'N/A',
+        logo: null
+      };
+
+      const enterpriseForExport = {
+        nombre: enterpriseInfo.name,
+        nit: enterpriseInfo.vigiladoId,
+        logo: enterpriseInfo.logo || undefined
+      };
+
+      // Obtener el dataset correcto basado en la consulta
+      const availableDatasets = await this.dynamicReportsService.getAvailableDatasets();
+      const dataset = availableDatasets.find(d => d.id === queryDto.dataset) ||
+                     await this.dynamicReportsService.getAlistamientosDataset();
+
+      // Generar campos para exportación
+      const fields = queryDto.fields.map(fieldKey => {
+        const fieldDef = dataset.fields.find(f => f.key === fieldKey);
+        return {
+          key: fieldKey,
+          label: fieldDef?.label || fieldKey,
+          type: fieldDef?.type || 'string',
+          visible: true
+        };
+      });
+
+      // Opciones de exportación
+      const exportOptions = {
+        title: queryDto.customTitle || `Reporte de ${dataset.name}`,
+        enterprise: enterpriseForExport,
+        includeHeader: queryDto.includeHeader ?? true,
+        includeLogo: queryDto.includeLogo ?? false,
+        headerColor: queryDto.headerColor || '#2563EB',
+        textColor: queryDto.textColor || '#FFFFFF'
+      };
+
+      // Generar Excel
+      const buffer = await this.exportService.generateExcel(
+        result.data,
+        fields,
+        exportOptions
+      );
+
+      const fileName = `alistamientos_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+      res.set({
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': `attachment; filename="${fileName}"`,
+        'Content-Length': buffer.length
+      });
+
+      res.send(buffer);
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Error al exportar a Excel',
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  /**
+   * Exporta los resultados de una consulta a PDF
+   */
+  @Post('export/pdf')
+  async exportToPDF(
+    @Body(ValidationPipe) queryDto: ExportQueryDto,
+    @Req() req: any,
+    @Res() res: Response
+  ) {
+    try {
+      // Ejecutar la consulta (limitada a 100 registros para PDF)
+      const limitedQuery = { ...queryDto, limit: Math.min(queryDto.limit || 100, 100) };
+      const result = await this.dynamicReportsService.executeQuery(
+        limitedQuery,
+        req.user.enterprise_id
+      );
+
+      // Obtener información de la empresa desde la colección enterprises
+      const enterpriseInfo = await this.enterpriseService.getEnterpriseInfo(req.user.enterprise_id) || {
+        _id: req.user.enterprise_id,
+        name: 'Empresa',
+        vigiladoId: 'N/A',
+        logo: null
+      };
+
+      const enterpriseForExport = {
+        nombre: enterpriseInfo.name,
+        nit: enterpriseInfo.vigiladoId,
+        logo: enterpriseInfo.logo || undefined
+      };
+
+      // Obtener el dataset correcto basado en la consulta
+      const availableDatasets = await this.dynamicReportsService.getAvailableDatasets();
+      const dataset = availableDatasets.find(d => d.id === queryDto.dataset) ||
+                     await this.dynamicReportsService.getAlistamientosDataset();
+
+      // Generar campos para exportación
+      const fields = queryDto.fields.map(fieldKey => {
+        const fieldDef = dataset.fields.find(f => f.key === fieldKey);
+        return {
+          key: fieldKey,
+          label: fieldDef?.label || fieldKey,
+          type: fieldDef?.type || 'string',
+          visible: true
+        };
+      });
+
+      // Opciones de exportación (con fondo blanco y texto negro para PDF)
+      const exportOptions = {
+        title: queryDto.customTitle || `Reporte de ${dataset.name}`,
+        enterprise: enterpriseForExport,
+        includeHeader: queryDto.includeHeader ?? true,
+        includeLogo: queryDto.includeLogo ?? false,
+        headerColor: queryDto.headerColor || '#FFFFFF',
+        textColor: queryDto.textColor || '#000000'
+      };
+
+      // Generar PDF
+      const buffer = await this.exportService.generatePDF(
+        result.data,
+        fields,
+        exportOptions
+      );
+
+      const fileName = `alistamientos_${new Date().toISOString().split('T')[0]}.pdf`;
+
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${fileName}"`,
+        'Content-Length': buffer.length
+      });
+
+      res.send(buffer);
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Error al exportar a PDF',
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  // ── Gestión de Plantillas ────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Crear una nueva plantilla de reporte
+   */
   @Post('templates')
   async createTemplate(
-    @Body(ValidationPipe) createDto: CreateReportTemplateDto,
+    @Body(ValidationPipe) createDto: CreateTemplateDto,
     @Req() req: any
   ) {
     try {
-      const template = await this.reportTemplateService.create(
+      const template = await this.templateService.create(
         createDto,
         req.user.enterprise_id,
         req.user.sub
@@ -54,158 +291,138 @@ export class ReportsController {
       return {
         success: true,
         data: template,
-        message: 'Plantilla de reporte creada exitosamente'
+        message: 'Plantilla creada exitosamente'
       };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Error al crear la plantilla de reporte',
+        error.message || 'Error al crear la plantilla',
         HttpStatus.BAD_REQUEST
       );
     }
   }
 
+  /**
+   * Obtener todas las plantillas de la empresa
+   */
   @Get('templates')
-  async getTemplates(
-    @Query() filters: any,
-    @Req() req: any
-  ) {
+  async getTemplates(@Req() req: any) {
     try {
-      const templates = await this.reportTemplateService.findAll(
+      const templates = await this.templateService.findByEnterprise(
         req.user.enterprise_id,
-        {
-          categoria: filters.categoria,
-          activo: filters.activo === 'true',
-          isPublic: filters.isPublic === 'true',
-          search: filters.search
-        }
+        req.user.sub
       );
 
       return {
         success: true,
-        data: templates,
-        total: templates.length
+        data: templates
       };
     } catch (error) {
       throw new HttpException(
-        'Error al obtener las plantillas de reportes',
+        'Error al obtener las plantillas',
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
 
+  /**
+   * Obtener una plantilla específica
+   */
   @Get('templates/:id')
   async getTemplate(
-    @Param('id') id: string,
+    @Param('id') templateId: string,
     @Req() req: any
   ) {
     try {
-      const template = await this.reportTemplateService.findById(
-        id,
-        req.user.enterprise_id
+      const template = await this.templateService.findById(
+        templateId,
+        req.user.enterprise_id,
+        req.user.sub
       );
-
-      if (!template) {
-        throw new HttpException(
-          'Plantilla de reporte no encontrada',
-          HttpStatus.NOT_FOUND
-        );
-      }
 
       return {
         success: true,
         data: template
       };
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
       throw new HttpException(
-        'Error al obtener la plantilla de reporte',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        error.message || 'Error al obtener la plantilla',
+        HttpStatus.NOT_FOUND
       );
     }
   }
 
+  /**
+   * Actualizar una plantilla
+   */
   @Put('templates/:id')
   async updateTemplate(
-    @Param('id') id: string,
-    @Body(ValidationPipe) updateDto: UpdateReportTemplateDto,
+    @Param('id') templateId: string,
+    @Body(ValidationPipe) updateDto: UpdateTemplateDto,
     @Req() req: any
   ) {
     try {
-      const template = await this.reportTemplateService.update(
-        id,
+      const template = await this.templateService.update(
+        templateId,
         updateDto,
-        req.user.enterprise_id
+        req.user.enterprise_id,
+        req.user.sub
       );
-
-      if (!template) {
-        throw new HttpException(
-          'Plantilla de reporte no encontrada',
-          HttpStatus.NOT_FOUND
-        );
-      }
 
       return {
         success: true,
         data: template,
-        message: 'Plantilla de reporte actualizada exitosamente'
+        message: 'Plantilla actualizada exitosamente'
       };
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
       throw new HttpException(
-        error.message || 'Error al actualizar la plantilla de reporte',
+        error.message || 'Error al actualizar la plantilla',
         HttpStatus.BAD_REQUEST
       );
     }
   }
 
+  /**
+   * Eliminar una plantilla
+   */
   @Delete('templates/:id')
   async deleteTemplate(
-    @Param('id') id: string,
+    @Param('id') templateId: string,
     @Req() req: any
   ) {
     try {
-      const deleted = await this.reportTemplateService.remove(
-        id,
-        req.user.enterprise_id
+      await this.templateService.remove(
+        templateId,
+        req.user.enterprise_id,
+        req.user.sub
       );
-
-      if (!deleted) {
-        throw new HttpException(
-          'Plantilla de reporte no encontrada',
-          HttpStatus.NOT_FOUND
-        );
-      }
 
       return {
         success: true,
-        message: 'Plantilla de reporte eliminada exitosamente'
+        message: 'Plantilla eliminada exitosamente'
       };
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
       throw new HttpException(
-        'Error al eliminar la plantilla de reporte',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        error.message || 'Error al eliminar la plantilla',
+        HttpStatus.BAD_REQUEST
       );
     }
   }
 
+  /**
+   * Duplicar una plantilla
+   */
   @Post('templates/:id/duplicate')
   async duplicateTemplate(
-    @Param('id') id: string,
-    @Body(ValidationPipe) duplicateDto: DuplicateTemplateDto,
+    @Param('id') templateId: string,
+    @Body('newName') newName: string,
     @Req() req: any
   ) {
     try {
-      const template = await this.reportTemplateService.duplicateTemplate(
-        id,
+      const template = await this.templateService.duplicate(
+        templateId,
         req.user.enterprise_id,
-        duplicateDto.newName
+        req.user.sub,
+        newName
       );
 
       return {
@@ -221,208 +438,47 @@ export class ReportsController {
     }
   }
 
-  // ── Generación de reportes ───────────────────────────────────────────
-
-  @Post('templates/:id/generate')
-  async generateReport(
-    @Param('id') id: string,
-    @Body(ValidationPipe) generateDto: GenerateReportDto,
+  /**
+   * Ejecutar consulta desde una plantilla
+   */
+  @Post('templates/:id/execute')
+  async executeTemplate(
+    @Param('id') templateId: string,
     @Req() req: any
   ) {
     try {
-      const reportData = await this.reportTemplateService.generateReport(
-        id,
-        generateDto,
+      const template = await this.templateService.findById(
+        templateId,
+        req.user.enterprise_id,
+        req.user.sub
+      );
+
+      // Convertir la plantilla a un query DTO
+      const queryDto: DynamicQueryDto = {
+        dataset: template.dataset,
+        fields: template.fields,
+        filters: template.filters || [],
+        groupBy: template.groupBy || [],
+        aggregations: template.aggregations || [],
+        mode: template.mode,
+        limit: template.limit
+      };
+
+      const result = await this.dynamicReportsService.executeQuery(
+        queryDto,
         req.user.enterprise_id
       );
 
       return {
         success: true,
-        data: reportData,
-        message: 'Reporte generado exitosamente'
+        data: result,
+        message: `Plantilla "${template.name}" ejecutada exitosamente. ${result.totalRecords} registros encontrados.`
       };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Error al generar el reporte',
+        error.message || 'Error al ejecutar la plantilla',
         HttpStatus.BAD_REQUEST
       );
     }
-  }
-
-  @Post('templates/:id/export')
-  async exportReport(
-    @Param('id') id: string,
-    @Body(ValidationPipe) generateDto: GenerateReportDto,
-    @Req() req: any,
-    @Res() res: Response
-  ) {
-    try {
-      // Generar los datos del reporte
-      const reportData = await this.reportTemplateService.generateReport(
-        id,
-        generateDto,
-        req.user.enterprise_id
-      );
-
-      // Obtener información de la empresa para el branding
-      const enterpriseInfo = req.user.enterprise || {
-        razonSocial: 'Empresa',
-        nit: req.user.enterprise_id
-      };
-
-      const format = generateDto.format || 'excel';
-
-      if (format === 'excel') {
-        // Generar Excel con branding
-        const buffer = await this.excelExportService.generateExcel(
-          reportData,
-          reportData.template,
-          enterpriseInfo
-        );
-
-        const fileName = `${reportData.template.nombre.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
-
-        res.set({
-          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'Content-Disposition': `attachment; filename="${fileName}"`,
-          'Content-Length': buffer.length
-        });
-
-        res.send(buffer);
-      } else if (format === 'csv') {
-        // Generar CSV simple
-        const csvData = this.generateCSV(reportData.data, reportData.template.configuracion.campos);
-        const fileName = `${reportData.template.nombre.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
-
-        res.set({
-          'Content-Type': 'text/csv',
-          'Content-Disposition': `attachment; filename="${fileName}"`
-        });
-
-        res.send(csvData);
-      } else {
-        throw new HttpException(
-          'Formato de exportación no soportado',
-          HttpStatus.BAD_REQUEST
-        );
-      }
-    } catch (error) {
-      throw new HttpException(
-        error.message || 'Error al exportar el reporte',
-        HttpStatus.INTERNAL_SERVER_ERROR
-      );
-    }
-  }
-
-  // ── Descubrimiento de campos ─────────────────────────────────────────
-
-  @Get('collections')
-  async getAvailableCollections() {
-    try {
-      const collections = await this.fieldDiscoveryService.getAvailableCollections();
-
-      return {
-        success: true,
-        data: collections
-      };
-    } catch (error) {
-      throw new HttpException(
-        'Error al obtener las colecciones disponibles',
-        HttpStatus.INTERNAL_SERVER_ERROR
-      );
-    }
-  }
-
-  @Post('fields')
-  async getAvailableFields(
-    @Body(ValidationPipe) queryDto: ReportFieldsQueryDto
-  ) {
-    try {
-      const fields = await this.reportTemplateService.getAvailableFields(
-        queryDto.collections
-      );
-
-      return {
-        success: true,
-        data: fields
-      };
-    } catch (error) {
-      throw new HttpException(
-        'Error al obtener los campos disponibles',
-        HttpStatus.INTERNAL_SERVER_ERROR
-      );
-    }
-  }
-
-  @Get('collections/:name/fields')
-  async getCollectionFields(
-    @Param('name') collectionName: string,
-    @Query() filters: any
-  ) {
-    try {
-      const fields = await this.fieldDiscoveryService.getFilteredFields(
-        collectionName,
-        {
-          types: filters.types ? filters.types.split(',') : undefined,
-          excludePaths: filters.excludePaths ? filters.excludePaths.split(',') : undefined,
-          includeNested: filters.includeNested === 'true'
-        }
-      );
-
-      return {
-        success: true,
-        data: fields
-      };
-    } catch (error) {
-      throw new HttpException(
-        'Error al obtener los campos de la colección',
-        HttpStatus.INTERNAL_SERVER_ERROR
-      );
-    }
-  }
-
-  // ── Métodos auxiliares ───────────────────────────────────────────────
-
-  private generateCSV(data: any[], campos: any[]): string {
-    if (!data || data.length === 0) {
-      return '';
-    }
-
-    const visibleFields = campos.filter(campo => campo.visible !== false);
-    const headers = visibleFields.map(campo => campo.label);
-    const csvRows = [headers.join(',')];
-
-    data.forEach(item => {
-      const row = visibleFields.map(campo => {
-        const value = this.getNestedValue(item, campo.path);
-        const formattedValue = this.formatCSVValue(value);
-        return `"${formattedValue}"`; // Escapar con comillas
-      });
-      csvRows.push(row.join(','));
-    });
-
-    return csvRows.join('\n');
-  }
-
-  private getNestedValue(obj: any, path: string): any {
-    return path.split('.').reduce((current, prop) => {
-      return current && typeof current === 'object' ? current[prop] : undefined;
-    }, obj);
-  }
-
-  private formatCSVValue(value: any): string {
-    if (value === null || value === undefined) {
-      return '';
-    }
-
-    if (value instanceof Date) {
-      return value.toLocaleDateString('es-CO');
-    }
-
-    if (Array.isArray(value)) {
-      return value.join('; ');
-    }
-
-    return String(value).replace(/"/g, '""'); // Escapar comillas dobles
   }
 }

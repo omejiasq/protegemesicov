@@ -32,13 +32,13 @@ export class PreventiveController {
   @Post('create')
   create(@Body() dto: CreatePreventiveDto, @Req() req: any) {
     const user = req.user as JwtUser;
-  
+
     // 🔥 Extraer JWT real del header Authorization
     const authHeader = req.headers.authorization;
     const jwt = authHeader?.startsWith('Bearer ')
       ? authHeader.split(' ')[1]
       : undefined;
-  
+
     return this.svc.create(dto, {
       enterprise_id: user.enterprise_id,
       sub: user.sub,

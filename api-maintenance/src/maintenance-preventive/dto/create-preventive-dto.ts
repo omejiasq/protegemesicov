@@ -1,14 +1,16 @@
-import { IsInt, IsString, IsNotEmpty } from 'class-validator';
+import { IsInt, IsString, IsNotEmpty, IsOptional, IsBoolean } from 'class-validator';
 
 export class CreatePreventiveDto {
-  @IsString() @IsNotEmpty() mantenimientoId!: string;
-  @IsString() placa!: string;
-  @IsString() fecha!: string;
-  @IsString() hora!: string;
+  @IsOptional() @IsString() mantenimientoId?: string;
+  @IsString() @IsNotEmpty() placa!: string;
+  @IsString() @IsNotEmpty() fecha!: string;
+  @IsString() @IsNotEmpty() hora!: string;
   @IsInt() nit!: number;
-  @IsString() razonSocial!: string;
+  @IsString() @IsNotEmpty() razonSocial!: string;
   @IsInt() tipoIdentificacion!: number;
-  @IsString() numeroIdentificacion!: string;
-  @IsString() nombresResponsable!: string;
-  @IsString() detalleActividades!: string;
+  @IsString() @IsNotEmpty() numeroIdentificacion!: string;
+  @IsString() @IsNotEmpty() nombresResponsable!: string;
+  @IsString() @IsNotEmpty() detalleActividades!: string;
+
+  @IsOptional() @IsBoolean() isPlanned?: boolean;
 }

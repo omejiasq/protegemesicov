@@ -6,7 +6,13 @@
         <i class="pi pi-database mr-2"></i>
         Fuentes de Datos
       </h4>
-      <div class="collections-grid">
+
+      <div v-if="isLoadingCollections" class="loading-state">
+        <i class="pi pi-spinner pi-spin mr-2"></i>
+        Cargando fuentes de datos...
+      </div>
+
+      <div v-else class="collections-grid">
         <div
           v-for="collection in availableCollections"
           :key="collection.name"
@@ -25,7 +31,7 @@
             <span class="collection-name">{{ collection.displayName }}</span>
           </div>
           <div class="collection-info">
-            <small>{{ collection.fields.length }} campos disponibles</small>
+            <small>{{ collection.fields?.length || 0 }} campos disponibles</small>
           </div>
         </div>
       </div>
@@ -61,7 +67,7 @@
             >
               <h6 class="collection-title">{{ collection.displayName }}</h6>
               <div
-                v-for="field in collection.fields"
+                v-for="field in collection.fields || []"
                 :key="`${collection.name}.${field.path}`"
                 :class="[
                   'field-item',
@@ -305,7 +311,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Dropdown from 'primevue/dropdown'
@@ -363,6 +369,7 @@ const emit = defineEmits<{
 }>()
 
 // Estado del componente
+const isLoadingCollections = ref(true)
 const availableCollections = ref<CollectionInfo[]>([])
 const selectedCollections = ref<string[]>(props.modelValue.collections || [])
 const selectedFields = ref<FieldConfig[]>(props.modelValue.campos || [])
@@ -395,17 +402,18 @@ const sortDirections = [
 const filteredCollectionFields = computed(() => {
   const selectedCols = selectedCollections.value
   const searchTerm = fieldSearch.value?.toLowerCase() || ''
+  const collections = Array.isArray(availableCollections.value) ? availableCollections.value : []
 
   if (!searchTerm || searchTerm.length < 2) {
-    return availableCollections.value.filter(col =>
+    return collections.filter(col =>
       selectedCols.includes(col.name)
     )
   }
 
-  return availableCollections.value
+  return collections
     .filter(col => selectedCols.includes(col.name))
     .map(col => {
-      const filteredFields = col.fields.filter(field => {
+      const filteredFields = (col.fields || []).filter(field => {
         const labelMatch = field.label.toLowerCase().includes(searchTerm)
         const pathMatch = field.path.toLowerCase().includes(searchTerm)
         return labelMatch || pathMatch
@@ -413,7 +421,7 @@ const filteredCollectionFields = computed(() => {
 
       return { ...col, fields: filteredFields }
     })
-    .filter(col => col.fields.length > 0)
+    .filter(col => (col.fields || []).length > 0)
 })
 
 const filterableFields = computed(() => {
@@ -430,18 +438,91 @@ const groupableFields = computed(() => filterableFields.value)
 // Métodos optimizados
 const loadAvailableCollections = async () => {
   try {
+    isLoadingCollections.value = true
     const { data } = await ReportsApi.getAvailableCollections()
-    // Cargar solo las colecciones básicas inicialmente
-    availableCollections.value = data || []
+    // Cargar solo las colecciones básicas inicialmente - ensure it's an array
+    availableCollections.value = Array.isArray(data) ? data : []
   } catch (error) {
     console.error('Error loading collections:', error)
-    // Fallback con colecciones básicas
+    // Fallback con colecciones específicas del sistema de alistamientos
     availableCollections.value = [
-      { name: 'terminal_salidas', displayName: 'Despachos de Salida', fields: [] },
-      { name: 'terminal_llegadas', displayName: 'Llegadas de Terminal', fields: [] },
-      { name: 'users', displayName: 'Usuarios', fields: [] },
-      { name: 'vehicles', displayName: 'Vehículos', fields: [] }
+      {
+        name: 'maintenances',
+        displayName: 'Alistamientos',
+        fields: [
+          { path: 'fecha', label: 'Fecha del alistamiento', type: 'date' },
+          { path: 'numero_alistamiento', label: 'Número de alistamiento', type: 'string' },
+          { path: 'conductor_id', label: 'ID Conductor', type: 'objectid' },
+          { path: 'vehicle_id', label: 'ID Vehículo', type: 'objectid' },
+          { path: 'tipo_alistamiento', label: 'Tipo de alistamiento', type: 'string' },
+          { path: 'estado', label: 'Estado', type: 'string' },
+          { path: 'observaciones', label: 'Observaciones', type: 'string' },
+          { path: 'kilometraje', label: 'Kilometraje', type: 'number' },
+          { path: 'nivel_combustible', label: 'Nivel combustible', type: 'string' },
+          { path: 'duracion_minutos', label: 'Duración (minutos)', type: 'number' },
+          { path: 'createdAt', label: 'Fecha creación', type: 'date' },
+          { path: 'updatedAt', label: 'Fecha actualización', type: 'date' }
+        ]
+      },
+      {
+        name: 'vehicles',
+        displayName: 'Vehículos',
+        fields: [
+          { path: 'placa', label: 'Placa', type: 'string' },
+          { path: 'marca', label: 'Marca', type: 'string' },
+          { path: 'modelo', label: 'Modelo', type: 'string' },
+          { path: 'año', label: 'Año', type: 'number' },
+          { path: 'color', label: 'Color', type: 'string' },
+          { path: 'tipo_vehiculo', label: 'Tipo de vehículo', type: 'string' },
+          { path: 'numero_motor', label: 'Número de motor', type: 'string' },
+          { path: 'numero_chasis', label: 'Número de chasis', type: 'string' },
+          { path: 'capacidad_pasajeros', label: 'Capacidad pasajeros', type: 'number' },
+          { path: 'peso_vehiculo', label: 'Peso del vehículo', type: 'number' },
+          { path: 'empresa_id', label: 'ID Empresa', type: 'objectid' },
+          { path: 'isActive', label: 'Activo', type: 'boolean' },
+          { path: 'createdAt', label: 'Fecha registro', type: 'date' }
+        ]
+      },
+      {
+        name: 'users',
+        displayName: 'Conductores/Usuarios',
+        fields: [
+          { path: 'usuario.nombre', label: 'Nombre completo', type: 'string' },
+          { path: 'firstName', label: 'Nombre', type: 'string' },
+          { path: 'lastName', label: 'Apellido', type: 'string' },
+          { path: 'email', label: 'Email', type: 'string' },
+          { path: 'username', label: 'Usuario', type: 'string' },
+          { path: 'phone', label: 'Teléfono', type: 'string' },
+          { path: 'identificacion', label: 'Número de identificación', type: 'string' },
+          { path: 'licenseNumber', label: 'Número de licencia', type: 'string' },
+          { path: 'licenseCategory', label: 'Categoría de licencia', type: 'string' },
+          { path: 'roleType', label: 'Tipo de rol', type: 'string' },
+          { path: 'empresa_id', label: 'ID Empresa', type: 'objectid' },
+          { path: 'isActive', label: 'Activo', type: 'boolean' },
+          { path: 'createdAt', label: 'Fecha registro', type: 'date' }
+        ]
+      },
+      {
+        name: 'enterprises',
+        displayName: 'Empresas',
+        fields: [
+          { path: 'nombre', label: 'Nombre de la empresa', type: 'string' },
+          { path: 'nit', label: 'NIT', type: 'string' },
+          { path: 'direccion', label: 'Dirección', type: 'string' },
+          { path: 'telefono', label: 'Teléfono', type: 'string' },
+          { path: 'email', label: 'Email corporativo', type: 'string' },
+          { path: 'logo', label: 'Logo', type: 'string' },
+          { path: 'ciudad', label: 'Ciudad', type: 'string' },
+          { path: 'departamento', label: 'Departamento', type: 'string' },
+          { path: 'pais', label: 'País', type: 'string' },
+          { path: 'tipo_empresa', label: 'Tipo de empresa', type: 'string' },
+          { path: 'estado', label: 'Estado', type: 'string' },
+          { path: 'createdAt', label: 'Fecha registro', type: 'date' }
+        ]
+      }
     ]
+  } finally {
+    isLoadingCollections.value = false
   }
 }
 
@@ -674,12 +755,23 @@ watch([selectedCollections, selectedFields, filters, sorting, groupBy], () => {
 }, { deep: true })
 
 // Inicialización
-loadAvailableCollections()
+onMounted(() => {
+  loadAvailableCollections()
+})
 </script>
 
 <style scoped>
 .query-builder {
   max-width: 100%;
+}
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: #6b7280;
+  font-style: italic;
 }
 
 .builder-section {
