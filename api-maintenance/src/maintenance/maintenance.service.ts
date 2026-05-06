@@ -271,7 +271,31 @@ export class MaintenanceService {
       ...this.tenant(user),
     };
 
+    // Filtrar por tipo de mantenimiento
     if (q.tipoId) filter.tipoId = q.tipoId;
+
+    // Filtrar por placa (buscar texto parcial)
+    if (q.placa) {
+      filter.placa = { $regex: q.placa.trim(), $options: 'i' };
+    }
+
+    // Filtrar por búsqueda general (placa o otros campos)
+    if (q.search && q.search.trim()) {
+      filter.$or = [
+        { placa: { $regex: q.search.trim(), $options: 'i' } },
+        // Agregar más campos de búsqueda si es necesario
+      ];
+    }
+
+    // Filtrar por estado si se proporciona
+    if (q.estado !== undefined) {
+      filter.estado = q.estado;
+    }
+
+    // Si se proporciona enterprise_id específico, usarlo (solo si es válido)
+    if (q.enterprise_id && q.enterprise_id.trim()) {
+      filter.enterprise_id = q.enterprise_id.trim();
+    }
 
     const [items, total] = await Promise.all([
       this.model.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),

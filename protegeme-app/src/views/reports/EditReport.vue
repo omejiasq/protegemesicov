@@ -210,7 +210,10 @@
                         v-for="field in filteredAvailableFields"
                         :key="field.key"
                         class="field-item"
-                        :class="{ 'field-selected': isFieldSelected(field.key) }"
+                        :class="{
+                          'field-selected': isFieldSelected(field.key),
+                          'field-disabled': isFieldDisabled(field.key)
+                        }"
                       >
                         <div class="field-content" @click="toggleField(field)">
                           <div class="field-info">
@@ -221,6 +224,7 @@
                             :modelValue="isFieldSelected(field.key)"
                             @click.stop
                             @change="toggleField(field)"
+                            :disabled="isFieldDisabled(field.key)"
                             binary
                           />
                         </div>
@@ -351,20 +355,31 @@
 
                         <div class="filter-value">
                           <label>Valor</label>
+                          <MultiSelect
+                            v-if="getFilterComponent(filter.field, filter.operator) === 'MultiSelect'"
+                            v-model="filter.value"
+                            :options="availablePlacas"
+                            :placeholder="getValuePlaceholder(filter.field)"
+                            :disabled="!filter.operator || loadingPlacas"
+                            :loading="loadingPlacas"
+                            filter
+                            :maxSelectedLabels="3"
+                            selectedItemsLabel="{0} placas seleccionadas"
+                          />
                           <InputText
-                            v-if="getFilterComponent(filter.field) === 'InputText'"
+                            v-else-if="getFilterComponent(filter.field, filter.operator) === 'InputText'"
                             v-model="filter.value"
                             :placeholder="getValuePlaceholder(filter.field)"
                             :disabled="!filter.operator"
                           />
                           <InputNumber
-                            v-else-if="getFilterComponent(filter.field) === 'InputNumber'"
+                            v-else-if="getFilterComponent(filter.field, filter.operator) === 'InputNumber'"
                             v-model="filter.value"
                             :placeholder="getValuePlaceholder(filter.field)"
                             :disabled="!filter.operator"
                           />
                           <Calendar
-                            v-else-if="getFilterComponent(filter.field) === 'Calendar'"
+                            v-else-if="getFilterComponent(filter.field, filter.operator) === 'Calendar'"
                             v-model="filter.value"
                             :placeholder="getValuePlaceholder(filter.field)"
                             :disabled="!filter.operator"
@@ -372,7 +387,7 @@
                             dateFormat="yy-mm-dd"
                           />
                           <Dropdown
-                            v-else-if="getFilterComponent(filter.field) === 'Dropdown'"
+                            v-else-if="getFilterComponent(filter.field, filter.operator) === 'Dropdown'"
                             v-model="filter.value"
                             :options="[{label: 'Sí', value: true}, {label: 'No', value: false}]"
                             optionLabel="label"
@@ -587,6 +602,7 @@ import Dropdown from 'primevue/dropdown'
 import MultiSelect from 'primevue/multiselect'
 import SelectButton from 'primevue/selectbutton'
 import InputNumber from 'primevue/inputnumber'
+import Calendar from 'primevue/calendar'
 import Checkbox from 'primevue/checkbox'
 import Tag from 'primevue/tag'
 import Message from 'primevue/message'
@@ -603,6 +619,7 @@ import {
   type SavedReport,
   type UpdateReportDto
 } from '../../api/dynamic-reports.service'
+import { VehiclesserviceApi } from '../../api/vehicles.service'
 
 // Composables
 const route = useRoute()
@@ -615,6 +632,8 @@ const saving = ref(false)
 const originalReport = ref<SavedReport | null>(null)
 const dataset = ref<Dataset | null>(null)
 const fieldSearch = ref('')
+const availablePlacas = ref<string[]>([])
+const loadingPlacas = ref(false)
 
 // Secciones colapsables
 const sections = reactive({
@@ -675,6 +694,21 @@ const filteredAvailableFields = computed(() => {
   )
 })
 
+const isFieldDisabled = computed(() => {
+  return (fieldKey: string) => {
+    // Para alistamientos: si "dispositivo" está seleccionado, deshabilitar "estado"
+    if (reportForm.dataset === 'alistamientos') {
+      if (fieldKey === 'estado' && reportForm.fields.includes('dispositivo')) {
+        return true // Estado deshabilitado cuando Item está activo
+      }
+      if (fieldKey === 'dispositivo' && reportForm.fields.includes('estado')) {
+        return true // Item deshabilitado cuando Estado individual está activo
+      }
+    }
+    return false
+  }
+})
+
 const selectedFieldsOptions = computed(() => {
   if (!dataset.value) return []
 
@@ -727,68 +761,24 @@ const hasChanges = computed(() => {
 })
 
 // Métodos principales
-const loadReport = async () => {
-  const reportId = route.params.id as string
-  if (!reportId) {
-    router.push('/pesv/reports')
-    return
-  }
-
+const loadDataset = async (datasetId?: string) => {
   try {
-    loading.value = true
-    const { data } = await DynamicReportsApi.getSavedReport(reportId)
-    originalReport.value = data
-
-    // Poblar el formulario con los datos existentes
-    Object.assign(reportForm, {
-      name: data.name,
-      description: data.description || '',
-      dataset: data.dataset,
-      fields: [...(data.fields || [])],
-      filters: [...(data.filters || [])],
-      groupBy: [...(data.groupBy || [])],
-      aggregations: [...(data.aggregations || [])],
-      mode: data.mode || 'detail',
-      limit: data.limit || 1000,
-      is_public: data.is_public || false,
-      is_active: data.is_active !== false
-    })
-
-    // Convertir valores de fecha de string a Date objects para los filtros
-    if (reportForm.filters && dataset.value?.fields) {
-      reportForm.filters.forEach(filter => {
-        const fieldConfig = dataset.value.fields.find(f => f.key === filter.field)
-        if (fieldConfig?.type === 'date' && filter.value && typeof filter.value === 'string') {
-          try {
-            filter.value = new Date(filter.value)
-          } catch (error) {
-            console.warn('Error converting date filter value:', error)
-          }
-        }
-      })
+    // Si no se especifica dataset, cargar todos y buscar el correcto
+    if (!datasetId) {
+      const { data } = await DynamicReportsApi.getAvailableDatasets()
+      dataset.value = data[0] // Por defecto el primero
+    } else {
+      // Cargar todos los datasets y buscar el específico
+      const { data } = await DynamicReportsApi.getAvailableDatasets()
+      const foundDataset = data.find(ds => ds.id === datasetId)
+      if (foundDataset) {
+        dataset.value = foundDataset
+      } else {
+        console.warn(`Dataset ${datasetId} not found, using default`)
+        dataset.value = data[0]
+      }
     }
-
-    // Guardar estado original para detectar cambios
-    originalFormState.value = JSON.stringify(reportForm)
-
-  } catch (error: any) {
-    console.error('Error loading report:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.message || 'Error al cargar el reporte',
-      life: 3000
-    })
-    router.push('/pesv/reports')
-  } finally {
-    loading.value = false
-  }
-}
-
-const loadDataset = async () => {
-  try {
-    const { data } = await DynamicReportsApi.getAlistamientosDataset()
-    dataset.value = data
+    console.log('✅ Dataset loaded:', dataset.value?.id)
   } catch (error) {
     console.error('Error loading dataset:', error)
   }
@@ -871,22 +861,101 @@ const isFieldSelected = (fieldKey: string): boolean => {
 
 const toggleField = (field: DatasetField) => {
   const index = reportForm.fields.indexOf(field.key)
+
   if (index >= 0) {
+    // Deseleccionar campo
     reportForm.fields.splice(index, 1)
+
+    // Notificación cuando se deselecciona dispositivo/item
+    if (field.key === 'dispositivo' && reportForm.dataset === 'alistamientos') {
+      toast.add({
+        severity: 'info',
+        summary: 'Modo pivot desactivado',
+        detail: 'Las columnas dinámicas han sido desactivadas. Ahora puedes seleccionar campos individuales',
+        life: 4000
+      })
+    }
   } else {
-    reportForm.fields.push(field.key)
+    // Verificar si está deshabilitado antes de seleccionar
+    if (isFieldDisabled.value(field.key)) {
+      toast.add({
+        severity: 'warn',
+        summary: 'Campo no disponible',
+        detail: field.key === 'estado'
+          ? 'No puedes seleccionar "Estado (Individual)" mientras "Items (Pivot)" esté activo'
+          : 'No puedes seleccionar "Items (Pivot)" mientras "Estado (Individual)" esté activo',
+        life: 4000
+      })
+      return
+    }
+
+    // Lógica especial para alistamientos con campos mutuamente excluyentes
+    if (reportForm.dataset === 'alistamientos') {
+      if (field.key === 'dispositivo') {
+        // Si se selecciona 'dispositivo', remover 'estado' si está presente
+        if (reportForm.fields.includes('estado')) {
+          reportForm.fields = reportForm.fields.filter(f => f !== 'estado')
+          toast.add({
+            severity: 'info',
+            summary: 'Campo "Estado (Individual)" removido',
+            detail: 'Se removió el campo "Estado (Individual)" porque se activó el modo pivot',
+            life: 4000
+          })
+        }
+
+        reportForm.fields.push(field.key)
+
+        // Notificación sobre el comportamiento dinámico
+        toast.add({
+          severity: 'success',
+          summary: 'Modo pivot activado',
+          detail: 'Se generarán columnas automáticamente para cada dispositivo con su respectivo estado',
+          life: 5000
+        })
+
+      } else if (field.key === 'estado') {
+        // Si se selecciona 'estado', remover 'dispositivo' si está presente
+        if (reportForm.fields.includes('dispositivo')) {
+          reportForm.fields = reportForm.fields.filter(f => f !== 'dispositivo')
+          toast.add({
+            severity: 'info',
+            summary: 'Campo "Items (Pivot)" removido',
+            detail: 'Se removió el campo "Items (Pivot)" porque se activó el campo "Estado (Individual)"',
+            life: 4000
+          })
+        }
+
+        reportForm.fields.push(field.key)
+      } else {
+        // Para cualquier otro campo, agregar normalmente
+        reportForm.fields.push(field.key)
+      }
+    } else {
+      // Para otros datasets, comportamiento normal
+      reportForm.fields.push(field.key)
+    }
   }
 }
 
 const selectBasicFields = () => {
   if (!dataset.value) return
 
-  const basicFields = ['placa', 'nombresResponsable', 'nombresConductor', 'estado', 'createdAt']
+  const basicFields = ['placa', 'nombresResponsable', 'nombresConductor', 'dispositivo', 'Fecha']
   basicFields.forEach(fieldKey => {
     if (dataset.value!.fields.find(f => f.key === fieldKey) && !reportForm.fields.includes(fieldKey)) {
       reportForm.fields.push(fieldKey)
     }
   })
+
+  // Para alistamientos, si seleccionamos campos básicos e incluimos 'dispositivo', mostrar notificación
+  if (reportForm.dataset === 'alistamientos' && reportForm.fields.includes('dispositivo')) {
+    toast.add({
+      severity: 'success',
+      summary: 'Campos básicos con columnas dinámicas',
+      detail: 'Se han seleccionado los campos básicos y se generarán columnas dinámicas para cada dispositivo',
+      life: 4000
+    })
+  }
 }
 
 const removeField = (index: number) => {
@@ -995,7 +1064,12 @@ const getOperatorOptions = (fieldKey: string) => {
   return baseOptions
 }
 
-const getFilterComponent = (fieldKey: string) => {
+const getFilterComponent = (fieldKey: string, operator?: string) => {
+  // Si el campo es 'placa' y el operador es 'in', usar MultiSelect
+  if (fieldKey === 'placa' && operator === 'in') {
+    return 'MultiSelect'
+  }
+
   const field = dataset.value?.fields.find(f => f.key === fieldKey)
   if (!field) return 'InputText'
 
@@ -1004,6 +1078,47 @@ const getFilterComponent = (fieldKey: string) => {
     case 'number': return 'InputNumber'
     case 'boolean': return 'Dropdown'
     default: return 'InputText'
+  }
+}
+
+// Cargar placas disponibles cuando se selecciona un dataset
+const loadAvailablePlacas = async () => {
+  if (!reportForm.dataset) {
+    console.log('⚠️ [loadAvailablePlacas] No dataset selected')
+    return
+  }
+
+  try {
+    loadingPlacas.value = true
+    console.log(`🔍 [loadAvailablePlacas] Cargando placas desde api-vehicle...`)
+    
+    // Llamar directamente al servicio de vehículos (mismo que usa /vehicles)
+    const { data } = await VehiclesserviceApi.list({ 
+      page: 1, 
+      numero_items: 1000  // Cargar todos los vehículos
+    })
+    
+    console.log(`✅ [loadAvailablePlacas] Vehículos recibidos:`, data)
+    
+    // Extraer placas únicas y ordenarlas
+    const vehicles = data?.items ?? (Array.isArray(data) ? data : [])
+    const placas = vehicles
+      .map((v: any) => v.placa)
+      .filter((placa: string) => placa && typeof placa === 'string')
+      .sort()
+    
+    availablePlacas.value = placas
+    console.log(`✅ [loadAvailablePlacas] Placas cargadas: ${availablePlacas.value.length}`, availablePlacas.value)
+  } catch (error) {
+    console.error('❌ [loadAvailablePlacas] Error loading placas:', error)
+    toast.add({
+      severity: 'warn',
+      summary: 'Advertencia',
+      detail: 'No se pudieron cargar las placas disponibles',
+      life: 3000
+    })
+  } finally {
+    loadingPlacas.value = false
   }
 }
 
@@ -1091,9 +1206,87 @@ const getDatasetDescription = (datasetId: string): string => {
 }
 
 // Inicialización
-onMounted(() => {
-  loadDataset()
-  loadReport()
+onMounted(async () => {
+  // Primero cargar el reporte para saber qué dataset necesitamos
+  const reportId = route.params.id as string
+  if (!reportId) {
+    router.push('/pesv/reports')
+    return
+  }
+
+  try {
+    loading.value = true
+    
+    // 1. Cargar el reporte
+    const { data: reportData } = await DynamicReportsApi.getSavedReport(reportId)
+    originalReport.value = reportData
+    
+    // 2. Cargar el dataset correspondiente
+    await loadDataset(reportData.dataset)
+    
+    // 3. Poblar el formulario con los datos existentes
+    Object.assign(reportForm, {
+      name: reportData.name,
+      description: reportData.description || '',
+      dataset: reportData.dataset,
+      fields: [...(reportData.fields || [])],
+      filters: [...(reportData.filters || [])],
+      groupBy: [...(reportData.groupBy || [])],
+      aggregations: [...(reportData.aggregations || [])],
+      mode: reportData.mode || 'detail',
+      limit: reportData.limit || 1000,
+      is_public: reportData.is_public || false,
+      is_active: reportData.is_active !== false
+    })
+
+    // 4. Convertir valores de fecha de string a Date objects para los filtros
+    if (reportForm.filters && dataset.value?.fields) {
+      reportForm.filters.forEach(filter => {
+        const fieldConfig = dataset.value!.fields.find(f => f.key === filter.field)
+        if (fieldConfig?.type === 'date' && filter.value) {
+          try {
+            // Convertir tanto strings ISO como strings de fecha simple
+            let dateValue: Date
+            if (typeof filter.value === 'string') {
+              // Si es formato YYYY-MM-DD, agregamos hora para evitar problemas de timezone
+              if (/^\d{4}-\d{2}-\d{2}$/.test(filter.value)) {
+                dateValue = new Date(filter.value + 'T12:00:00.000Z')
+              } else {
+                dateValue = new Date(filter.value)
+              }
+              
+              if (!isNaN(dateValue.getTime())) {
+                filter.value = dateValue
+                console.log(`✅ Converted filter value for ${filter.field}:`, filter.value, 'from:', typeof filter.value)
+              }
+            } else if (filter.value instanceof Date) {
+              console.log(`✅ Filter value for ${filter.field} is already a Date:`, filter.value)
+            }
+          } catch (error) {
+            console.warn('Error converting date filter value:', error)
+          }
+        }
+      })
+    }
+
+    // 5. Cargar placas disponibles para el dataset
+    await loadAvailablePlacas()
+
+    // 6. Guardar estado original para detectar cambios
+    originalFormState.value = JSON.stringify(reportForm)
+    
+  } catch (error: any) {
+    console.error('Error loading report:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.response?.data?.message || 'Error al cargar el reporte',
+      life: 3000
+    })
+    router.push('/pesv/reports')
+  } finally {
+    loading.value = false
+  }
 })
 </script>
 
@@ -1277,6 +1470,22 @@ onMounted(() => {
 .field-item.field-selected {
   border-color: #3b82f6;
   background: #eff6ff;
+}
+
+.field-item.field-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.field-item.field-disabled:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.field-item.field-disabled .field-name {
+  color: #9ca3af;
 }
 
 .selected-field-item {

@@ -380,7 +380,9 @@ const canEdit = computed(() => {
 const displayFields = computed(() => {
   if (!report.value || !dataset.value) return []
 
-  return report.value.fields
+  // Campos estáticos del reporte (excluyendo dispositivo)
+  const staticFields = report.value.fields
+    .filter(fieldKey => fieldKey !== 'dispositivo') // Excluir la columna dispositivo
     .map(fieldKey => {
       const fieldDef = dataset.value!.fields.find(f => f.key === fieldKey)
       return {
@@ -390,6 +392,22 @@ const displayFields = computed(() => {
       }
     })
     .filter(field => field !== undefined)
+
+  // Si hay columnas dinámicas del resultado, agregarlas
+  let dynamicFields: any[] = []
+  if (results.value?.dynamicColumns) {
+    dynamicFields = results.value.dynamicColumns.map(col => ({
+      key: col.key,
+      label: col.label,
+      type: col.type
+    }))
+    //console.log('🎯 [ViewReport] Columnas dinámicas detectadas:', dynamicFields)
+  }
+
+  const finalFields = [...staticFields, ...dynamicFields]
+  //console.log('📋 [ViewReport] Campos finales para tabla:', finalFields)
+
+  return finalFields
 })
 
 // Menú contextual
@@ -432,7 +450,7 @@ const loadReport = async () => {
     const { data } = await DynamicReportsApi.getSavedReport(reportId)
     report.value = data
   } catch (error: any) {
-    console.error('Error loading report:', error)
+    //console.error('Error loading report:', error)
     toast.add({
       severity: 'error',
       summary: 'Error',
@@ -450,7 +468,7 @@ const loadDataset = async () => {
     const { data } = await DynamicReportsApi.getAlistamientosDataset()
     dataset.value = data
   } catch (error) {
-    console.error('Error loading dataset:', error)
+    //console.error('Error loading dataset:', error)
   }
 }
 
@@ -461,9 +479,15 @@ const executeReport = async () => {
     executing.value = true
     const startTime = Date.now()
 
+    //console.log('🔍 [ViewReport] Ejecutando reporte con ID:', report.value._id)
     const { data } = await DynamicReportsApi.executeReport(report.value._id)
     results.value = data
     executionTime.value = Date.now() - startTime
+
+    //console.log('✅ [ViewReport] Resultados recibidos:')
+    //console.log('   - Total registros:', data.totalRecords)
+    //console.log('   - Datos (primeros 2):', data.data?.slice(0, 2))
+    //console.log('   - Columnas dinámicas:', data.dynamicColumns)
 
     toast.add({
       severity: 'success',
@@ -472,7 +496,7 @@ const executeReport = async () => {
       life: 3000
     })
   } catch (error: any) {
-    console.error('Error executing report:', error)
+    //console.error('Error executing report:', error)
     toast.add({
       severity: 'error',
       summary: 'Error al ejecutar',
@@ -531,7 +555,7 @@ const exportReport = async (format: 'excel' | 'pdf') => {
       life: 3000
     })
   } catch (error: any) {
-    console.error('Export error:', error)
+    //console.error('Export error:', error)
     toast.add({
       severity: 'error',
       summary: 'Error de exportación',
@@ -559,7 +583,7 @@ const duplicateReport = async () => {
 
     router.push('/pesv/reports')
   } catch (error: any) {
-    console.error('Error duplicating report:', error)
+    //console.error('Error duplicating report:', error)
     toast.add({
       severity: 'error',
       summary: 'Error',

@@ -113,7 +113,7 @@
 
             <!-- Columnas dinámicas -->
             <Column
-              v-for="field in displayFields"
+              v-for="(field, index) in displayFields"
               :key="field.key"
               :field="field.key"
               :header="field.label"
@@ -123,7 +123,7 @@
 
               <template #body="slotProps">
                 <span :class="getFieldValueClass(field.type)">
-                  {{ formatFieldValue(slotProps.data[field.key], field.type) }}
+                  {{ formatFieldValue(slotProps.data[field.key], field.type, field.key) }}
                 </span>
               </template>
             </Column>
@@ -216,18 +216,63 @@ const hasAppliedFilters = computed(() => {
 })
 
 const displayFields = computed(() => {
-  if (!report.value || !dataset.value) return []
+  console.log('🔄 [displayFields] Recalculando campos de visualización...')
+  console.log('   - report.value existe:', !!report.value)
+  console.log('   - dataset.value existe:', !!dataset.value)
+  console.log('   - results.value existe:', !!results.value)
 
-  return report.value.fields
+  if (!report.value || !dataset.value) {
+    console.log('⚠️ [displayFields] Faltan report o dataset, retornando array vacío')
+    return []
+  }
+
+  // Campos estáticos del reporte
+  console.log('📝 [displayFields] Procesando campos estáticos del reporte:', report.value.fields)
+  const staticFields = report.value.fields
     .map(fieldKey => {
       const fieldDef = dataset.value!.fields.find(f => f.key === fieldKey)
-      return {
+      const field = {
         key: fieldKey,
         label: fieldDef?.label || fieldKey,
         type: fieldDef?.type || 'string'
       }
+      console.log(`   - Campo estático: ${fieldKey} -> ${field.label} (${field.type})`)
+      return field
     })
     .filter(field => field !== undefined)
+
+  console.log('✅ [displayFields] Campos estáticos procesados:', staticFields.length)
+
+  // Si hay columnas dinámicas del resultado, agregarlas
+  let dynamicFields: any[] = []
+  if (results.value?.dynamicColumns) {
+    console.log('🎯 [displayFields] Procesando columnas dinámicas del resultado...')
+    console.log('   - results.value.dynamicColumns:', results.value.dynamicColumns)
+
+    dynamicFields = results.value.dynamicColumns.map(col => {
+      const dynField = {
+        key: col.key,
+        label: col.label,
+        type: col.type
+      }
+      console.log(`   - Campo dinámico: ${col.key} -> ${col.label} (${col.type})`)
+      return dynField
+    })
+    console.log('✅ [displayFields] Columnas dinámicas procesadas:', dynamicFields.length)
+  } else {
+    console.log('⚠️ [displayFields] NO hay columnas dinámicas en results.value')
+    if (results.value) {
+      console.log('   - results.value keys:', Object.keys(results.value))
+    }
+  }
+
+  const finalFields = [...staticFields, ...dynamicFields]
+  console.log('🎯 [displayFields] CAMPOS FINALES PARA LA TABLA:', finalFields.length)
+  finalFields.forEach((field, index) => {
+    console.log(`   ${index + 1}. ${field.key} -> "${field.label}" (${field.type})`)
+  })
+
+  return finalFields
 })
 
 const globalFilterFields = computed(() => {
@@ -252,18 +297,39 @@ const loadReportAndExecute = async () => {
     loading.value = true
 
     // Cargar información del reporte
+    console.log('🔍 [Frontend] Cargando reporte con ID:', reportId)
     const { data: reportData } = await DynamicReportsApi.getSavedReport(reportId)
     report.value = reportData
+    console.log('📋 [Frontend] Reporte cargado:', reportData)
+    console.log('📋 [Frontend] Campos del reporte:', reportData.fields)
 
     // Cargar dataset
     const { data: datasetData } = await DynamicReportsApi.getAlistamientosDataset()
     dataset.value = datasetData
+    console.log('🗂️ [Frontend] Dataset cargado:', datasetData)
 
     // Ejecutar el reporte
     const startTime = Date.now()
+    console.log('⚡ [Frontend] Ejecutando reporte...')
     const { data: resultsData } = await DynamicReportsApi.executeReport(reportId)
     results.value = resultsData
     executionTime.value = Date.now() - startTime
+
+    console.log('✅ [Frontend] Resultados recibidos:')
+    console.log('   - Total registros:', resultsData.totalRecords)
+    console.log('   - Datos (primeros 2):', resultsData.data?.slice(0, 2))
+    console.log('   - Columnas dinámicas:', resultsData.dynamicColumns)
+    console.log('   - Query ejecutada:', resultsData.query)
+
+    // Log adicional para verificar campos dinámicos
+    if (resultsData.dynamicColumns && resultsData.dynamicColumns.length > 0) {
+      console.log('🎯 [Frontend] ¡COLUMNAS DINÁMICAS DETECTADAS!', resultsData.dynamicColumns.length, 'columnas:')
+      resultsData.dynamicColumns.forEach((col, index) => {
+        console.log(`   ${index + 1}. ${col.key} -> ${col.label} (${col.type})`)
+      })
+    } else {
+      console.warn('⚠️ [Frontend] NO se detectaron columnas dinámicas en la respuesta')
+    }
 
     // Los filtros de tabla se inicializan automáticamente
 
@@ -400,7 +466,12 @@ const getOperatorLabel = (operator: string): string => {
   return operatorLabels[operator] || operator
 }
 
-const formatFieldValue = (value: any, type: string): string => {
+const formatFieldValue = (value: any, type: string, fieldKey?: string): string => {
+  // Log solo para campos dinámicos (que no están en el dataset original)
+  if (fieldKey && !dataset.value?.fields.find(f => f.key === fieldKey)) {
+    console.log(`🔧 [formatFieldValue] Campo dinámico "${fieldKey}":`, { value, type })
+  }
+
   if (value === null || value === undefined) return ''
 
   switch (type) {
@@ -441,6 +512,8 @@ const getColumnStyle = (type: string): any => {
 
 // Inicialización
 onMounted(() => {
+  // Agregar log simple para verificar que el script se ejecuta
+  console.log('%c🚀 [FRONTEND] ResultsReport.vue cargado y montado!', 'color: green; font-weight: bold;')
   loadReportAndExecute()
 })
 </script>

@@ -10,6 +10,16 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   }
 
   canActivate(context: ExecutionContext) {
+    const request = context.switchToHttp().getRequest();
+    const path = request.url;
+    const method = request.method;
+    
+    // Solo logear las rutas de placas para debugging
+    if (path.includes('/placas/')) {
+      console.log(`🔐 [JwtAuthGuard] ${method} ${path}`);
+      console.log(`🔐 [JwtAuthGuard] Authorization header:`, request.headers.authorization ? 'Present' : 'Missing');
+    }
+    
     // 🔎 Verifica si la ruta o el controller es público
     const isPublic = this.reflector.getAllAndOverride<boolean>(
       IS_PUBLIC_KEY,
@@ -24,7 +34,4 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     // 🔐 Si no es público, TODO funciona igual que antes
     return super.canActivate(context);
   }
-
-
-
 }

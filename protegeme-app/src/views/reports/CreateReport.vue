@@ -221,7 +221,10 @@
                     v-for="field in filteredAvailableFields"
                     :key="field.key"
                     class="field-item"
-                    :class="{ 'field-selected': isFieldSelected(field.key) }"
+                    :class="{
+                      'field-selected': isFieldSelected(field.key),
+                      'field-disabled': isFieldDisabled(field.key)
+                    }"
                   >
                     <div class="field-content" @click="toggleField(field)">
                       <div class="field-header">
@@ -230,6 +233,7 @@
                           :modelValue="isFieldSelected(field.key)"
                           @click.stop
                           @change="toggleField(field)"
+                          :disabled="isFieldDisabled(field.key)"
                           binary
                         />
                       </div>
@@ -359,20 +363,31 @@
 
                     <div class="filter-value">
                       <label>Valor</label>
+                      <MultiSelect
+                        v-if="getFilterComponent(filter.field, filter.operator) === 'MultiSelect'"
+                        v-model="filter.value"
+                        :options="availablePlacas"
+                        :placeholder="getValuePlaceholder(filter.field)"
+                        :disabled="!filter.operator || loadingPlacas"
+                        :loading="loadingPlacas"
+                        filter
+                        :maxSelectedLabels="3"
+                        selectedItemsLabel="{0} placas seleccionadas"
+                      />
                       <InputText
-                        v-if="getFilterComponent(filter.field) === 'InputText'"
+                        v-else-if="getFilterComponent(filter.field, filter.operator) === 'InputText'"
                         v-model="filter.value"
                         :placeholder="getValuePlaceholder(filter.field)"
                         :disabled="!filter.operator"
                       />
                       <InputNumber
-                        v-else-if="getFilterComponent(filter.field) === 'InputNumber'"
+                        v-else-if="getFilterComponent(filter.field, filter.operator) === 'InputNumber'"
                         v-model="filter.value"
                         :placeholder="getValuePlaceholder(filter.field)"
                         :disabled="!filter.operator"
                       />
                       <Calendar
-                        v-else-if="getFilterComponent(filter.field) === 'Calendar'"
+                        v-else-if="getFilterComponent(filter.field, filter.operator) === 'Calendar'"
                         v-model="filter.value"
                         :placeholder="getValuePlaceholder(filter.field)"
                         :disabled="!filter.operator"
@@ -380,7 +395,7 @@
                         dateFormat="yy-mm-dd"
                       />
                       <Dropdown
-                        v-else-if="getFilterComponent(filter.field) === 'Dropdown'"
+                        v-else-if="getFilterComponent(filter.field, filter.operator) === 'Dropdown'"
                         v-model="filter.value"
                         :options="[{label: 'Sí', value: true}, {label: 'No', value: false}]"
                         optionLabel="label"
@@ -627,6 +642,7 @@ import {
   type Aggregation,
   type CreateReportDto
 } from '../../api/dynamic-reports.service'
+import { VehiclesserviceApi } from '../../api/vehicles.service'
 
 // Composables
 const router = useRouter()
@@ -638,6 +654,8 @@ const saving = ref(false)
 const dataset = ref<Dataset | null>(null)
 const fieldSearch = ref('')
 const availableDatasets = ref<Dataset[]>([])
+const availablePlacas = ref<string[]>([])
+const loadingPlacas = ref(false)
 
 // Pasos del asistente
 const steps = [
@@ -712,6 +730,21 @@ const filteredAvailableFields = computed(() => {
     field.label.toLowerCase().includes(search) ||
     field.key.toLowerCase().includes(search)
   )
+})
+
+const isFieldDisabled = computed(() => {
+  return (fieldKey: string) => {
+    // Para alistamientos: si "dispositivo" está seleccionado, deshabilitar "estado"
+    if (reportForm.dataset === 'alistamientos') {
+      if (fieldKey === 'estado' && reportForm.fields.includes('dispositivo')) {
+        return true // Estado deshabilitado cuando Item está activo
+      }
+      if (fieldKey === 'dispositivo' && reportForm.fields.includes('estado')) {
+        return true // Item deshabilitado cuando Estado individual está activo
+      }
+    }
+    return false
+  }
 })
 
 const selectedFieldsOptions = computed(() => {
@@ -792,6 +825,12 @@ const goToStep = (step: number) => {
 const nextStep = () => {
   if (canProceed.value && currentStep.value < steps.length - 1) {
     currentStep.value++
+    
+    // Cargar placas cuando llegamos al paso de filtros (paso 3)
+    if (currentStep.value === 3 && reportForm.dataset) {
+      console.log('🔍 [nextStep] Llegando al paso de filtros, cargando placas...')
+      loadAvailablePlacas()
+    }
   }
 }
 
@@ -808,22 +847,101 @@ const isFieldSelected = (fieldKey: string): boolean => {
 
 const toggleField = (field: DatasetField) => {
   const index = reportForm.fields.indexOf(field.key)
+
   if (index >= 0) {
+    // Deseleccionar campo
     reportForm.fields.splice(index, 1)
+
+    // Notificación cuando se deselecciona dispositivo/item
+    if (field.key === 'dispositivo' && reportForm.dataset === 'alistamientos') {
+      toast.add({
+        severity: 'info',
+        summary: 'Modo pivot desactivado',
+        detail: 'Las columnas dinámicas han sido desactivadas. Ahora puedes seleccionar campos individuales',
+        life: 4000
+      })
+    }
   } else {
-    reportForm.fields.push(field.key)
+    // Verificar si está deshabilitado antes de seleccionar
+    if (isFieldDisabled.value(field.key)) {
+      toast.add({
+        severity: 'warn',
+        summary: 'Campo no disponible',
+        detail: field.key === 'estado'
+          ? 'No puedes seleccionar "Estado (Individual)" mientras "Items (Pivot)" esté activo'
+          : 'No puedes seleccionar "Items (Pivot)" mientras "Estado (Individual)" esté activo',
+        life: 4000
+      })
+      return
+    }
+
+    // Lógica especial para alistamientos con campos mutuamente excluyentes
+    if (reportForm.dataset === 'alistamientos') {
+      if (field.key === 'dispositivo') {
+        // Si se selecciona 'dispositivo', remover 'estado' si está presente
+        if (reportForm.fields.includes('estado')) {
+          reportForm.fields = reportForm.fields.filter(f => f !== 'estado')
+          toast.add({
+            severity: 'info',
+            summary: 'Campo "Estado (Individual)" removido',
+            detail: 'Se removió el campo "Estado (Individual)" porque se activó el modo pivot',
+            life: 4000
+          })
+        }
+
+        reportForm.fields.push(field.key)
+
+        // Notificación sobre el comportamiento dinámico
+        toast.add({
+          severity: 'success',
+          summary: 'Modo pivot activado',
+          detail: 'Se generarán columnas automáticamente para cada dispositivo con su respectivo estado',
+          life: 5000
+        })
+
+      } else if (field.key === 'estado') {
+        // Si se selecciona 'estado', remover 'dispositivo' si está presente
+        if (reportForm.fields.includes('dispositivo')) {
+          reportForm.fields = reportForm.fields.filter(f => f !== 'dispositivo')
+          toast.add({
+            severity: 'info',
+            summary: 'Campo "Items (Pivot)" removido',
+            detail: 'Se removió el campo "Items (Pivot)" porque se activó el campo "Estado (Individual)"',
+            life: 4000
+          })
+        }
+
+        reportForm.fields.push(field.key)
+      } else {
+        // Para cualquier otro campo, agregar normalmente
+        reportForm.fields.push(field.key)
+      }
+    } else {
+      // Para otros datasets, comportamiento normal
+      reportForm.fields.push(field.key)
+    }
   }
 }
 
 const selectBasicFields = () => {
   if (!dataset.value || !dataset.value.fields) return
 
-  const basicFields = ['placa', 'nombresResponsable', 'nombresConductor', 'estado', 'createdAt']
+  const basicFields = ['placa', 'nombresResponsable', 'nombresConductor', 'dispositivo', 'Fecha']
   basicFields.forEach(fieldKey => {
     if (dataset.value!.fields.find(f => f.key === fieldKey) && !reportForm.fields.includes(fieldKey)) {
       reportForm.fields.push(fieldKey)
     }
   })
+
+  // Para alistamientos, si seleccionamos campos básicos e incluimos 'dispositivo', mostrar notificación
+  if (reportForm.dataset === 'alistamientos' && reportForm.fields.includes('dispositivo')) {
+    toast.add({
+      severity: 'success',
+      summary: 'Campos básicos con columnas dinámicas',
+      detail: 'Se han seleccionado los campos básicos y se generarán columnas dinámicas para cada dispositivo',
+      life: 4000
+    })
+  }
 }
 
 const clearAllFields = () => {
@@ -940,7 +1058,12 @@ const getOperatorOptions = (fieldKey: string) => {
   return baseOptions
 }
 
-const getFilterComponent = (fieldKey: string) => {
+const getFilterComponent = (fieldKey: string, operator?: string) => {
+  // Si el campo es 'placa' y el operador es 'in', usar MultiSelect
+  if (fieldKey === 'placa' && operator === 'in') {
+    return 'MultiSelect'
+  }
+
   const field = dataset.value?.fields.find(f => f.key === fieldKey)
   if (!field) return 'InputText'
 
@@ -949,6 +1072,47 @@ const getFilterComponent = (fieldKey: string) => {
     case 'number': return 'InputNumber'
     case 'boolean': return 'Dropdown'
     default: return 'InputText'
+  }
+}
+
+// Cargar placas disponibles cuando se selecciona un dataset
+const loadAvailablePlacas = async () => {
+  if (!reportForm.dataset) {
+    console.log('⚠️ [loadAvailablePlacas] No dataset selected')
+    return
+  }
+
+  try {
+    loadingPlacas.value = true
+    console.log(`🔍 [loadAvailablePlacas] Cargando placas desde api-vehicle...`)
+    
+    // Llamar directamente al servicio de vehículos (mismo que usa /vehicles)
+    const { data } = await VehiclesserviceApi.list({ 
+      page: 1, 
+      numero_items: 1000  // Cargar todos los vehículos
+    })
+    
+    console.log(`✅ [loadAvailablePlacas] Vehículos recibidos:`, data)
+    
+    // Extraer placas únicas y ordenarlas
+    const vehicles = data?.items ?? (Array.isArray(data) ? data : [])
+    const placas = vehicles
+      .map((v: any) => v.placa)
+      .filter((placa: string) => placa && typeof placa === 'string')
+      .sort()
+    
+    availablePlacas.value = placas
+    console.log(`✅ [loadAvailablePlacas] Placas cargadas: ${availablePlacas.value.length}`, availablePlacas.value)
+  } catch (error) {
+    console.error('❌ [loadAvailablePlacas] Error loading placas:', error)
+    toast.add({
+      severity: 'warn',
+      summary: 'Advertencia',
+      detail: 'No se pudieron cargar las placas disponibles',
+      life: 3000
+    })
+  } finally {
+    loadingPlacas.value = false
   }
 }
 
@@ -1120,6 +1284,12 @@ watch(() => reportForm.mode, (newMode) => {
   if (newMode === 'detail') {
     reportForm.groupBy = []
     reportForm.aggregations = []
+  }
+})
+
+watch(() => reportForm.dataset, (newDataset) => {
+  if (newDataset) {
+    loadAvailablePlacas()
   }
 })
 
@@ -1372,6 +1542,22 @@ onMounted(() => {
 .field-item.field-selected {
   border-color: #3b82f6;
   background: #eff6ff;
+}
+
+.field-item.field-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.field-item.field-disabled:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.field-item.field-disabled .field-name {
+  color: #9ca3af;
 }
 
 .selected-field-item {

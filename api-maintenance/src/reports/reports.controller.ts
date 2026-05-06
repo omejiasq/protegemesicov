@@ -79,6 +79,46 @@ export class ReportsController {
     }
   }
 
+  /**
+   * Obtiene la definición del dataset de mantenimientos preventivos
+   */
+  @Get('datasets/preventivos')
+  async getPreventiveMaintenanceDataset(): Promise<{ success: boolean; data: DatasetResponseDto }> {
+    try {
+      const dataset = await this.dynamicReportsService.getPreventiveMaintenanceDataset();
+
+      return {
+        success: true,
+        data: dataset
+      };
+    } catch (error) {
+      throw new HttpException(
+        'Error al obtener el dataset de mantenimientos preventivos',
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  /**
+   * Obtiene la definición del dataset de mantenimientos correctivos
+   */
+  @Get('datasets/correctivos')
+  async getCorrectiveMaintenanceDataset(): Promise<{ success: boolean; data: DatasetResponseDto }> {
+    try {
+      const dataset = await this.dynamicReportsService.getCorrectiveMaintenanceDataset();
+
+      return {
+        success: true,
+        data: dataset
+      };
+    } catch (error) {
+      throw new HttpException(
+        'Error al obtener el dataset de mantenimientos correctivos',
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
   // ── Consultas Dinámicas ──────────────────────────────────────────────────────────────────────────────
 
   /**
@@ -103,6 +143,47 @@ export class ReportsController {
     } catch (error) {
       throw new HttpException(
         error.message || 'Error al ejecutar la consulta',
+        HttpStatus.BAD_REQUEST
+      );
+    }
+  }
+
+  /**
+   * Busca placas disponibles para autobúsqueda
+   */
+  @Get('search/placas/:dataset')
+  async searchPlacas(
+    @Param('dataset') dataset: string,
+    @Req() req: any
+  ): Promise<{ success: boolean; data: string[] }> {
+    console.log(`🚗🚗🚗 [searchPlacas] ================== INICIO ==================`);
+    console.log(`🚗 [searchPlacas] Dataset: ${dataset}`);
+    console.log(`🚗 [searchPlacas] Enterprise ID: ${req.user?.enterprise_id}`);
+    
+    try {
+      // Extraer el token del header Authorization
+      const authHeader = req.headers.authorization;
+      const token = authHeader ? authHeader.replace('Bearer ', '') : null;
+      
+      console.log(`🚗 [searchPlacas] Token presente: ${!!token}`);
+      
+      const placas = await this.dynamicReportsService.searchPlacas(
+        dataset,
+        req.user.enterprise_id,
+        token
+      );
+
+      console.log(`✅ [searchPlacas] Retornando ${placas.length} placas`);
+
+      return {
+        success: true,
+        data: placas
+      };
+    } catch (error) {
+      console.error('❌ [searchPlacas] Error en endpoint:', error);
+      console.error('❌ [searchPlacas] Error stack:', error.stack);
+      throw new HttpException(
+        error.message || 'Error al buscar placas',
         HttpStatus.BAD_REQUEST
       );
     }
@@ -145,16 +226,34 @@ export class ReportsController {
       const dataset = availableDatasets.find(d => d.id === queryDto.dataset) ||
                      await this.dynamicReportsService.getAlistamientosDataset();
 
-      // Generar campos para exportación
-      const fields = queryDto.fields.map(fieldKey => {
-        const fieldDef = dataset.fields.find(f => f.key === fieldKey);
-        return {
-          key: fieldKey,
-          label: fieldDef?.label || fieldKey,
-          type: fieldDef?.type || 'string',
-          visible: true
-        };
-      });
+      // Generar campos para exportación (estáticos), excluyendo dispositivo
+      const staticFields = queryDto.fields
+        .filter(fieldKey => fieldKey !== 'dispositivo') // Excluir la columna dispositivo
+        .map(fieldKey => {
+          const fieldDef = dataset.fields.find(f => f.key === fieldKey);
+          return {
+            key: fieldKey,
+            label: fieldDef?.label || fieldKey,
+            type: fieldDef?.type || 'string',
+            visible: true
+          };
+        });
+
+      // Agregar campos dinámicos si existen
+      const dynamicFields = result.dynamicColumns ? result.dynamicColumns.map(col => ({
+        key: col.key,
+        label: col.label,
+        type: col.type || 'string',
+        visible: true
+      })) : [];
+
+      // Combinar campos estáticos y dinámicos
+      const fields = [...staticFields, ...dynamicFields];
+
+      console.log('📊 [exportToExcel] Campos para exportación:');
+      console.log('   - Campos estáticos:', staticFields.length);
+      console.log('   - Campos dinámicos:', dynamicFields.length);
+      console.log('   - Total campos:', fields.length);
 
       // Opciones de exportación
       const exportOptions = {
@@ -162,8 +261,8 @@ export class ReportsController {
         enterprise: enterpriseForExport,
         includeHeader: queryDto.includeHeader ?? true,
         includeLogo: queryDto.includeLogo ?? false,
-        headerColor: queryDto.headerColor || '#2563EB',
-        textColor: queryDto.textColor || '#FFFFFF'
+        headerColor: queryDto.headerColor || '#FFFFFF',
+        textColor: queryDto.textColor || '#000000'
       };
 
       // Generar Excel
@@ -226,16 +325,34 @@ export class ReportsController {
       const dataset = availableDatasets.find(d => d.id === queryDto.dataset) ||
                      await this.dynamicReportsService.getAlistamientosDataset();
 
-      // Generar campos para exportación
-      const fields = queryDto.fields.map(fieldKey => {
-        const fieldDef = dataset.fields.find(f => f.key === fieldKey);
-        return {
-          key: fieldKey,
-          label: fieldDef?.label || fieldKey,
-          type: fieldDef?.type || 'string',
-          visible: true
-        };
-      });
+      // Generar campos para exportación (estáticos), excluyendo dispositivo
+      const staticFields = queryDto.fields
+        .filter(fieldKey => fieldKey !== 'dispositivo') // Excluir la columna dispositivo
+        .map(fieldKey => {
+          const fieldDef = dataset.fields.find(f => f.key === fieldKey);
+          return {
+            key: fieldKey,
+            label: fieldDef?.label || fieldKey,
+            type: fieldDef?.type || 'string',
+            visible: true
+          };
+        });
+
+      // Agregar campos dinámicos si existen
+      const dynamicFields = result.dynamicColumns ? result.dynamicColumns.map(col => ({
+        key: col.key,
+        label: col.label,
+        type: col.type || 'string',
+        visible: true
+      })) : [];
+
+      // Combinar campos estáticos y dinámicos
+      const fields = [...staticFields, ...dynamicFields];
+
+      console.log('📊 [exportToPDF] Campos para exportación:');
+      console.log('   - Campos estáticos:', staticFields.length);
+      console.log('   - Campos dinámicos:', dynamicFields.length);
+      console.log('   - Total campos:', fields.length);
 
       // Opciones de exportación (con fondo blanco y texto negro para PDF)
       const exportOptions = {
@@ -264,6 +381,7 @@ export class ReportsController {
 
       res.send(buffer);
     } catch (error) {
+      console.error('Error en exportToPDF:', error);
       throw new HttpException(
         error.message || 'Error al exportar a PDF',
         HttpStatus.INTERNAL_SERVER_ERROR
@@ -447,11 +565,19 @@ export class ReportsController {
     @Req() req: any
   ) {
     try {
+      console.log('🔧 [executeTemplate] Ejecutando template:', templateId);
       const template = await this.templateService.findById(
         templateId,
         req.user.enterprise_id,
         req.user.sub
       );
+
+      console.log('🔧 [executeTemplate] Template encontrado:', {
+        dataset: template.dataset,
+        fields: template.fields,
+        filters: template.filters?.length || 0,
+        mode: template.mode
+      });
 
       // Convertir la plantilla a un query DTO
       const queryDto: DynamicQueryDto = {
@@ -464,6 +590,8 @@ export class ReportsController {
         limit: template.limit
       };
 
+      console.log('🔧 [executeTemplate] Query DTO preparado:', queryDto);
+
       const result = await this.dynamicReportsService.executeQuery(
         queryDto,
         req.user.enterprise_id
@@ -475,6 +603,8 @@ export class ReportsController {
         message: `Plantilla "${template.name}" ejecutada exitosamente. ${result.totalRecords} registros encontrados.`
       };
     } catch (error) {
+      console.error('❌ [executeTemplate] Error:', error.message);
+      console.error('❌ [executeTemplate] Stack:', error.stack);
       throw new HttpException(
         error.message || 'Error al ejecutar la plantilla',
         HttpStatus.BAD_REQUEST

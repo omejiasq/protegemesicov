@@ -5,10 +5,10 @@
       <div class="header-content">
         <h1 class="page-title">
           <i class="pi pi-chart-line mr-3"></i>
-          Constructor de Reportes
+          PROTEGEME - BI Reports
         </h1>
         <p class="page-description">
-          Gestiona y ejecuta reportes personalizados de alistamientos
+         Construye cualquier reporte de manera simple sin conocimiento técnico
         </p>
       </div>
       <div class="header-actions">

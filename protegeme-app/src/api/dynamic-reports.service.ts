@@ -53,6 +53,12 @@ export interface QueryResult {
   totalRecords: number
   data: any[]
   query: DynamicQuery
+  dynamicColumns?: {
+    key: string
+    label: string
+    type: string
+    isDynamic: boolean
+  }[]
 }
 
 export interface SavedReport {
@@ -153,6 +159,21 @@ export class DynamicReportsApi {
       return response.data
     } catch (error) {
       console.error('Error executing query:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Busca placas disponibles para un dataset
+   */
+  static async searchPlacas(dataset: string): Promise<{ success: boolean; data: string[] }> {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/reports/search/placas/${dataset}`, {
+        headers: this.getAuthHeaders()
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error searching placas:', error)
       throw error
     }
   }

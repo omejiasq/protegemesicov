@@ -33,6 +33,9 @@ class ListQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) numero_items?: number = 10;
   @IsOptional() @Type(() => Number) @IsIn([1, 2, 3, 4]) tipoId?: 1 | 2 | 3 | 4;
   @IsOptional() @IsString() placa?: string;
+  @IsOptional() @IsString() plate?: string; // Alias para placa
+  @IsOptional() @IsString() search?: string;
+  @IsOptional() @IsString() enterprise_id?: string;
   @IsOptional() estado?: boolean;
 }
 
@@ -65,6 +68,10 @@ export class MaintenanceController {
   // Listado local (como lo tenías)
   @Get('getAll')
   list(@Query() q: ListQueryDto, @Req() req: any) {
+    // Manejar alias 'plate' -> 'placa'
+    if (q.plate && !q.placa) {
+      q.placa = q.plate;
+    }
     return this.svc.list(q, req.user);
   }
 

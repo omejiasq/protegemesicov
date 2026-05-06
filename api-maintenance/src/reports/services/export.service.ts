@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
-import * as PDFDocument from 'pdfkit';
+import PDFDocument from 'pdfkit';
 
 export interface ExportOptions {
   title?: string;
@@ -44,8 +44,8 @@ export class ExportService {
       worksheet.getCell(`${startCol}4`).value = `Generado el: ${new Date().toLocaleDateString('es-CO')}`;
 
       // Estilo del header
-      const headerColor = options.headerColor || '#2563EB';
-      const textColor = options.textColor || '#FFFFFF';
+      const headerColor = options.headerColor || '#FFFFFF';
+      const textColor = options.textColor || '#000000';
 
       for (let i = 1; i <= 4; i++) {
         const cell = worksheet.getCell(`${startCol}${i}`);
@@ -73,11 +73,11 @@ export class ExportService {
 
     // Estilo de headers de columna
     headerRow.eachCell((cell, colNumber) => {
-      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.font = { bold: true, color: { argb: 'FF000000' } };
       cell.fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FF366092' }
+        fgColor: { argb: 'FFFFFFFF' }
       };
       cell.border = {
         top: { style: 'thin' },
@@ -178,18 +178,49 @@ export class ExportService {
   async generatePDF(data: any[], fields: any[], options: ExportOptions = {}): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       try {
+        console.log('🔧 [generatePDF] Iniciando generación de PDF');
+        console.log('🔧 [generatePDF] Data length:', data?.length || 0);
+        console.log('🔧 [generatePDF] Fields length:', fields?.length || 0);
+
+        // Validar inputs
+        if (!Array.isArray(data)) {
+          const error = new Error('Los datos deben ser un array');
+          console.error('❌ [generatePDF] Error:', error.message);
+          throw error;
+        }
+        if (!Array.isArray(fields)) {
+          const error = new Error('Los campos deben ser un array');
+          console.error('❌ [generatePDF] Error:', error.message);
+          throw error;
+        }
+
+        console.log('🔧 [generatePDF] Creando documento PDF');
         const doc = new PDFDocument({ margin: 50 });
         const buffers: Buffer[] = [];
 
-        doc.on('data', (chunk: Buffer) => buffers.push(chunk));
-        doc.on('end', () => resolve(Buffer.concat(buffers)));
+        doc.on('data', (chunk: Buffer) => {
+          buffers.push(chunk);
+        });
+
+        doc.on('end', () => {
+          console.log('✅ [generatePDF] PDF generado exitosamente');
+          resolve(Buffer.concat(buffers));
+        });
+
+        doc.on('error', (error) => {
+          console.error('❌ [generatePDF] Error en documento PDF:', error);
+          reject(error);
+        });
 
         let yPosition = 50;
 
         // Header empresarial
+        console.log('🔧 [generatePDF] Procesando header empresarial');
         if (options.includeHeader && options.enterprise) {
-          // Establecer color del texto basado en las opciones
-          const textColor = options.textColor || '#000000';
+          console.log('🔧 [generatePDF] Incluyendo header con empresa:', options.enterprise.nombre);
+          // Establecer color del texto basado en las opciones (validar formato)
+          const textColor = this.validateHexColor(options.textColor) || '#000000';
+          console.log('🔧 [generatePDF] Color de texto validado:', textColor);
           doc.fillColor(textColor);
 
           doc.fontSize(20).text(options.enterprise.nombre || 'Empresa', 50, yPosition);
@@ -206,12 +237,24 @@ export class ExportService {
         }
 
         // Tabla de datos
-        const visibleFields = fields.filter(field => field.visible !== false);
-        const pageWidth = doc.page.width - 100; // Margen izq y der
-        const colWidth = pageWidth / visibleFields.length;
+        console.log('🔧 [generatePDF] Procesando campos de la tabla');
+        console.log('🔧 [generatePDF] Campos recibidos:', fields.map(f => ({ key: f?.key, label: f?.label, visible: f?.visible })));
 
-        // Headers (asegurar color del texto)
-        const textColor = options.textColor || '#000000';
+        const visibleFields = fields.filter(field => field && field.visible !== false);
+        console.log('🔧 [generatePDF] Campos visibles:', visibleFields.length);
+
+        if (visibleFields.length === 0) {
+          const error = new Error('No hay campos visibles para mostrar en el PDF');
+          console.error('❌ [generatePDF] Error:', error.message);
+          throw error;
+        }
+
+        const pageWidth = doc.page.width - 100; // Margen izq y der
+        const colWidth = Math.max(pageWidth / visibleFields.length, 50); // Ancho mínimo por columna
+        console.log('🔧 [generatePDF] Ancho de página:', pageWidth, 'Ancho por columna:', colWidth);
+
+        // Headers (asegurar color del texto - validar formato)
+        const textColor = this.validateHexColor(options.textColor) || '#000000';
         doc.fillColor(textColor);
 
         let xPosition = 50;
@@ -225,8 +268,8 @@ export class ExportService {
 
         yPosition += 20;
 
-        // Línea separadora (usar color del texto para la línea)
-        const lineColor = options.textColor || '#000000';
+        // Línea separadora (usar color del texto para la línea - validar formato)
+        const lineColor = this.validateHexColor(options.textColor) || '#000000';
         doc.strokeColor(lineColor)
            .lineWidth(1)
            .moveTo(50, yPosition)
@@ -268,9 +311,11 @@ export class ExportService {
           );
         }
 
+        console.log('🔧 [generatePDF] Finalizando documento PDF');
         doc.end();
       } catch (error) {
-        reject(error);
+        console.error('❌ [generatePDF] Error generando PDF:', error);
+        reject(new Error(`Error al generar PDF: ${error.message || 'Error desconocido'}`));
       }
     });
   }
@@ -334,5 +379,24 @@ export class ExportService {
         }
         return String(value);
     }
+  }
+
+  /**
+   * Valida que un color sea un código hexadecimal válido
+   */
+  private validateHexColor(color?: string): string | null {
+    if (!color) return null;
+
+    // Remover el # si está presente
+    const cleanColor = color.replace('#', '');
+
+    // Verificar que sea un código hex válido de 3 o 6 caracteres
+    const hexRegex = /^[0-9A-Fa-f]{3}$|^[0-9A-Fa-f]{6}$/;
+
+    if (hexRegex.test(cleanColor)) {
+      return '#' + cleanColor;
+    }
+
+    return null;
   }
 }

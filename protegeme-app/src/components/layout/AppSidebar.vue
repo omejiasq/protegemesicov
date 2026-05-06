@@ -219,6 +219,18 @@
             </ul>
           </li>
 
+          <!-- ═══════════════ CONSTRUCTOR DE REPORTES ═══════════════ -->
+          <li>
+            <router-link
+              to="/reports"
+              class="layout-menuitem-link"
+              :class="{ 'active-menuitem': $route.path.includes('/reports') }"
+            >
+              <i class="pi pi-chart-bar layout-menuitem-icon"></i>
+              <span class="layout-menuitem-text">BI Reports</span>
+            </router-link>
+          </li>
+
           <!-- ═══════════════ PESV ═══════════════ -->
           <li class="layout-menuitem-category" v-if="esEspecialOMixto && can('web_pesv')">
             <button class="layout-menuitem-group-btn" @click="pesvOpen = !pesvOpen">

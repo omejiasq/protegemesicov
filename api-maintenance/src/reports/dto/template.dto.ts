@@ -9,7 +9,7 @@ export class CreateTemplateDto {
   description?: string;
 
   @IsString()
-  @IsIn(['alistamientos', 'preventive_details'])
+  @IsIn(['alistamientos', 'preventive_details', 'corrective_details'])
   dataset: string;
 
   @IsArray()

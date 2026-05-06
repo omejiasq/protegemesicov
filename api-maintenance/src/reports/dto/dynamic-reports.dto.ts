@@ -28,7 +28,7 @@ export class AggregationDto {
 
 export class DynamicQueryDto {
   @IsString()
-  @IsIn(['alistamientos', 'preventive_details'])
+  @IsIn(['alistamientos', 'preventive_details', 'corrective_details'])
   dataset: string;
 
   @IsArray()
@@ -109,4 +109,10 @@ export class QueryResultDto {
   totalRecords: number;
   data: any[];
   query: DynamicQueryDto;
+  dynamicColumns?: {
+    key: string;
+    label: string;
+    type: string;
+    isDynamic: boolean;
+  }[];
 }

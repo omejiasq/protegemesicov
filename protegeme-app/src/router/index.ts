@@ -306,6 +306,35 @@ const routes: RouteRecordRaw[] = [
         component: () => import('../views/maintenance/DocumentAlerts.vue'),
       },
 
+      // ─── CONSTRUCTOR DE REPORTES (DISPONIBLE PARA TODAS LAS EMPRESAS) ───
+      {
+        path: 'reports',
+        name: 'reports',
+        component: () => import('../views/reports/ReportsManager.vue'),
+      },
+      {
+        path: 'reports/create',
+        name: 'reports-create',
+        component: () => import('../views/reports/CreateReport.vue'),
+      },
+      {
+        path: 'reports/view/:id',
+        name: 'reports-view',
+        component: () => import('../views/reports/ViewReport.vue'),
+        props: true,
+      },
+      {
+        path: 'reports/edit/:id',
+        name: 'reports-edit',
+        component: () => import('../views/reports/EditReport.vue'),
+        props: true,
+      },
+      {
+        path: 'reports/results',
+        name: 'reports-results',
+        component: () => import('../views/reports/ResultsReport.vue'),
+      },
+
       // ─── INTEGRACIÓN DE DATOS ───
       {
         path: 'enterprise/data-sync',
